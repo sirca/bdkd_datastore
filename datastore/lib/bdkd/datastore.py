@@ -4,7 +4,7 @@ import boto.s3.connection
 import hashlib
 import json
 import logging
-import os, stat, time
+import os, stat, sys, time
 import shutil
 import urlparse
 import yaml
@@ -262,8 +262,9 @@ class Resource(Asset):
             if isinstance(o, Resource):
                 resource = dict(name=o.name, **o.metadata)
                 file_data = []
-                for rfile in o.files:
-                    file_data.append(rfile.metadata)
+                if o.files:
+                    for resource_file in o.files:
+                        file_data.append(resource_file.metadata)
                 resource['files'] = file_data
                 return resource
             else:
