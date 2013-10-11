@@ -20,7 +20,7 @@ class RepositoryTest(unittest.TestCase):
         # Start with the test bucket empty
         for key in self.repository.bucket.list():
             key.delete()
-        self._clear_local_cache()
+        self._clear_local()
 
     def test_single_file_resource(self):
         resource = self.resources.get('single')
@@ -50,7 +50,7 @@ class RepositoryTest(unittest.TestCase):
         resource = self.resources.get('single')
         self.repository.save(resource)
         # Clear the local cache, refresh the resource and see if the cache is restored
-        self._clear_local_cache()
+        self._clear_local()
         self._check_file_count(self.repository.local_cache, 0)
         self.repository.refresh_resource(resource)
         self._check_file_count(self.repository.local_cache, 2)
@@ -77,11 +77,28 @@ class RepositoryTest(unittest.TestCase):
         resource_names = self.repository.list('foo/bar')
         self.assertEquals(len(resource_names), 0)
 
-    def _clear_local_cache(self):
-        # Remove all locally cached files
-        if self.repository.local_cache.startswith('/var/tmp/cache'):
-            if os.path.exists(self.repository.local_cache):
-                shutil.rmtree(self.repository.local_cache)
+    def test_edit_resource(self):
+        resource = self.resources.get('single')
+        self.repository.save(resource)
+        # After saving, the Resource should not be in editing mode.
+        self.assertFalse(resource.is_edit)
+        # The Resource path should be a file in the cache directory that is not writable.
+        self.assertTrue(resource.path.startswith(self.repository.local_cache))
+        self.assertFalse(os.access(resource.path, os.W_OK))
+        self._check_file_count(self.repository.working, 0)
+        # Now set resource to editing mode
+        self.repository.edit_resource(resource)
+        self.assertTrue(resource.is_edit)
+        # There should be a writable file in the repository's working path
+        self.assertTrue(resource.path.startswith(self.repository.working))
+        self.assertTrue(os.access(resource.path, os.W_OK))
+        self._check_file_count(self.repository.working, 2)
+
+    def _clear_local(self):
+        for tmp_path in [ self.repository.local_cache, self.repository.working ]:
+            if tmp_path and tmp_path.startswith('/var/tmp'):
+                if os.path.exists(tmp_path):
+                    shutil.rmtree(tmp_path)
 
     def _check_file_count(self, dir_path, expected):
         file_count = 0
