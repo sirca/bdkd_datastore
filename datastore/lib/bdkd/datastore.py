@@ -6,7 +6,7 @@ import json
 import logging
 import os, stat, sys, time
 import shutil
-import urlparse
+import urlparse, urllib2
 import yaml
 
 _config_global_file = '/etc/bdkd/datastore.conf'
@@ -31,7 +31,6 @@ def mkdir_p(dest_dir):
     except OSError, e:
         if e.errno != 17:
             raise
-        pass
 
 class Host(object):
     def __init__(   self, access_key, secret_key, 
@@ -74,26 +73,37 @@ class Repository(object):
         self.stale_time = stale_time
 
     def __resource_name_key(self, name):
+        # For the given Resource name, return the S3 key string
         return os.path.join(type(self).resources_prefix, name)
 
     def __resource_name_cache_path(self, name):
+        # For the given Resource name, return the path that would be used for a 
+        # local cache file
         return os.path.join(self.local_cache, type(self).resources_prefix, name)
 
     def __resource_name_working_path(self, name):
+        # For the given Resource name, return the working path to which that 
+        # Resource would be copied if it were edited.
         return os.path.join(self.working, str(os.getpid()), 
                 type(self).resources_prefix, name)
 
     def __file_keyname(self, resource_file):
+        # For the given ResourceFile, return the S3 key string
         return resource_file.location()
 
     def __file_cache_path(self, resource_file):
-        return os.path.join(self.local_cache, resource_file.location_or_remote())
+        # For the given ResourceFile, return the path that would be used for a 
+        # local cache file
+        return os.path.expanduser(os.path.join(self.local_cache, resource_file.location_or_remote()))
 
     def __file_working_path(self, resource_file):
         return os.path.join(self.working, str(os.getpid()), 
                 type(self).files_prefix, resource_file.location_or_remote())
 
     def __download(self, key_name, dest_path):
+        # Ensure that a file on the local system is up-to-date with respect to 
+        # an object in the S3 repository, downloading it if required.  Returns 
+        # True if the remote object was downloaded.
         if not self.bucket:
             return False
         local_exists = os.path.exists(dest_path)
@@ -121,6 +131,9 @@ class Repository(object):
             return False
 
     def __upload(self, key_name, src_path):
+        # Ensure that an object in the S3 repository is up-to-date with respect 
+        # to a file on the local system, uploading it if required.  Returns 
+        # True if the local file was uploaded.
         do_upload = True
         file_key = self.bucket.get_key(key_name)
         if file_key:
@@ -136,9 +149,49 @@ class Repository(object):
             file_key.set_contents_from_filename(src_path)
         return do_upload
 
-    def __refresh_remote(self, url, cache_path):
-        # TODO: implement refresh remote resource based on "last modified" header
-        pass
+    def __delete(self, key_name):
+        # Delete the object identified by the key name from the S3 repository
+        if self.bucket:
+            key = boto.s3.key.Key(self.bucket, key_name)
+            self.bucket.delete_key(key)
+
+    def __refresh_remote(self, url, local_path, etag=None, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
+        remote = urllib2.urlopen(urllib2.Request(url))
+        if remote.info().has_key('etag'):
+            if remote.info().getheader('etag') == etag:
+                return False
+        if remote.info().has_key('last-modified')and os.path.exists(local_path):
+            local_mtime = os.stat(local_path).st_mtime
+            last_modified = time.mktime(time.strptime(
+                remote.info().getheader('last-modified'), 
+                '%a, %d %b %Y %H:%M:%S %Z'))
+            if last_modified < local_mtime:
+                return False
+        # Need to download file
+        if os.path.exists(local_path):
+            os.remove(local_path)
+        mkdir_p(os.path.dirname(local_path))
+        with open(local_path, 'w') as fh:
+            shutil.copyfileobj(remote, fh)
+        remote.close()
+        os.chmod(local_path, mod)
+        return True
+
+    def __delete_resource_file(self, resource_file):
+        key_name = self.__file_keyname(resource_file)
+        if self.bucket and key_name:
+            self.__delete(key_name)
+        if os.path.exists(resource_file.path):
+            os.remove(resource_file.path)
+
+    def __delete_resource(self, resource):
+        for resource_file in resource.files:
+            self.__delete_resource_file(resource_file)
+        key_name = self.__resource_name_key(resource.name)
+        if self.bucket and key_name:
+            self.__delete(key_name)
+        if os.path.exists(resource.path):
+            os.remove(resource.path)
 
     def _refresh_resource_file(self, resource_file):
         cache_path = self.__file_cache_path(resource_file)
@@ -151,7 +204,7 @@ class Repository(object):
                 else:
                     logger.debug("Not refreshing resource file %s to %s", location, cache_path)
             else:
-                self.__refresh_remote(resource_file.remote(), cache_path)
+                self.__refresh_remote(resource_file.remote(), cache_path, resource_file.meta('ETag'))
             resource_file.path = cache_path
         return cache_path
 
@@ -180,6 +233,21 @@ class Repository(object):
         resource_file.is_edit = False
         
     def edit_resource(self, resource):
+        """
+        Copy a Resource to the working area of the Repository and make it 
+        read/write.
+
+        The Resource is refreshed first, to ensure that its files in the cache 
+        are current, then it is copied to the Repository's working area so that 
+        it can be edited independently of other processes.  After editing 
+        save() may be called to write the modified Resource back to the 
+        repository.
+
+        Note that no locking mechanism is provided here: it is possible for two 
+        independent processes to edit the same Resource and for stale data to 
+        be saved back to the Repository.  In contexts where synchronous edits 
+        are required that process should be managed by some other means.
+        """
         self.refresh_resource(resource)
         for resource_file in resource.files:
             file_working_path = self.__file_working_path(resource_file)
@@ -192,6 +260,9 @@ class Repository(object):
         resource.is_edit = True
 
     def save(self, resource):
+        """
+        Save a Resource that is either new or being edited to the Repository.
+        """
         if not resource.is_edit:
             raise ValueError("Resource is not currently being edited")
 
@@ -213,6 +284,9 @@ class Repository(object):
     def list(self, prefix=''):
         """
         List all Resource names available in the Repository.
+
+        If 'prefix' is provided then a subset of resources with that leading 
+        path will be returned.
         """
         resource_names = []
         resources_prefix = type(self).resources_prefix
@@ -227,7 +301,8 @@ class Repository(object):
         """
         Acquire a Resource by name.
 
-        Returns the named resource, or None if no such resource exists in the Repository.
+        Returns the named resource, or None if no such resource exists in the 
+        Repository.
         """
         keyname = self.__resource_name_key(name)
         cache_path = self.__resource_name_cache_path(name)
@@ -239,11 +314,27 @@ class Repository(object):
         else:
             return None
 
+    def delete(self, resource_or_name):
+        """
+        Delete a Resource -- either directly or by name.
+        """
+        resource = None
+        if isinstance(resource_or_name, Resource):
+            resource = resource_or_name
+            self.refresh_resource(resource)
+        else:
+            resource = self.get(resource_or_name)
+            if not resource:
+                return
+        self.__delete_resource(resource)
+        resource.repository = None
+
 
 class Asset(object):
     def __init__(self):
         self.path = None
         self.is_edit = False
+        self.metadata = None
 
     def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
         if self.path:
@@ -254,6 +345,12 @@ class Asset(object):
             shutil.copy2(self.path, dest_path)
             os.chmod(dest_path, mod)
             self.path = dest_path
+    
+    def meta(self, keyname):
+        if self.metadata:
+            return self.metadata.get(keyname, None)
+        else:
+            return None
 
 
 class Resource(Asset):
@@ -318,6 +415,11 @@ class Resource(Asset):
                         path = file_data
                 if remote:
                     meta['remote'] = remote
+                    remote_url = urllib2.urlopen(urllib2.Request(remote))
+                    keyset = set(k.lower() for k in meta)
+                    for header_name in [ 'etag', 'last-modified', 'content-length', 'content-type' ]:
+                        if not header_name in keyset and remote_url.info().has_key(header_name):
+                            meta[header_name] = remote_url.info().getheader(header_name)
                 else:
                     meta['location'] = os.path.join(Repository.files_prefix, name, os.path.basename(path))
                     if path:
@@ -385,7 +487,7 @@ class Resource(Asset):
         relatively up-to-date.)
         """
         if self.repository and not self.is_edit:
-            self = self.repository.refresh_resource(self, True)
+            self.repository.refresh_resource(self, True)
         paths = []
         for resource_file in self.files:
             paths.append(resource_file.path)
@@ -413,12 +515,10 @@ class ResourceFile(Asset):
         return self.path
 
     def location(self):
-        if self.metadata:
-            return self.metadata.get('location', None)
+        return self.meta('location')
 
     def remote(self):
-        if self.metadata:
-            return self.metadata.get('remote', None)
+        return self.meta('remote')
 
     def location_or_remote(self):
         return self.location() or self.remote()

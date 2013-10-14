@@ -46,6 +46,15 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 6)
         self._check_file_count(self.repository.local_cache, 6)
 
+    def test_remote_resource(self):
+        resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
+                'http://www.gps.caltech.edu/~gurnis/GPlates/Caltech_Global_20101129.tar.gz')
+        self.assertTrue(resource.files[0].meta('etag'))
+        self.repository.save(resource)
+        paths = resource.local_paths()
+        self.assertEquals(len(paths), 1)
+        self.assertEquals(bdkd.datastore.checksum(paths[0]), '412f9bfd1fc6c6ba1b5fc8bc450fef61')
+
     def test_refresh_cache(self):
         resource = self.resources.get('single')
         self.repository.save(resource)
@@ -94,6 +103,18 @@ class RepositoryTest(unittest.TestCase):
         self.assertTrue(os.access(resource.path, os.W_OK))
         self._check_file_count(self.repository.working, 2)
 
+    def test_delete_resource(self):
+        resource = self.resources.get('single')
+        self.repository.save(resource)
+        # Before delete: two files
+        self._check_bucket_count('', 2)
+        self._check_file_count(self.repository.local_cache, 2)
+
+        self.repository.delete(resource)
+        # After delete: no files
+        self._check_bucket_count('', 0)
+        self._check_file_count(self.repository.local_cache, 0)
+
     def _clear_local(self):
         for tmp_path in [ self.repository.local_cache, self.repository.working ]:
             if tmp_path and tmp_path.startswith('/var/tmp'):
@@ -134,4 +155,3 @@ class RepositoryTest(unittest.TestCase):
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Shapefile/Seton',
                 files)
         return resource
-

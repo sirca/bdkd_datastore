@@ -1,6 +1,7 @@
 import unittest
 import os, shutil
 
+# Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(os.path.dirname(__file__), '..', 'conf', 'test.conf')
 import bdkd.datastore
 
@@ -105,6 +106,13 @@ class RepositoryTest(unittest.TestCase):
         self.repository.refresh_resource(self.resource)
         self.assertTrue(self.resource)
 
+    def test_delete_resource(self):
+        self.assertEquals(self.repository.get(self.resource_name), None)
+        self.repository.save(self.resource)
+        self.assertEquals(self.resource.repository, self.repository)
+        self.repository.delete(self.resource)
+        self.assertFalse(self.resource.repository)
+
 
 class ResourceTest(unittest.TestCase):
 
@@ -123,12 +131,56 @@ class ResourceTest(unittest.TestCase):
         self.assertEquals(resource.name, 'test-resource')
         self.assertEquals(len(resource.files), 0)
 
-    def test_resource_write(self):
+    def test_resource_new(self):
+        self.assertTrue(self.resource)
+
+    def test_resource_load(self):
+        resource = bdkd.datastore.Resource.load(os.path.join(FIXTURES, 'resource.json'))
+        self.assertTrue(resource)
+
+    def test_reload(self):
+        self.resource.reload(os.path.join(FIXTURES, 'resource.json'))
+        self.assertTrue(self.resource)
+
+    def test_write(self):
         out_filename = os.path.join(self.repository.working, 'test-resource.json')
         fixture_filename = os.path.join(FIXTURES, 'resource.json')
         self.resource.write(out_filename)
-        self.assertEquals(bdkd.datastore.checksum(out_filename), bdkd.datastore.checksum(fixture_filename))
+        self.assertEquals(bdkd.datastore.checksum(out_filename), 
+                bdkd.datastore.checksum(fixture_filename))
+
+    def test_local_paths(self):
+        local_paths = self.resource.local_paths()
+        self.assertEquals(len(local_paths), 1)
+
 
 class ResourceFileTest(unittest.TestCase):
-    pass
 
+    def setUp(self):
+        self.repository = RepositoryTest.fixture()
+        self.resource = ResourceTest.fixture()
+        self.resource_file = self.resource.files[0]
+        self.url = 'http://www.gps.caltech.edu/~gurnis/GPlates/Caltech_Global_20101129.tar.gz'
+        self.remote_resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
+                self.url)
+
+    def test_init(self):
+        resource_file = bdkd.datastore.ResourceFile(None, self.resource)
+        self.assertTrue(resource_file)
+
+    def test_local_path(self):
+        self.assertEquals(self.resource_file.local_path(),
+                os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
+                'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'))
+
+    def test_location(self):
+        self.assertEquals(self.resource_file.location(),
+                self.resource_file.metadata['location'])
+
+    def test_remote(self):
+        self.assertEquals(self.remote_resource.files[0].remote(), self.url)
+        self.assertFalse(self.remote_resource.files[0].location())
+
+    def test_location_or_remote(self):
+        self.assertTrue(self.resource.files[0].location_or_remote())
+        self.assertTrue(self.remote_resource.files[0].location_or_remote())
