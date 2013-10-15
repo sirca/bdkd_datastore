@@ -10,7 +10,7 @@ class RepositoryTest(unittest.TestCase):
         super(self.__class__, self).__init__(*args, **kwargs)
         self.repository = bdkd.datastore.repository("bdkd-datastore-test")
         self.assertTrue(self.repository)
-        self.assertTrue(self.repository.bucket)
+        self.assertTrue(self.repository.get_bucket())
         self.resources = dict(
                 single=self._create_single_file_fixture(),
                 shapefile=self._create_shapefile_fixture(),
@@ -18,7 +18,7 @@ class RepositoryTest(unittest.TestCase):
 
     def setUp(self):
         # Start with the test bucket empty
-        for key in self.repository.bucket.list():
+        for key in self.repository.get_bucket().list():
             key.delete()
         self._clear_local()
 
@@ -130,7 +130,7 @@ class RepositoryTest(unittest.TestCase):
     def _check_bucket_count(self, pseudopath, expected):
         # Check that S3 repository has two keys in it
         key_count = 0
-        for key in self.repository.bucket.list(pseudopath):
+        for key in self.repository.get_bucket().list(pseudopath):
             key_count += 1
         self.assertTrue(key_count == expected)
 
@@ -155,3 +155,7 @@ class RepositoryTest(unittest.TestCase):
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Shapefile/Seton',
                 files)
         return resource
+
+if __name__ == '__main__':
+    unittest.main()
+

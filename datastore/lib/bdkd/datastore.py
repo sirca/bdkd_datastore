@@ -32,6 +32,10 @@ def mkdir_p(dest_dir):
         if e.errno != 17:
             raise
 
+def touch(fname, times=None):
+    with file(fname, 'a'):
+        os.utime(fname, times)
+
 class Host(object):
     def __init__(   self, access_key, secret_key, 
                     host='s3.amazonaws.com', port=None, 
@@ -62,15 +66,17 @@ class Repository(object):
             self.working = working_path
         else:
             self.working = os.path.join(settings()['working_root'], name)
-        if host:
-            try:
-                self.bucket = host.connection.get_bucket(name)
-            except: #I want to narrow this down, but the docs are not clear on what can be raised...
-                print >>sys.stderr, 'Error accessing repository "{0}"'.format(name)
-                raise
-        else:
-            self.bucket = None
+        self.bucket = None
         self.stale_time = stale_time
+
+    def get_bucket(self):
+        if self.host and not self.bucket:
+            try:
+                self.bucket = self.host.connection.get_bucket(self.name)
+            except: #I want to narrow this down, but the docs are not clear on what can be raised...
+                print >>sys.stderr, 'Error accessing repository "{0}"'.format(self.name)
+                raise
+        return self.bucket
 
     def __resource_name_key(self, name):
         # For the given Resource name, return the S3 key string
@@ -104,28 +110,30 @@ class Repository(object):
         # Ensure that a file on the local system is up-to-date with respect to 
         # an object in the S3 repository, downloading it if required.  Returns 
         # True if the remote object was downloaded.
-        if not self.bucket:
+        bucket = self.get_bucket()
+        if not bucket:
             return False
         local_exists = os.path.exists(dest_path)
         if local_exists and self.stale_time and (time.time() - os.stat(dest_path)[stat.ST_MTIME]) < self.stale_time:
             logger.debug("Not refreshing %s: not stale", dest_path)
             return False
-        key = self.bucket.get_key(key_name)
+        key = bucket.get_key(key_name)
         if key:
             logger.debug("Key %s exists", key_name)
             if local_exists:
                 if key.etag.strip('"') == checksum(dest_path):
                     logger.debug("Checksum match -- no need to refresh")
+                    touch(dest_path)
                     return False
                 else:
                     logger.debug("Removing destination file %s before overwriting", dest_path)
                     os.remove(dest_path)
             else:
                 mkdir_p(os.path.dirname(dest_path))
-                with open(dest_path, 'w') as fh:
-                    logger.debug("Retrieving repository data to %s", dest_path)
-                    key.get_contents_to_file(fh)
-                return True
+            with open(dest_path, 'w') as fh:
+                logger.debug("Retrieving repository data to %s", dest_path)
+                key.get_contents_to_file(fh)
+            return True
         else:
             logger.debug("Key %s does not exist in repository, not refreshing", key_name)
             return False
@@ -134,8 +142,11 @@ class Repository(object):
         # Ensure that an object in the S3 repository is up-to-date with respect 
         # to a file on the local system, uploading it if required.  Returns 
         # True if the local file was uploaded.
+        bucket = self.get_bucket()
+        if not bucket:
+            return False
         do_upload = True
-        file_key = self.bucket.get_key(key_name)
+        file_key = bucket.get_key(key_name)
         if file_key:
             logger.debug("Existing key %s", key_name)
             if file_key.etag.strip('"') == checksum(src_path):
@@ -143,7 +154,7 @@ class Repository(object):
                 do_upload = False
         else:
             logger.debug("New key %s", key_name)
-            file_key = boto.s3.key.Key(self.bucket, key_name)
+            file_key = boto.s3.key.Key(bucket, key_name)
         if do_upload:
             logger.debug("Uploading to %s from %s", key_name, src_path)
             file_key.set_contents_from_filename(src_path)
@@ -151,9 +162,10 @@ class Repository(object):
 
     def __delete(self, key_name):
         # Delete the object identified by the key name from the S3 repository
-        if self.bucket:
-            key = boto.s3.key.Key(self.bucket, key_name)
-            self.bucket.delete_key(key)
+        bucket = self.get_bucket()
+        if bucket:
+            key = boto.s3.key.Key(bucket, key_name)
+            bucket.delete_key(key)
 
     def __refresh_remote(self, url, local_path, etag=None, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
         remote = urllib2.urlopen(urllib2.Request(url))
@@ -179,7 +191,8 @@ class Repository(object):
 
     def __delete_resource_file(self, resource_file):
         key_name = self.__file_keyname(resource_file)
-        if self.bucket and key_name:
+        bucket = self.get_bucket()
+        if bucket and key_name:
             self.__delete(key_name)
         if os.path.exists(resource_file.path):
             os.remove(resource_file.path)
@@ -188,7 +201,8 @@ class Repository(object):
         for resource_file in resource.files:
             self.__delete_resource_file(resource_file)
         key_name = self.__resource_name_key(resource.name)
-        if self.bucket and key_name:
+        bucket = self.get_bucket()
+        if bucket and key_name:
             self.__delete(key_name)
         if os.path.exists(resource.path):
             os.remove(resource.path)
@@ -196,7 +210,8 @@ class Repository(object):
     def _refresh_resource_file(self, resource_file):
         cache_path = self.__file_cache_path(resource_file)
         logger.debug("Cache path for resource file is %s", cache_path)
-        if self.bucket:
+        bucket = self.get_bucket()
+        if bucket:
             location = resource_file.location()
             if location:
                 if self.__download(location, cache_path):
@@ -209,7 +224,8 @@ class Repository(object):
         return cache_path
 
     def refresh_resource(self, resource, refresh_all=False):
-        if not self.bucket:
+        bucket = self.get_bucket()
+        if not bucket:
             return
         cache_path = self.__resource_name_cache_path(resource.name)
         resource_key = self.__resource_name_key(resource.name)
@@ -227,7 +243,8 @@ class Repository(object):
         if resource_file.path and os.path.exists(resource_file.path) and resource_file.location():
             if resource_file.path != file_cache_path:
                 resource_file.relocate(file_cache_path)
-            if self.bucket:
+            bucket = self.get_bucket()
+            if bucket:
                 file_keyname = self.__file_keyname(resource_file)
                 self.__upload(file_keyname, file_cache_path)
         resource_file.is_edit = False
@@ -271,10 +288,11 @@ class Repository(object):
 
         resource_cache_path = self.__resource_name_cache_path(resource.name)
         resource.write(resource_cache_path)
-        if self.bucket:
+        bucket = self.get_bucket()
+        if bucket:
             resource_keyname = self.__resource_name_key(resource.name)
             logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
-            resource_key = boto.s3.key.Key(self.bucket, resource_keyname)
+            resource_key = boto.s3.key.Key(bucket, resource_keyname)
             resource_key.set_contents_from_filename(resource_cache_path)
         if resource.repository != self:
             logger.debug("Setting the repository for the resource")
@@ -292,8 +310,9 @@ class Repository(object):
         resources_prefix = type(self).resources_prefix
         if prefix:
             resources_prefix = os.path.join(resources_prefix, prefix)
-        if self.bucket:
-            for key in self.bucket.list(resources_prefix):
+        bucket = self.get_bucket()
+        if bucket:
+            for key in bucket.list(resources_prefix):
                 resource_names.append(key.name[(len(type(self).resources_prefix) + 1):])
         return resource_names
 
@@ -558,21 +577,19 @@ def __load_config():
             # Update repositories
             if 'repositories' in config and config['repositories']:
                 for repo_name, repo_config in config['repositories'].iteritems():
-                    cache_path = None
-                    if 'cache_path' in repo_config:
-                        if repo_config['cache_path'][0] == '~':
-                            cache_path = os.path.expanduser(repo_config['cache_path'])
-                        elif not repo_config['cache_path'][0] == '/':
-                            cache_path = os.path.join(_settings['cache_root'], repo_config['cache_path'])
-                        else:
-                            cache_path = repo_config['cache_path']
                     if 'host' in repo_config:
                         host = _hosts[repo_config['host']]
                     else:
                         host = None
-                    repo = Repository(host, repo_name, cache_path)
+                    cache_path = os.path.expanduser(
+                            repo_config.get('cache_path', 
+                                os.path.join(_settings['cache_root'], repo_name)))
+                    working_path = os.path.expanduser(
+                            repo_config.get('working_path', 
+                                os.path.join(_settings['working_root'], repo_name)))
+                    stale_time = repo_config.get('stale_time', 60)
+                    repo = Repository(host, repo_name, cache_path, working_path, stale_time)
                     _repositories[repo_name] = repo
-
 
 def settings():
     global _settings
