@@ -15,8 +15,7 @@ _settings = None
 _hosts = None
 _repositories = None
 
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def checksum(local_path):
     result = None
@@ -123,7 +122,16 @@ class Repository(object):
             if local_exists:
                 if key.etag.strip('"') == checksum(dest_path):
                     logger.debug("Checksum match -- no need to refresh")
-                    touch(dest_path)
+                    try:
+                        touch(dest_path)
+                    except IOError, e:
+                        if e.errno != 13:
+                            raise
+                        else:
+                            mode = os.stat(dest_path).st_mode
+                            os.chmod(dest_path, stat.S_IRWXU|stat.S_IRWXG)
+                            touch(dest_path)
+                            os.chmod(dest_path, mode)
                     return False
                 else:
                     logger.debug("Removing destination file %s before overwriting", dest_path)
@@ -194,8 +202,9 @@ class Repository(object):
         bucket = self.get_bucket()
         if bucket and key_name:
             self.__delete(key_name)
-        if os.path.exists(resource_file.path):
-            os.remove(resource_file.path)
+        cache_path = self.__file_cache_path(resource_file)
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
 
     def __delete_resource(self, resource):
         for resource_file in resource.files:
@@ -204,8 +213,9 @@ class Repository(object):
         bucket = self.get_bucket()
         if bucket and key_name:
             self.__delete(key_name)
-        if os.path.exists(resource.path):
-            os.remove(resource.path)
+        cache_path = self.__resource_name_cache_path(resource.name)
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
 
     def _refresh_resource_file(self, resource_file):
         cache_path = self.__file_cache_path(resource_file)
@@ -482,6 +492,9 @@ class Resource(Asset):
             self.metadata = data
             self.files = resource_files
 
+    def to_json(self, **kwargs):
+        return Resource.ResourceJSONEncoder(**kwargs).encode(self)
+
     def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
         """
         Write the JSON file representation of a Resource to a destination file.
@@ -492,7 +505,7 @@ class Resource(Asset):
             mkdir_p(os.path.dirname(dest_path))
         with open(dest_path, 'w') as fh:
             logger.debug("Writing JSON serialised resource to %s", dest_path)
-            fh.write(Resource.ResourceJSONEncoder().encode(self))
+            fh.write(self.to_json())
         os.chmod(dest_path, mod)
         self.path = dest_path
     
