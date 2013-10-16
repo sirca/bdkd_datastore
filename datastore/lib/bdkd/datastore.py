@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import boto.s3.connection
+import errno
 import hashlib
 import json
 import logging
@@ -30,7 +31,7 @@ def mkdir_p(dest_dir):
     try:
         os.makedirs(dest_dir)
     except OSError, e:
-        if e.errno != 17:
+        if e.errno != errno.EEXIST:
             raise
 
 def touch(fname, times=None):
@@ -144,7 +145,7 @@ class Repository(object):
                     try:
                         touch(dest_path)
                     except IOError, e:
-                        if e.errno != 13:
+                        if e.errno != errno.EACCES:
                             raise
                         else:
                             mode = os.stat(dest_path).st_mode
