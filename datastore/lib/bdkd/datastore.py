@@ -18,6 +18,7 @@ _repositories = None
 logger = logging.getLogger(__name__)
 
 def checksum(local_path):
+    """ Calculate the md5sum of the contents of a local file. """
     result = None
     if os.path.exists(local_path):
         with open(local_path) as local_file:
@@ -25,6 +26,7 @@ def checksum(local_path):
     return result
 
 def mkdir_p(dest_dir):
+    """ Make a directory, including all parent directories. """
     try:
         os.makedirs(dest_dir)
     except OSError, e:
@@ -32,10 +34,14 @@ def mkdir_p(dest_dir):
             raise
 
 def touch(fname, times=None):
+    """ Update the timestamps of a local file. """
     with file(fname, 'a'):
         os.utime(fname, times)
 
 class Host(object):
+    """
+    A host that provides a S3-compatible service.
+    """
     def __init__(   self, access_key, secret_key, 
                     host='s3.amazonaws.com', port=None, 
                     secure=True, calling_format=boto.s3.connection.OrdinaryCallingFormat()):
@@ -50,10 +56,20 @@ class Host(object):
 
 
 class Repository(object):
+    """
+    Storage container for a Resource and its Files.
+
+    The Repository may be backed by a S3 host, in which case operations may 
+    involve coordinating reads and writes between a remote object store and a 
+    local filesystem cache.
+    """
     resources_prefix = 'resources'
     files_prefix = 'files'
 
     def __init__(self, host, name, cache_path=None, working_path=None, stale_time=60):
+        """
+        Create a "connection" to a Repository.
+        """
         self.host = host
         self.name = name
 
@@ -69,6 +85,9 @@ class Repository(object):
         self.stale_time = stale_time
 
     def get_bucket(self):
+        """
+        Get the S3 bucket for this Repository (or None if no host is configured).
+        """
         if self.host and not self.bucket:
             try:
                 self.bucket = self.host.connection.get_bucket(self.name)
@@ -234,6 +253,14 @@ class Repository(object):
         return cache_path
 
     def refresh_resource(self, resource, refresh_all=False):
+        """
+        Synchronise a locally-cached Resource with the Repository's remote host 
+        (if applicable).
+
+        This method ensures that the local Resource is up-to-date with respect 
+        to the S3 object store.  However if there is no Host for this 
+        Repository then no action needs to be performed.
+        """
         bucket = self.get_bucket()
         if not bucket:
             return
@@ -383,6 +410,9 @@ class Asset(object):
 
 
 class Resource(Asset):
+    """
+    A source of data consisting of one or more files plus associated meta-data.
+    """
     class ResourceJSONEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, Resource):
@@ -398,6 +428,9 @@ class Resource(Asset):
 
 
     def __init__(self, name, files=None, **kwargs):
+        """
+        Constructor for a Resource given a name, file data and any meta-data.
+        """
         super(Resource, self).__init__()
 
         self.repository = None
@@ -493,6 +526,10 @@ class Resource(Asset):
             self.files = resource_files
 
     def to_json(self, **kwargs):
+        """
+        Create a JSON string representation of the Resource: its files and 
+        meta-data.
+        """
         return Resource.ResourceJSONEncoder(**kwargs).encode(self)
 
     def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
@@ -527,7 +564,18 @@ class Resource(Asset):
 
 
 class ResourceFile(Asset):
+    """
+    A file component of a Resource, including any file-specific meta-data 
+    fields.
+
+    Note that a ResourceFile may point to a repository object ("location") or 
+    some other file stored on the Internet ("remote").
+    """
     def __init__(self, path, resource=None, **kwargs):
+        """
+        Constructor for a Resource file given a local filesystem path, the 
+        Resource that owns the ResourceFile, and any other meta-data.
+        """
         super(ResourceFile, self).__init__()
 
         self.metadata = kwargs
@@ -547,12 +595,23 @@ class ResourceFile(Asset):
         return self.path
 
     def location(self):
+        """
+        Get the meta-data "location" of the ResourceFile (if it is stored in 
+        the Repository) or None.
+        """
         return self.meta('location')
 
     def remote(self):
+        """
+        Get the "remote" URL of the ResourceFile (if it is stored elsewhere on 
+        the Internet) or None.
+        """
         return self.meta('remote')
 
     def location_or_remote(self):
+        """
+        Get either the "location" or "remote" -- whichever is applicable.
+        """
         return self.location() or self.remote()
 
 
@@ -605,22 +664,38 @@ def __load_config():
                     _repositories[repo_name] = repo
 
 def settings():
+    """
+    Get a dictionary of the configured settings for BDKD Datastore.
+
+    These settings may originate from the system-wide configuration (in /etc) 
+    or user-specific configuration.
+    """
     global _settings
     if not _settings:
         __load_config()
     return _settings
 
 def hosts():
+    """
+    Get a dictionary of the configured hosts for BDKD Datastore.
+    """
     global _hosts
     if not _hosts:
         __load_config()
     return _hosts
 
 def repositories():
+    """
+    Get a dictionary of all configured Repositories, by name.
+    """
     global _repositories
     if not _repositories:
         __load_config()
     return _repositories
 
 def repository(name):
+    """
+    Get a configured Repository by name, or None if no such Repository was 
+    configured.
+    """
     return repositories().get(name, None)
