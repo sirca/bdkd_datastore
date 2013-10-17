@@ -388,12 +388,30 @@ class Repository(object):
 
 
 class Asset(object):
+    """
+    Superclass of things that can be stored within a Repository.  This includes 
+    Resource and ResourceFile objects.
+
+    :ivar path:
+        The local filesystem path of the Asset
+    :ivar is_edit:
+        Whether the Asset is currently in edit mode
+    :ivar metadata:
+        Dictionary of meta-data key/value pairs
+    """
     def __init__(self):
         self.path = None
         self.is_edit = False
         self.metadata = None
 
     def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
+        """
+        Relocate an Asset's file to some other path, and set the mode of the 
+        relocated file.
+
+        This method is used when moving a Resource or a ResourceFile to a 
+        working path so that it can be edited.
+        """
         if self.path:
             if os.path.exists(dest_path):
                 os.remove(dest_path)
@@ -404,6 +422,9 @@ class Asset(object):
             self.path = dest_path
     
     def meta(self, keyname):
+        """
+        Get the meta-data value for the given key.
+        """
         if self.metadata:
             return self.metadata.get(keyname, None)
         else:
@@ -413,6 +434,14 @@ class Asset(object):
 class Resource(Asset):
     """
     A source of data consisting of one or more files plus associated meta-data.
+
+    :ivar repository:
+        The Repository to which this Resource belongs (if applicable)
+    :ivar name:
+        The name of the Resource (uniquely identifying it within its 
+        Repository)
+    :ivar files:
+        A list of the ResourceFile instances associated with this Resource
     """
     class ResourceJSONEncoder(json.JSONEncoder):
         def default(self, o):
