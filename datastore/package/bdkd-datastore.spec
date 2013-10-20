@@ -1,3 +1,9 @@
+# EL6-compatible Python macros (see /usr/lib/rpm/macros.python)
+%define py_ver         %(echo `python -c "import sys; sys.stdout.write(sys.version[:3])"`)
+%define py_prefix      %(echo `python -c "import sys; sys.stdout.write(sys.prefix)"`)
+%define py_libdir      %{py_prefix}/lib/python%{py_ver}
+%define py_sitedir     %{py_libdir}/site-packages
+
 %define name		bdkd-datastore
 %define version		0.0.1
 %define release		1%{?dist}
@@ -42,13 +48,13 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %post
-touch %{_python_sitelib}/bdkd/__init__.py
+touch %{py_sitedir}/bdkd/__init__.py
 
 
 %files
 %defattr(-,root,root,-)
 %doc $RPM_SOURCE_DIR/%{name}/doc/*
-%{_python_sitelib}/bdkd/datastore.py*
+%{py_sitedir}/bdkd/datastore.py*
 
 
 %changelog
