@@ -10,7 +10,7 @@ import shutil
 import urlparse, urllib2
 import yaml
 
-_config_global_file = '/etc/bdkd/datastore.conf'
+_config_global_file = '/etc/bdkd/Current/datastore.conf'
 _config_user_file = os.path.expanduser(os.environ.get('BDKD_DATASTORE_CONFIG', '~/.bdkd_datastore.conf'))
 _settings = None
 _hosts = None

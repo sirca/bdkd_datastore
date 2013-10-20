@@ -18,7 +18,7 @@ and repositories for BDKD on the current host.
 
 There are two sources of configuration for BDKD datastore:
 
-1. System-wide configuration in ``/etc/bdkd/datastore.conf``
+1. System-wide configuration in ``/etc/bdkd/Current/datastore.conf``
 2. User-specific configuration in ``~/.bdkd_datastore.conf``
 
 Any variables in the user-specific configuration take precedence over the 
@@ -75,7 +75,7 @@ The configuration file has the following sections:
 Configuration example
 ^^^^^^^^^^^^^^^^^^^^^
 
-Typically the system-wide configuration in ``/etc/bdkd/datastore.conf`` might 
+Typically the system-wide configuration in ``/etc/bdkd/Current/datastore.conf`` might 
 define the cache root, working root, and any standard repositories.
 
 ::
