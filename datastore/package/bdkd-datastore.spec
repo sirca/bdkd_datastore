@@ -55,6 +55,7 @@ touch %{py_sitedir}/bdkd/__init__.py
 %defattr(-,root,root,-)
 %doc $RPM_SOURCE_DIR/%{name}/doc/*
 %{py_sitedir}/bdkd/datastore.py*
+/usr/bin/datastore-*
 
 
 %changelog

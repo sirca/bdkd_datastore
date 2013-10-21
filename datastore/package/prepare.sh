@@ -20,6 +20,9 @@ rm -rf ${PACKAGE_DIR}/*
 mkdir -p ${FILES_DIR}/${PYTHON_SITE_PACKAGES}/bdkd
 cp lib/bdkd/datastore.py ${FILES_DIR}/${PYTHON_SITE_PACKAGES}/bdkd 
 
+mkdir -p ${FILES_DIR}/usr/bin
+cp bin/datastore-* ${FILES_DIR}/usr/bin
+
 mkdir -p ${DOC_DIR}
 cp -a doc/build/html ${DOC_DIR}
 
