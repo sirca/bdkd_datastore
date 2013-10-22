@@ -78,13 +78,11 @@ class Repository(object):
                 (cache_path or settings()['cache_root']),
                 str(os.getuid()),
                 name)
-        print self.local_cache
         self.working = os.path.join(
                 (working_path or settings()['working_root']), 
                 str(os.getuid()), 
                 str(os.getpid()), 
                 name)
-        print self.working
         self.bucket = None
         self.stale_time = stale_time
 
