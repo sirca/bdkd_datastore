@@ -74,14 +74,17 @@ class Repository(object):
         self.host = host
         self.name = name
 
-        if cache_path:
-            self.local_cache = cache_path
-        else:
-            self.local_cache = os.path.join(settings()['cache_root'], name)
-        if working_path:
-            self.working = working_path
-        else:
-            self.working = os.path.join(settings()['working_root'], name)
+        self.local_cache = os.path.join(
+                (cache_path or settings()['cache_root']),
+                str(os.getuid()),
+                name)
+        print self.local_cache
+        self.working = os.path.join(
+                (working_path or settings()['working_root']), 
+                str(os.getuid()), 
+                str(os.getpid()), 
+                name)
+        print self.working
         self.bucket = None
         self.stale_time = stale_time
 
@@ -109,8 +112,7 @@ class Repository(object):
     def __resource_name_working_path(self, name):
         # For the given Resource name, return the working path to which that 
         # Resource would be copied if it were edited.
-        return os.path.join(self.working, str(os.getpid()), 
-                type(self).resources_prefix, name)
+        return os.path.join(self.working, type(self).resources_prefix, name)
 
     def __file_keyname(self, resource_file):
         # For the given ResourceFile, return the S3 key string
@@ -119,11 +121,12 @@ class Repository(object):
     def __file_cache_path(self, resource_file):
         # For the given ResourceFile, return the path that would be used for a 
         # local cache file
-        return os.path.expanduser(os.path.join(self.local_cache, resource_file.location_or_remote()))
+        return os.path.expanduser(os.path.join(self.local_cache, 
+            resource_file.location_or_remote()))
 
     def __file_working_path(self, resource_file):
-        return os.path.join(self.working, str(os.getpid()), 
-                type(self).files_prefix, resource_file.location_or_remote())
+        return os.path.join(self.working, type(self).files_prefix, 
+            resource_file.location_or_remote())
 
     def __download(self, key_name, dest_path):
         # Ensure that a file on the local system is up-to-date with respect to 
@@ -685,10 +688,10 @@ def __load_config():
                         host = None
                     cache_path = os.path.expanduser(
                             repo_config.get('cache_path', 
-                                os.path.join(_settings['cache_root'], repo_name)))
+                                os.path.join(_settings['cache_root'])))
                     working_path = os.path.expanduser(
                             repo_config.get('working_path', 
-                                os.path.join(_settings['working_root'], repo_name)))
+                                os.path.join(_settings['working_root'])))
                     stale_time = repo_config.get('stale_time', 60)
                     repo = Repository(host, repo_name, cache_path, working_path, stale_time)
                     _repositories[repo_name] = repo
