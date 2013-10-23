@@ -25,6 +25,7 @@ cp bin/datastore-* ${FILES_DIR}/usr/bin
 
 mkdir -p ${DOC_DIR}
 cp -a doc/build/html ${DOC_DIR}
+cp -a doc/samples ${DOC_DIR}
 
 mkdir -p ${SPECS_DIR}
 cp package/*.spec ${SPECS_DIR}
