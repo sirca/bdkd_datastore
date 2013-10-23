@@ -68,9 +68,14 @@ class RepositoryTest(unittest.TestCase):
         self.assertEquals(repository.host, None)
         self.assertEquals(repository.name, 'defaults')
         self.assertEquals(repository.local_cache, 
-                os.path.join(bdkd.datastore.settings()['cache_root'], repository.name))
+                os.path.join(bdkd.datastore.settings()['cache_root'], 
+                    str(os.getuid()), 
+                    repository.name))
         self.assertEquals(repository.working, 
-                os.path.join(bdkd.datastore.settings()['working_root'], repository.name))
+                os.path.join(bdkd.datastore.settings()['working_root'], 
+                    str(os.getuid()), 
+                    str(os.getpid()), 
+                    repository.name))
         self.assertEquals(repository.bucket, None)
 
     def test_list(self):
