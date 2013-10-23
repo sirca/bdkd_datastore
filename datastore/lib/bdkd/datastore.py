@@ -16,6 +16,8 @@ _settings = None
 _hosts = None
 _repositories = None
 
+TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
+
 logger = logging.getLogger(__name__)
 
 def checksum(local_path):
@@ -204,8 +206,8 @@ class Repository(object):
         if remote.info().has_key('last-modified')and os.path.exists(local_path):
             local_mtime = os.stat(local_path).st_mtime
             last_modified = time.mktime(time.strptime(
-                remote.info().getheader('last-modified'), 
-                '%a, %d %b %Y %H:%M:%S %Z'))
+                remote.info().getheader('last-modified'),
+                TIME_FORMAT))
             if last_modified < local_mtime:
                 return False
         # Need to download file
@@ -517,8 +519,13 @@ class Resource(Asset):
                     meta['location'] = os.path.join(Repository.files_prefix, name, os.path.basename(path))
                     if path:
                         path = os.path.expanduser(path)
-                        meta['chksum'] = checksum(path)
-                        meta['size'] = os.stat(path).st_size
+                        if not 'md5sum' in meta:
+                            meta['md5sum'] = checksum(path)
+                        if not 'last-modified' in meta:
+                            meta['last-modified'] = time.strftime(TIME_FORMAT,
+                                    time.gmtime(os.path.getmtime(path)))
+                        if not 'content-length' in meta:
+                            meta['content-length'] = os.stat(path).st_size
                     else:
                         raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
                 resource_file = ResourceFile(path, **meta)
