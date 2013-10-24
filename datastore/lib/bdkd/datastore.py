@@ -36,6 +36,47 @@ def mkdir_p(dest_dir):
         if e.errno != errno.EEXIST:
             raise
 
+def common_directory(paths):
+    """
+    Find the directory common to a set of paths.
+
+    This function differs from os.path.commonprefix() which has no concept of 
+    directories (it works a character at a time).  This function breaks each 
+    path up into directories for comparison.
+    """
+    common_parts = []
+    shortest_path = None
+    for path in paths:
+        parts = path.split(os.sep)
+        if shortest_path == None:
+            shortest_path = len(parts)
+        elif len(parts) < shortest_path:
+            shortest_path = len(parts)
+        for i in range(0, len(parts)):
+            if i >= len(common_parts):
+                common_parts.append(parts[i])
+            else:
+                if parts[i] != common_parts[i]:
+                    common_parts[i] = None
+    common_count = 0
+    common_parts = common_parts[0:shortest_path]
+    for common_part in common_parts:
+        if common_part == None:
+            break
+        else:
+            common_count += 1
+    common_parts = common_parts[0:common_count]
+    if common_count:
+        leading = ''
+        if paths[0][0] == os.sep:
+            leading = os.sep
+        common_path = leading + os.path.join(*common_parts)
+    else:
+        common_path = ''
+
+    return common_path
+    
+
 def touch(fname, times=None):
     """ Update the timestamps of a local file. """
     with file(fname, 'a'):
@@ -472,6 +513,45 @@ class Resource(Asset):
         self.files = files
 
     @classmethod
+    def __normalise_file_data(cls, raw_data):
+        files_data = [] ; common_prefix = ''
+        location_paths = []
+        if not isinstance(raw_data, list):
+            raw_data = [ raw_data ]
+        for file_data in raw_data:
+            path = None
+            location = None
+            meta = None
+            if isinstance(file_data, dict):
+                meta = file_data
+                path = meta.pop('path', None)
+            else:
+                # String form: either a repository or remote location
+                meta = {}
+                url = urlparse.urlparse(file_data)
+                if url.netloc:
+                    meta['remote'] = file_data
+                else:
+                    path = file_data
+            if not 'remote' in meta:
+                location = os.path.expanduser(path)
+                location_paths.append(os.path.dirname(location))
+            files_data.append(dict(path=path, location=location, meta=meta))
+        # Get the common prefix of all local paths
+        if len(location_paths):
+            if len(location_paths) > 1:
+                common_prefix = common_directory(location_paths)
+            else:
+                common_prefix = location_paths[0]
+            # Strip common prefix from all files with a location
+            for file_data in files_data:
+                if file_data['location'] != None:
+                    file_data['location'] = file_data['location'][len(common_prefix):]
+                    if file_data['location'][0] == '/':
+                        file_data['location'] = file_data['location'][1:]
+        return files_data
+
+    @classmethod
     def new(cls, name, files_data=None, **kwargs):
         """
         A convenience factory method that creates a new, unsaved Resource of 
@@ -489,34 +569,19 @@ class Resource(Asset):
         """
         resource_files = []
         if files_data:
-            if not isinstance(files_data, list):
-                files_data = [ files_data ]
+            files_data = cls.__normalise_file_data(files_data)
             for file_data in files_data:
-                location = None
-                remote = None
-                path = None
-                meta = None
-                if isinstance(file_data, dict):
-                    meta = file_data
-                    remote = meta.pop('remote', None)
-                    path = meta.pop('path', None)
-                else:
-                    # String form: either a repository or remote location
-                    meta = {}
-                    url = urlparse.urlparse(file_data)
-                    if url.netloc:
-                        remote = file_data
-                    else:
-                        path = file_data
-                if remote:
-                    meta['remote'] = remote
-                    remote_url = urllib2.urlopen(urllib2.Request(remote))
+                path = file_data.pop('path', None)
+                location = file_data.pop('location', None)
+                meta = file_data.pop('meta', None)
+                if 'remote' in meta:
+                    remote_url = urllib2.urlopen(urllib2.Request(meta['remote']))
                     keyset = set(k.lower() for k in meta)
                     for header_name in [ 'etag', 'last-modified', 'content-length', 'content-type' ]:
                         if not header_name in keyset and remote_url.info().has_key(header_name):
                             meta[header_name] = remote_url.info().getheader(header_name)
                 else:
-                    meta['location'] = os.path.join(Repository.files_prefix, name, os.path.basename(path))
+                    meta['location'] = os.path.join(Repository.files_prefix, name, location)
                     if path:
                         path = os.path.expanduser(path)
                         if not 'md5sum' in meta:

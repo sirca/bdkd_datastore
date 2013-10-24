@@ -13,6 +13,7 @@ class RepositoryTest(unittest.TestCase):
         self.assertTrue(self.repository.get_bucket())
         self.resources = dict(
                 single=self._create_single_file_fixture(),
+                multi=self._create_multi_file_fixture(),
                 shapefile=self._create_shapefile_fixture(),
                 )
 
@@ -37,6 +38,22 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 2)
         # Check that the cache has two files in it
         self._check_file_count(self.repository.local_cache, 2)
+
+    def test_multi_file_resource(self):
+        resource = self.resources.get('multi')
+        self.assertTrue(resource)
+        # Save the resource to the repository
+        self.repository.save(resource)
+        # Check that the repository was set properly
+        self.assertTrue(resource.repository == self.repository)
+        # Check that the Resource was copied to the local cache
+        resource_path = os.path.join(self.repository.local_cache,
+                'resources', resource.name)
+        self.assertTrue(os.path.exists(resource_path))
+        # Check that S3 repository has two keys in it (resource + one file)
+        self._check_bucket_count('', 3)
+        # Check that the cache has two files in it
+        self._check_file_count(self.repository.local_cache, 3)
 
     def test_shapefile_resource(self):
         resource = self.resources.get('shapefile')
@@ -140,6 +157,15 @@ class RepositoryTest(unittest.TestCase):
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Seton',
                 path)
         return resource
+
+    def _create_multi_file_fixture(self):
+        return bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Seton',
+                [
+                    os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
+                        'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'),
+                    os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines',
+                        'Shapefile', 'Seton_etal_ESR2012_Coastlines_2012.1.shp')
+                    ])
 
     def _create_shapefile_fixture(self):
         shapefile_dir = os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 'Shapefile')
