@@ -281,6 +281,38 @@ class Repository(object):
         if os.path.exists(cache_path):
             os.remove(cache_path)
 
+    def __resource_name_conflict(self, resource_name):
+        """ 
+        Check whether a Resource name conflicts with some existing Resource.
+        
+        Returns the name(s) of any conflicting Resources or None if no conflict 
+        found.
+        """
+        resources_prefix = type(self).resources_prefix
+
+        bucket = self.get_bucket()
+        if bucket:
+            # Check for conflict with a longer path name
+            key_prefix = self.__resource_name_key(resource_name) + '/'
+            resource_names = []
+            for key in bucket.list(key_prefix):
+                resource_names.append(key.name[(len(type(self).resources_prefix) + 1):])
+            if len(resource_names) > 0:
+                # There are other Resources whose names start with this 
+                # Resource name
+                return resource_names
+
+            # Check for conflict with a shorter name
+            name_parts = resource_name.split('/')[0:-1]
+            while len(name_parts):
+                key_name = self.__resource_name_key('/'.join(name_parts))
+                key = bucket.get_key(key_name)
+                if key:
+                    return [ key_name ]
+                name_parts = name_parts[0:-1]
+        return None
+
+
     def _refresh_resource_file(self, resource_file):
         cache_path = self.__file_cache_path(resource_file)
         logger.debug("Cache path for resource file is %s", cache_path)
@@ -358,28 +390,41 @@ class Repository(object):
         resource.relocate(resource_working_path, stat.S_IRWXU)
         resource.is_edit = True
 
-    def save(self, resource):
+    def save(self, resource, overwrite=False):
         """
         Save a Resource that is either new or being edited to the Repository.
         """
         if not resource.is_edit:
             raise ValueError("Resource is not currently being edited")
 
-        for resource_file in resource.files:
-            self.__save_resource_file(resource_file)
+        conflicting_names = self.__resource_name_conflict(resource.name)
+        if conflicting_names:
+            raise ValueError("The Resource name '" + resource.name +
+                    "' conflicts with other Resource names including: " +
+                    ', '.join(conflicting_names))
 
         resource_cache_path = self.__resource_name_cache_path(resource.name)
         resource.write(resource_cache_path)
         bucket = self.get_bucket()
         if bucket:
             resource_keyname = self.__resource_name_key(resource.name)
+            resource_key = bucket.get_key(resource_keyname)
+            if resource_key:
+                if overwrite:
+                    self.delete(resource)
+                else:
+                    raise ValueError("Resource already exists!")
+            else:
+                resource_key = boto.s3.key.Key(bucket, resource_keyname)
             logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
-            resource_key = boto.s3.key.Key(bucket, resource_keyname)
             resource_key.set_contents_from_filename(resource_cache_path)
         if resource.repository != self:
             logger.debug("Setting the repository for the resource")
             resource.repository = self
         resource.is_edit = False
+
+        for resource_file in resource.files:
+            self.__save_resource_file(resource_file)
 
     def list(self, prefix=''):
         """
