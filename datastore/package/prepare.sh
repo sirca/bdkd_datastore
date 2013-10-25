@@ -14,6 +14,8 @@ SPECS_DIR=${RPMBUILD_DIR}/SPECS
 
 PYTHON_SITE_PACKAGES=`/usr/bin/env python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"`
 
+GIT_REVISION=`git rev-list HEAD --count`
+
 mkdir -p ${PACKAGE_DIR}
 rm -rf ${PACKAGE_DIR}/*
 
@@ -29,3 +31,4 @@ cp -a doc/samples ${DOC_DIR}
 
 mkdir -p ${SPECS_DIR}
 cp package/*.spec ${SPECS_DIR}
+sed -i "s/<<BUILD_NUMBER>>/${GIT_REVISION}/" ${SPECS_DIR}/*.spec

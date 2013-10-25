@@ -6,7 +6,7 @@
 
 %define name		bdkd-datastore
 %define version		0.0.1
-%define release		1%{?dist}
+%define release		<<BUILD_NUMBER>>%{?dist}
 
 Name:		%{name}
 Version:	%{version}
