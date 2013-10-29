@@ -9,6 +9,7 @@ import os, stat, sys, time
 import shutil
 import urlparse, urllib2
 import yaml
+import re
 
 _config_global_file = '/etc/bdkd/Current/datastore.conf'
 _config_user_file = os.path.expanduser(os.environ.get('BDKD_DATASTORE_CONFIG', '~/.bdkd_datastore.conf'))
@@ -710,6 +711,29 @@ class Resource(Asset):
             paths.append(resource_file.path)
         return paths
 
+    def files_matching(self, pattern):
+        """
+        Return a list of ResourceFile objects where the location or remote 
+        matches a given pattern.
+
+        If no files match an empty array is returned.
+        """
+        matches = []
+        for resource_file in self.files:
+            if re.search(pattern, resource_file.location_or_remote()):
+                matches.append(resource_file)
+        return matches
+
+    def file_ending(self, suffix):
+        """
+        Returns the first ResourceFile ending with the given suffix.
+
+        If no ResourceFiles match, None is returned.
+        """
+        for resource_file in self.files:
+            if resource_file.location_or_remote().endswith(suffix):
+                return resource_file
+        return None
 
 class ResourceFile(Asset):
     """

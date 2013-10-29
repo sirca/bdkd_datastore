@@ -158,6 +158,16 @@ class ResourceTest(unittest.TestCase):
         local_paths = self.resource.local_paths()
         self.assertEquals(len(local_paths), 1)
 
+    def test_files_matching(self):
+        matches = self.resource.files_matching('.*Seton.*\.gpmlz$')
+        self.assertTrue(len(matches))
+        matches = self.resource.files_matching('foo')
+        self.assertFalse(len(matches))
+
+    def test_file_ending(self):
+        self.assertTrue(self.resource.file_ending('.gpmlz'))
+        self.assertFalse(self.resource.file_ending('foo'))
+
 
 class ResourceFileTest(unittest.TestCase):
 
