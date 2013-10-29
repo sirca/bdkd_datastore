@@ -81,6 +81,17 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 6)
         self._check_file_count(self.repository.local_cache, 6)
 
+    def test_unified_resource(self):
+        """ Unified: all resource parts fetched together. """
+        resource = self.resources.get('shapefile')
+        self.assertTrue(resource)
+        self.repository.save(resource)
+        self._clear_local()
+        shp = resource.file_ending('.shp')
+        shp.local_path()
+        # The shapefile consists of five files (plus one resource)
+        self._check_file_count(self.repository.local_cache, 6)
+
     def test_remote_resource(self):
         resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
                 'http://www.gps.caltech.edu/~gurnis/GPlates/Caltech_Global_20101129.tar.gz')
@@ -197,7 +208,7 @@ class RepositoryTest(unittest.TestCase):
             else:
                 files.append(file_meta)
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Shapefile/Seton',
-                files)
+                files, unified=True)
         return resource
 
 if __name__ == '__main__':

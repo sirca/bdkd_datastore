@@ -768,7 +768,10 @@ class ResourceFile(Asset):
         is refreshed: not the Resource, nor the Resource's other File objects.)
         """
         if self.resource and self.resource.repository and not self.is_edit:
-            self.resource.repository._refresh_resource_file(self)
+            if self.resource.meta('unified'):
+                self.resource.repository.refresh_resource(self.resource, True)
+            else:
+                self.resource.repository._refresh_resource_file(self)
         return self.path
 
     def location(self):
