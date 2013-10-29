@@ -10,6 +10,7 @@ import shutil
 import urlparse, urllib2
 import yaml
 import re
+import warnings
 
 _config_global_file = '/etc/bdkd/Current/datastore.conf'
 _config_user_file = os.path.expanduser(os.environ.get('BDKD_DATASTORE_CONFIG', '~/.bdkd_datastore.conf'))
@@ -730,10 +731,14 @@ class Resource(Asset):
 
         If no ResourceFiles match, None is returned.
         """
+        match = None
         for resource_file in self.files:
             if resource_file.location_or_remote().endswith(suffix):
-                return resource_file
-        return None
+                if match:
+                    warnings.warn("Found multiple files: also '" +
+                            match.location_or_remote() + "'", RuntimeWarning)
+                match = resource_file
+        return match
 
 class ResourceFile(Asset):
     """
