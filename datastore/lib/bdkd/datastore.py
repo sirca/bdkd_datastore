@@ -709,7 +709,10 @@ class Resource(Asset):
             self.repository.refresh_resource(self, True)
         paths = []
         for resource_file in self.files:
-            paths.append(resource_file.path)
+            try:
+                paths.append(str(resource_file.path))
+            except UnicodeEncodeError:
+                paths.append(resource_file.path)
         return paths
 
     def files_matching(self, pattern):
@@ -772,7 +775,10 @@ class ResourceFile(Asset):
                 self.resource.repository.refresh_resource(self.resource, True)
             else:
                 self.resource.repository._refresh_resource_file(self)
-        return self.path
+        try:
+            return str(self.path)
+        except UnicodeEncodeError:
+            return self.path
 
     def location(self):
         """
