@@ -21,9 +21,7 @@ Source0: 	https://github.com/sirca/bdkd.git
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root
 BuildArch:      noarch
 
-BuildRequires:	python-nose
-BuildRequires:	python-sphinx
-
+Requires:	python-boto, python-yaml
 
 %description
 The BDKD Datastore provides for the storage of file-like objects to a 
@@ -40,7 +38,7 @@ cp -a $RPM_SOURCE_DIR/%{name}/files/* $RPM_BUILD_DIR/%{name}
 
 
 %install
-cp -a $RPM_BUILD_DIR/%{name}/* $RPM_BUILD_ROOT
+cp -a $RPM_BUILD_DIR/%{name}/ $RPM_BUILD_ROOT
 
 
 %clean
