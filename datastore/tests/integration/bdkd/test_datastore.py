@@ -48,14 +48,12 @@ class RepositoryTest(unittest.TestCase):
         self.repository.save(resource)
 
         # Conflicts with the shorter name 'a/b'
-        with self.assertRaises(ValueError):
-            other_resource.name = 'a/b/c'
-            self.repository.save(other_resource)
+        other_resource.name = 'a/b/c'
+        self.assertRaises(ValueError, self.repository.save, other_resource)
 
         # Conflicts with the longer name 'a/b'
-        with self.assertRaises(ValueError):
-            other_resource.name = 'a'
-            self.repository.save(other_resource)
+        other_resource.name = 'a'
+        self.assertRaises(ValueError, self.repository.save, other_resource)
 
     def test_multi_file_resource(self):
         resource = self.resources.get('multi')
