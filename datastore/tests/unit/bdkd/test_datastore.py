@@ -199,3 +199,7 @@ class ResourceFileTest(unittest.TestCase):
     def test_location_or_remote(self):
         self.assertTrue(self.resource.files[0].location_or_remote())
         self.assertTrue(self.remote_resource.files[0].location_or_remote())
+
+
+if __name__ == '__main__':
+    unittest.main()
