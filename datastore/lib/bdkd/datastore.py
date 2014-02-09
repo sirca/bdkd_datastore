@@ -88,7 +88,7 @@ class Host(object):
     """
     A host that provides a S3-compatible service.
     """
-    def __init__(   self, access_key, secret_key, 
+    def __init__(   self, access_key=None, secret_key=None, 
                     host='s3.amazonaws.com', port=None, 
                     secure=True, calling_format=boto.s3.connection.OrdinaryCallingFormat()):
 
@@ -826,10 +826,11 @@ def __load_config():
                         params['port'] = host_config['port']
                     if 'secure' in host_config:
                         params['secure'] = host_config['secure']
-                    host = Host(
-                            host_config['access_key'], 
-                            host_config['secret_key'],
-                            **params)
+                    if 'access_key' in host_config:
+                        params['access_key'] = host_config['access_key']
+                    if 'secret_key' in host_config:
+                        params['secret_key'] = host_config['secret_key']
+                    host = Host(**params)
                     _hosts[host_name] = host
             
             # Update repositories
