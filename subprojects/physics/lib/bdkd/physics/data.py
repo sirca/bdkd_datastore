@@ -21,6 +21,17 @@ class Dataset(object):
             elif maps_name_re.match(rfile.location_or_remote()):
                 self.maps = rfile
     
+
+    @classmethod
+    def open(cls, repo_name, resource_name):
+        repository = bdkd.datastore.repository(repo_name)
+        if repository:
+            resource = repository.get(resource_name)
+            if resource:
+                return cls(resource)
+        return None
+
+
     def get_map_names(self):
         """
         Get the names of all available maps from the maps file.

@@ -14,5 +14,5 @@ setup(
         scripts=[
                 'bin/pack_dataset.py',            
                 ],
-        requires=['boto', 'PyYAML', 'bdkd-datastore']
+        install_requires=['boto', 'PyYAML', 'bdkd-datastore']
         )
