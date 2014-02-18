@@ -3,7 +3,8 @@ import bdkd.datastore, h5py, re
 
 class Dataset(object):
 
-    def __init__(self, resource):
+    def __init__(self, name, resource):
+        self.name = name
         self.resource = resource
         self.shard_size = resource.metadata.get('shard-size', None)
         self.shards = {}
@@ -28,7 +29,7 @@ class Dataset(object):
         if repository:
             resource = repository.get(resource_name)
             if resource:
-                return cls(resource)
+                return cls(resource_name, resource)
         return None
 
 
@@ -79,8 +80,8 @@ class Dataset(object):
         if (fb_shard, inj_shard) in self.shards:
             shard_file = h5py.File(
                     self.shards[(fb_shard, inj_shard)].local_path(), 'r')
-            time_series_name = "FB_{0:03d}_INJ_{0:03d}.csv".format(
-                    fb_shard, inj_shard)
+            time_series_name = "FB_{0:03d}_INJ_{1:03d}.csv".format(
+                    feedback, injection)
             if time_series_name in shard_file:
                 data = shard_file[time_series_name][()]
             shard_file.close()
