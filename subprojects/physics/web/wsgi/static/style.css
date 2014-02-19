@@ -1,0 +1,29 @@
+h1, h2 {
+    width: 100%;
+    text-align: center;
+}
+
+#controls {
+    width: 30%;
+    float: left;
+}
+
+#heatdiv {
+    width: 66%;
+    text-align: center;
+}
+
+.subgraph {
+    width: 31%;
+    float:left;
+    padding-left: 1%;
+    padding-right: 1%;
+    text-align: center;
+}
+
+#log {
+    border: 1px solid black;
+    width: 150px;
+    padding: 10px;
+    background-color: white;
+}
