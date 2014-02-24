@@ -17,7 +17,8 @@ from bdkd.physics.data import Dataset
 from flask import ( Flask, request, render_template, send_file, 
         make_response, abort, redirect)
 
-CACHE_ROOT='static/cache'
+CACHE_ROOT='/var/tmp'
+CACHE_LOCATION='static/cache'
 CACHE_SALT='55f329b5b9d620090e763a359e102eb0'
 REPOSITORY='bdkd-laser-demo'
 DEFAULT_DATASET='datasets/Sample dataset'
@@ -43,9 +44,9 @@ def make_cache_dir(key):
     of the cache key.  This serves to divide up the cache files into manageable 
     quantities per cache directory.
     """
-    cache_dirname = os.path.join(CACHE_ROOT, key[0:3])
+    cache_dirname = os.path.join(CACHE_LOCATION, key[0:3])
     try:
-        os.makedirs(cache_dirname)
+        os.makedirs(os.path.join(CACHE_ROOT, cache_dirname))
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
@@ -76,16 +77,18 @@ def cache_map_plot(dataset, map_name, large=False):
     key = cache_key('map', dataset.name, map_name)
     cache_dirname = make_cache_dir(key)
     plot_name = os.path.join(cache_dirname, key)
-    plot_filename = plot_name + '.png'
-    plot_large_filename = plot_name + '-large.png'
+    plot_location = plot_name + '.png'
+    plot_filename = os.path.join(CACHE_ROOT, plot_location)
+    plot_large_location = plot_name + '-large.png'
+    plot_large_filename = os.path.join(CACHE_ROOT, plot_large_location)
     if not os.path.exists(plot_filename):
         p = Process(target=render_map_plot, args=(dataset, map_name, 
             plot_filename, plot_large_filename))
         p.start()
         p.join()
     if large:
-        return plot_large_filename
-    return plot_filename
+        return plot_large_location
+    return plot_location
 
 
 def render_time_series_plot(time_series, plot_filename):
@@ -100,12 +103,14 @@ def render_time_series_plot(time_series, plot_filename):
 def cache_time_series_plot(dataset_name, feedback, injection, time_series):
     key = cache_key('time_series', dataset_name, feedback, injection)
     cache_dirname = make_cache_dir(key)
-    plot_filename = os.path.join(cache_dirname, key + '.png')
+    plot_location = os.path.join(cache_dirname, key + '.png')
+    plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
-        p = Process(target=render_time_series_plot, args=(time_series, plot_filename))
+        p = Process(target=render_time_series_plot, args=(time_series, 
+            plot_filename))
         p.start()
         p.join()
-    return plot_filename
+    return plot_location
 
 
 def open_dataset(f):
@@ -219,4 +224,6 @@ def index():
 
 
 if __name__=="__main__":
+    # Dev mode: allow Flask to serve the cache from the static directory.
+    CACHE_ROOT='./'
     app.run(host='0.0.0.0', debug = True)
