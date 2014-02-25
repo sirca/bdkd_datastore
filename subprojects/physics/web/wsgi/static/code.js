@@ -1,5 +1,24 @@
+var MAP_X_OFFSET = 52;
+var MAP_Y_OFFSET = 75;
+
+
+function coordinates(x, y) {
+	var injection = x - MAP_X_OFFSET;
+	var feedback = y - MAP_Y_OFFSET;
+	if ( injection < 0 ) injection = 0;
+	if ( injection > 250) injection = 250;
+	if ( feedback < 0 ) feedback = 0;
+	if ( feedback > 350 ) feedback = 350;
+	return {
+		feedback: (350 - feedback),
+		injection: injection
+	};
+};
+
+	
 function cursorpos(x,y) {
-    $("#log").html("X: " + x + " Y: " + y);
+    coords = coordinates(x, y);
+    $("#log").html("Injection: " + coords.injection + " Feedback: " + coords.feedback);
 };
 
 function updateMapList() {
@@ -22,7 +41,7 @@ function updateMapPlot() {
     var plot_src = '/map_plots/' + $('#dataset').val() + '/' + $('#map').val();
     $('#heatmap').replaceWith('<img id="heatmap" src="' + plot_src +
             '" data-zoom-image="' + plot_src + '?size=large" ' +
-            'width=351 height=251/>');
+            'width=407 height=509/>');
 
     $('#heatmap').elevateZoom({
         scrollZoom  : true,
@@ -32,9 +51,10 @@ function updateMapPlot() {
         onMousemove : cursorpos
     });
     
-    $("#heatmap").click(function(e,x,y) { 
+    $("#heatmap").click(function(e,x,y) {
+        coords = coordinates(x, y);
 	dataset = $('#dataset').val();
-        src = "/time_series_plot/" + dataset + "?feedback="+x+"&injection="+y;
+        src = "/time_series_plot/" + dataset + "?feedback="+coords.feedback+"&injection="+coords.injection;
         $("#graph1").replaceWith("<img id='graph1' src='"+src+"' />"); 
     });
 };

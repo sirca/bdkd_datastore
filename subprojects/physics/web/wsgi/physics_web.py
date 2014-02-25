@@ -57,12 +57,9 @@ def render_map_plot(dataset, map_name, plot_filename, plot_large_filename):
     mapX = np.array(dataset.get_map_data(INJ_MAP))
     mapY = np.array(dataset.get_map_data(FBT_MAP))
     mapZ = np.array(dataset.get_map_data(map_name))
-    fig = plt.figure(frameon=False, figsize=(351,251), dpi=1)
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.autoscale_view('tight')
+    fig = plt.figure(figsize=(4.07, 5.09), dpi=100)
     plt.pcolor(mapX,mapY,mapZ)
+    plt.colorbar()
     # Regular sized plot
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)

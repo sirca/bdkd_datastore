@@ -15,7 +15,7 @@
     </head>
     <body>
 	    <h1>Experiment results</h1>
-        <div id="controls">
+	    <p>
             <label id="explabel" for="dataset">Dataset:</label>
             <select id="dataset" onchange="updateMapList()">
                 {% for dataset in datasets %}
@@ -24,11 +24,18 @@
             </select>
             <label id="label_map" for "map">Map:</label>
             <select id="map" onchange="updateMapPlot()">
-            </select>
+	    </select>
+	    </p>
+        <div id="controls">
             <p id="log">Pos</p>
         </div>
         <div id="heatdiv">
-            <span id="heatmap"/>
+	    <table border="0">
+		    <tr><td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
+                    <td><span id="heatmap"/></td>
+                </tr>
+		<tr><td/><td>Injection Current (mA)</td></tr>
+            </table>
         </div>
         <h2>Selected dataset</h2>
         <div class="subgraph">
