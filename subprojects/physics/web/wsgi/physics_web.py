@@ -194,7 +194,7 @@ def get_map_data(dataset_name, dataset, map_name):
             mimetype='text/csv', as_attachment=True)
 
 
-@app.route("/time_series_plot/<path:dataset_name>")
+@app.route("/time_series_plots/<path:dataset_name>")
 @open_dataset_and_time_series
 def get_time_series_plot(dataset_name, dataset, feedback, injection, time_series):
     cache_path = cache_time_series_plot(dataset_name, feedback, injection, time_series)
@@ -209,7 +209,7 @@ def get_time_series_data(dataset_name, dataset, feedback, injection, time_series
     output.seek(0)
     return send_file(output, 
             attachment_filename="FB_{0:03d}_INJ_{1:03d}.csv".format(
-                feedback, injection), 
+                feedback, injection), mimetype='text/csv',
             as_attachment=True)
 
 

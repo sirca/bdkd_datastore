@@ -1,0 +1,100 @@
+<html>
+    <head>
+        <title>Laser REST API</title>
+    </head>
+
+    <body>
+        <h1>Laser REST API</h1>
+
+        <p>The Laser REST API enables the user to retrieve experiment data and
+        plots, for maps and time series.</p>
+
+        <h2>Map names</h2>
+
+        <p>Retrieve a list of available map names for a dataset.</p>
+
+        <p>These resources are relevant to the "map_plots" and "map_data" (see
+        below): for those resources, these are the names that can be
+        requested.</p>
+
+        <p><strong>Usage:</strong></p> 
+        
+        <pre>/map_names/&lt;dataset name&gt;</pre>
+
+        <p><strong>Example:</strong></p>
+
+        <p><a href="/map_names/datasets/Sample dataset">
+            /map_names/datasets/Sample dataset</a></p>
+
+        <h2>Map plots</h2>
+
+        <p>Get a plot of the given map, for the given dataset.</p>
+
+        <p>For a list of available maps for a dataset, see <em>Map names</em>
+        above.</p>
+
+        <h3>Usage</h3> 
+
+        <pre>/map_plots/&lt;dataset name&gt;/&lt;map name&gt;</pre>
+
+        <h3>Example</h3>
+
+        <p><a href="/map_plots/datasets/Sample dataset/PE_map_m5t01.csv">
+            /map_plots/datasets/Sample dataset/PE_map_m5t01.csv</a></p>
+
+        <p><img src="/map_plots/datasets/Sample dataset/PE_map_m5t01.csv"/></p>
+
+        <p>Note that your HTTP client will need to be able to follow redirects
+        (plots are generated and served from a cache).</p>
+
+        <h2>Map data</h2>
+
+        <p>Get the raw data (CSV) for the given map, for the given dataset.</p>
+
+        <p>For a list of available maps for a dataset, see <em>Map names</em>
+        above.</p>
+
+        <h3>Usage</h3> 
+
+        <pre>/map_data/&lt;dataset name&gt;/&lt;map name&gt;</pre>
+
+        <h3>Example</h3>
+
+        <p><a href="/map_data/datasets/Sample dataset/PE_map_m5t01.csv">
+            /map_data/datasets/Sample dataset/PE_map_m5t01.csv</a></p>
+
+        <h2>Time series plot</h2>
+
+        <p>Get a plot of the given dataset time series, as identified by a
+        combination of feedback and injection.</p>
+
+        <h3>Usage</h3> 
+
+        <pre>/time_series_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;</pre>
+
+        <h3>Example</h3>
+
+        <p><a href="/time_series_plots/datasets/Sample dataset?feedback=0&injection=0">
+            /time_series_plots/datasets/Sample dataset?feedback=0&injection=0</a></p>
+
+        <p><img src="/time_series_plots/datasets/Sample dataset?feedback=0&injection=0"/></p>
+
+        <p>Note that your HTTP client will need to be able to follow redirects
+        (plots are generated and served from a cache).</p>
+
+        <h3>Time series data</h3>
+
+        <p>Get the raw data (CSV) for the given dataset time series, as
+        identified by a combination of feedback and injection.</p>
+
+        <h3>Usage</h3> 
+
+        <pre>/time_series_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;</pre>
+
+        <h3>Example</h3>
+
+        <p><a href="/time_series_data/datasets/Sample dataset?feedback=0&injection=0">
+            /time_series_data/datasets/Sample dataset?feedback=0&injection=0</a></p>
+
+    </body>
+</html>
