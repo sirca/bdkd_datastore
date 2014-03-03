@@ -3,8 +3,10 @@
     <head>
         <title>Chaos lasers!</title>
         <link rel="stylesheet" type="text/css" href="static/style.css" />
+        <link rel="stylesheet" type="text/css" href="static/jquery.imgareaselect-0.9.10/css/imgareaselect-default.css" />
         <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
         <script src="static/jquery.elevatezoom-mod.js"></script>
+        <script type="text/javascript" src="static/jquery.imgareaselect-0.9.10/scripts/jquery.imgareaselect.pack.js"></script>
         <script type="text/javascript">
             var BDKD = {};
             $(document).ready(function() {
@@ -14,8 +16,8 @@
         <script src="static/code.js"></script>
     </head>
     <body>
-	    <h1>Experiment results</h1>
-	    <p>
+        <h1>Experiment results</h1>
+        <p>
             <label id="explabel" for="dataset">Dataset:</label>
             <select id="dataset" onchange="updateMapList()">
                 {% for dataset in datasets %}
@@ -23,33 +25,47 @@
                 {% endfor %}
             </select>
             <label id="label_map" for "map">Map:</label>
-            <select id="map" onchange="updateMapPlot()">
-	    </select>
-	    </p>
+            <select id="map" onchange="updateMapPlot()"></select>
+        </p>
         <div id="controls">
             <p id="log">Pos</p>
         </div>
         <div id="heatdiv">
-	    <table border="0">
-            <tr>
-                <td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
-                <td><span id="heatmap"/></td>
-            </tr>
-		    <tr>
-                <td/>
-                <td>Injection Current (mA)</td>
-            </tr>
-            <tr>
-                <td/>
-                <td><span id="heatmap_download"/></td>
-            </tr>
-        </table>
+            <table border="0">
+                <tr>
+                    <td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
+                    <td><span id="heatmap"/></td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td>Injection Current (mA)</td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td><span id="heatmap_download"/></td>
+                </tr>
+            </table>
         </div>
         <h2>Selected dataset</h2>
         <div class="subgraph">
-            <h3>Graph1</h3>
-            <div id="graph1">Graph 1 placeholder</div>
-            <p><span id="time_series_download"/></p>
+            <h3>Time series</h3>
+            <table border="0">
+                <tr>
+                    <td style="vertical-align:center;">Signal Amplitude<br/>(V)</td>
+                    <td><span id="graph1"></td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td>Time (s)</td>
+                </tr>
+            </table>
+            <p><span id="time_series_download"></span></p>
+            <p><form onsubmit="zoomTimeSeries(); return false;">
+                    From: <input id="from_time" type="text" size="6"/> 
+                    To: <input id="to_time" type="text" size="6"/>
+                    <input type="submit" value="Zoom"/>
+                </form> | <a href="#" onClick="updateTimeSeries(0, 999999); false">Reset</a>
+            </p>
         </div>
         <div class="subgraph">
             <h3>Graph2</h3>
@@ -57,6 +73,9 @@
         <div class="subgraph">
             <h3>Graph3</h3>
         </div>
+
+        <hr style="display:block; clear:both;"/>
+        <p><a href="/static/doc/api.html">API documentation</a></p>
 
     </body>
 <html>

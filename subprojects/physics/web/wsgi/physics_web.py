@@ -88,23 +88,26 @@ def cache_map_plot(dataset, map_name, large=False):
     return plot_location
 
 
-def render_time_series_plot(time_series, plot_filename):
-    ts_x = range(0, len(time_series)*50, 50)
+def render_time_series_plot(time_series, from_time, to_time, plot_filename):
+    ts_x = range(from_time, to_time, 50)
     fig = plt.figure()
     plt.plot(ts_x, np.array(time_series))
+    plt.axes().set_xlim(ts_x[0], ts_x[-1])
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
 
 
-def cache_time_series_plot(dataset_name, feedback, injection, time_series):
-    key = cache_key('time_series', dataset_name, feedback, injection)
+def cache_time_series_plot(dataset_name, feedback, injection, time_series,
+        from_time, to_time):
+    key = cache_key('time_series', dataset_name, feedback, injection, 
+            from_time, to_time)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
         p = Process(target=render_time_series_plot, args=(time_series, 
-            plot_filename))
+            from_time, to_time, plot_filename))
         p.start()
         p.join()
     return plot_location
@@ -143,6 +146,11 @@ def open_dataset_and_time_series(f):
     relies on 'feedback' and 'injection' to be provided in the request args 
     (otherwise 400).  If the time series exists, it  will be provided in the 
     kwargs as time_series; otherwise 404.
+
+    The 'from_time' and 'to_time' are the times (in picoseconds) of the 
+    selected timeseries -- defaulting to 0 and the last value in the timeseries 
+    (respectively).  If provided, these figures will be rounded down and up 
+    resp. to the nearest 50ps interval.
     """
     @wraps(f)
     @open_dataset
@@ -155,9 +163,16 @@ def open_dataset_and_time_series(f):
         time_series = dataset.get_time_series(feedback, injection)
         if time_series == None or len(time_series) == 0:
             abort(404)
+        from_time = int(request.args.get('from', 0))
+        to_time = int(request.args.get('to', (len(time_series) - 1) * 50))
+        from_idx = (from_time // 50)
+        to_idx = -(-to_time // 50)
         kwargs['feedback'] = feedback
         kwargs['injection'] = injection
         kwargs['time_series'] = time_series
+        kwargs['time_series_selected'] = time_series[from_idx:to_idx]
+        kwargs['from_time'] = from_idx * 50
+        kwargs['to_time'] = to_idx * 50
         return f(*args, **kwargs)
     return wrapper
 
@@ -167,7 +182,6 @@ def open_dataset_and_time_series(f):
 def get_map_names(dataset_name, dataset):
     map_names = dataset.get_map_names()
     for map in (FBT_MAP, INJ_MAP):
-        print map
         if map in map_names:
             map_names.remove(map)
     return json.dumps(map_names)
@@ -196,20 +210,23 @@ def get_map_data(dataset_name, dataset, map_name):
 
 @app.route("/time_series_plots/<path:dataset_name>")
 @open_dataset_and_time_series
-def get_time_series_plot(dataset_name, dataset, feedback, injection, time_series):
-    cache_path = cache_time_series_plot(dataset_name, feedback, injection, time_series)
+def get_time_series_plot(dataset_name, dataset, feedback, injection,
+        from_time, to_time, time_series, time_series_selected):
+    cache_path = cache_time_series_plot(dataset_name, feedback, injection, time_series_selected,
+            from_time, to_time)
     return redirect(cache_path, code=302)
 
 
 @app.route("/time_series_data/<path:dataset_name>")
 @open_dataset_and_time_series
-def get_time_series_data(dataset_name, dataset, feedback, injection, time_series):
+def get_time_series_data(dataset_name, dataset, feedback, injection,
+        from_time, to_time, time_series, time_series_selected):
     output = StringIO.StringIO()
-    output.writelines(["{0}\n".format(str(x)) for x in time_series])
+    output.writelines(["{0}\n".format(str(x)) for x in time_series_selected])
     output.seek(0)
     return send_file(output, 
-            attachment_filename="FB_{0:03d}_INJ_{1:03d}.csv".format(
-                feedback, injection), mimetype='text/csv',
+            attachment_filename="FB_{0:03d}_INJ_{1:03d}_{2}_{3}.csv".format(
+                feedback, injection, from_time, to_time), mimetype='text/csv',
             as_attachment=True)
 
 
