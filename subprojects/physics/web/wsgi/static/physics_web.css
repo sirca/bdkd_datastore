@@ -21,9 +21,8 @@ h1, h2 {
     text-align: center;
 }
 
-#log {
-    border: 1px solid black;
-    width: 150px;
-    padding: 10px;
-    background-color: white;
+.sliding_header {
+    background-color: turquoise;
+    border-bottom: 2px solid slategray;
+    font-size: large;
 }

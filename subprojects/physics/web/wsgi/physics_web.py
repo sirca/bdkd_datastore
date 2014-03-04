@@ -57,8 +57,10 @@ def render_map_plot(dataset, map_name, plot_filename, plot_large_filename):
     mapX = np.array(dataset.get_map_data(INJ_MAP))
     mapY = np.array(dataset.get_map_data(FBT_MAP))
     mapZ = np.array(dataset.get_map_data(map_name))
-    fig = plt.figure(figsize=(4.07, 5.09), dpi=100)
+    fig = plt.figure(figsize=(4.07, 4.40), dpi=100)
     plt.pcolor(mapX,mapY,mapZ)
+    plt.axes().set_xlim(np.min(mapX), np.max(mapX))
+    plt.axes().set_ylim(np.min(mapY), np.max(mapY))
     plt.colorbar()
     # Regular sized plot
     with open(plot_filename, 'w') as fh:
@@ -185,6 +187,26 @@ def get_map_names(dataset_name, dataset):
         if map in map_names:
             map_names.remove(map)
     return json.dumps(map_names)
+
+
+@app.route("/feedback/<path:dataset_name>")
+@open_dataset
+def get_feedback(dataset_name, dataset):
+    fbt = dataset.get_map_data(FBT_MAP)
+    if fbt != None:
+        return json.dumps(fbt[0,:].tolist())
+    else:
+        abort(404)
+
+
+@app.route("/injection/<path:dataset_name>")
+@open_dataset
+def get_injection(dataset_name, dataset):
+    inj = dataset.get_map_data(INJ_MAP)
+    if inj != None:
+        return json.dumps(inj[:,0].tolist())
+    else:
+        abort(404)
 
 
 @app.route("/map_plots/<path:dataset_name>/<map_name>")

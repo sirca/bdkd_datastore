@@ -27,28 +27,34 @@
             <label id="label_map" for "map">Map:</label>
             <select id="map" onchange="updateMapPlot()"></select>
         </p>
-        <div id="controls">
-            <p id="log">Pos</p>
-        </div>
-        <div id="heatdiv">
+        <div id="map_header" class="sliding_header">Map</div>
+        <div id="map_panel"  class="sliding_panel">
+            <p><span id="heatmap_download"/></p>
             <table border="0">
                 <tr>
                     <td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
                     <td><span id="heatmap"/></td>
+                    <td style="text-align:left;"><span id="map_coords" style="display:none">
+                        <strong>Injection:</strong><br/><span id="injection_coord"></span><br/>
+                        <strong>Feedback:</strong><br/><span id="feedback_coord"></span>
+                    </span></td>
                 </tr>
                 <tr>
                     <td/>
-                    <td>Injection Current (mA)</td>
-                </tr>
-                <tr>
+                    <td style="text-align:center;">Injection Current (mA)</td>
                     <td/>
-                    <td><span id="heatmap_download"/></td>
                 </tr>
             </table>
+            <p><form onsubmit="displayTimeSeries(); return false;">
+                Injection: <select id="map_injection"></select>
+                Feedback: <select id="map_feedback"></select>
+                <input type="submit" value="Show"/>
+            </form></p>
         </div>
-        <h2>Selected dataset</h2>
-        <div class="subgraph">
-            <h3>Time series</h3>
+
+        <div id="time_series_header" class="sliding_header">Time series</div>
+        <div id="time_series_panel"  class="sliding_panel">
+            <p><span id="time_series_download"></span></p>
             <table border="0">
                 <tr>
                     <td style="vertical-align:center;">Signal Amplitude<br/>(V)</td>
@@ -56,10 +62,9 @@
                 </tr>
                 <tr>
                     <td/>
-                    <td>Time (s)</td>
+                    <td>Time (ps)</td>
                 </tr>
             </table>
-            <p><span id="time_series_download"></span></p>
             <p><form onsubmit="zoomTimeSeries(); return false;">
                     From: <input id="from_time" type="text" size="6"/> 
                     To: <input id="to_time" type="text" size="6"/>
@@ -67,15 +72,18 @@
                 </form> | <a href="#" onClick="updateTimeSeries(0, 999999); false">Reset</a>
             </p>
         </div>
-        <div class="subgraph">
-            <h3>Graph2</h3>
-        </div>
-        <div class="subgraph">
-            <h3>Graph3</h3>
-        </div>
 
         <hr style="display:block; clear:both;"/>
         <p><a href="/static/doc/api.html">API documentation</a></p>
 
+        <script type="text/javascript">
+            $('#map_header').click(function () {
+                $('#map_panel').slideToggle();
+            });
+            $('#time_series_header').click(function () {
+                $('#time_series_panel').slideToggle();
+            });
+            $('#time_series_panel').css('display', 'none');
+        </script>
     </body>
 <html>

@@ -1,5 +1,5 @@
-BDKD.MAP_X_OFFSET = 52;
-BDKD.MAP_Y_OFFSET = 75;
+BDKD.MAP_X_OFFSET = 53;
+BDKD.MAP_Y_OFFSET = 46;
 BDKD.MAX_INJECTION = 250;
 BDKD.MAX_FEEDBACK = 350;
 
@@ -35,7 +35,11 @@ function cursorpos(x,y) {
      * Update the page with the selected feedback/injection position.
      */
     coords = coordinates(x, y);
-    $("#log").html("Injection: " + coords.injection + " Feedback: " + coords.feedback);
+    $('#map_coords').css('display', 'inline');
+    $('#injection_coord').html(BDKD.injection_values[coords.injection] +
+            " (" + coords.injection + ")");
+    $('#feedback_coord').html(BDKD.feedback_values[coords.feedback] + 
+            " (" + coords.feedback + ")");
 };
 
 
@@ -57,6 +61,53 @@ function updateMapList() {
                 updateMapPlot();
             }
     });
+};
+
+
+function updateFeedback() {
+    $.ajax({url: '/feedback/' + BDKD.dataset,
+            context: document.body,
+            success: function(data) {
+                var feedback = JSON.parse(data);
+                BDKD.feedback_values = new Array();
+                var feedback_options = '';
+                for ( var i = 0; i < feedback.length; i++ ) {
+                    var fb = Number((feedback[i]).toFixed(5));
+                    BDKD.feedback_values.push(fb);
+                    feedback_options += '<option value="' + i + '">' + fb + ' (' + i + ')</option>';
+                }
+                $('#map_feedback').html(feedback_options);
+            }
+    });
+};
+
+
+function updateInjection() {
+    $.ajax({url: '/injection/' + BDKD.dataset,
+            context: document.body,
+            success: function(data) {
+                var injection = JSON.parse(data);
+                BDKD.injection_values = new Array();
+                var injection_options = '';
+                for ( var i = 0; i < injection.length; i++ ) {
+                    var inj = Number((injection[i]).toFixed(1));
+                    BDKD.injection_values.push(inj);
+                    injection_options += '<option value="' + i + '">' + inj + ' (' + i + ')</option>';
+                }
+                $('#map_injection').html(injection_options);
+            }
+    });
+};
+
+
+function updateDataset() {
+    /**
+     * On change of selected dataset, update values related to it including the
+     * list of maps and the feedback and injection values.
+     */
+    updateMapList();
+    updateFeedback();
+    updateInjection();
 };
 
 
@@ -139,6 +190,14 @@ function updateTimeSeries(from_time, to_time) {
 };
 
 
+function displayTimeSeries() {
+    BDKD.injection = $('#map_injection').val();
+    BDKD.feedback = $('#map_feedback').val();
+    $('#time_series_panel').slideDown();
+    updateTimeSeries(0, 999999);
+};
+
+
 function zoomTimeSeries() {
         updateTimeSeries(parseInt($('#from_time').val()), 
                 parseInt($('#to_time').val()));
@@ -152,7 +211,7 @@ function updateMapPlot() {
 
     $('#heatmap').replaceWith('<img id="heatmap" src="' + plot_src +
             '" data-zoom-image="' + plot_src + '?size=large" ' +
-            'width=407 height=509/>');
+            'width=407 height=440/>');
     $('#heatmap').elevateZoom({
         scrollZoom  : true,
         zoomType    : "lens",
@@ -162,9 +221,10 @@ function updateMapPlot() {
     });
     $("#heatmap").click(function(e,x,y) {
         var coords = coordinates(x, y);
-        BDKD.feedback = coords.feedback;
         BDKD.injection = coords.injection;
-        updateTimeSeries(0, 999999);
+        $('#map_injection').val(coords.injection);
+        BDKD.feedback = coords.feedback;
+        $('#map_feedback').val(coords.feedback);
     });
 
     $('#heatmap_download').html('Data: <a href="' + data_src + '">' + map_name + '</a>');
@@ -172,5 +232,5 @@ function updateMapPlot() {
 
 
 $(document).ready(function() {
-    updateMapList();
+    updateDataset();
 });

@@ -17,14 +17,40 @@
         below): for those resources, these are the names that can be
         requested.</p>
 
-        <p><strong>Usage:</strong></p> 
+        <h3>Usage:</h3> 
         
         <pre>/map_names/&lt;dataset name&gt;</pre>
 
-        <p><strong>Example:</strong></p>
+        <h3>Example:</h3>
 
         <p><a href="/map_names/datasets/Sample dataset">
             /map_names/datasets/Sample dataset</a></p>
+
+        <h2>Feedback</h2>
+
+        <p>Retrieve a list of feedback values for a dataset.</p>
+
+        <h3>Usage:</h3> 
+        
+        <pre>/feedback/&lt;dataset name&gt;</pre>
+
+        <h3>Example:</h3>
+
+        <p><a href="/feedback/datasets/Sample dataset">
+            /feedback/datasets/Sample dataset</a></p>
+
+        <h2>Injection</h2>
+
+        <p>Retrieve a list of injection values for a dataset.</p>
+
+        <h3>Usage:</h3> 
+        
+        <pre>/injection/&lt;dataset name&gt;</pre>
+
+        <h3>Example:</h3>
+
+        <p><a href="/injection/datasets/Sample dataset">
+            /injection/datasets/Sample dataset</a></p>
 
         <h2>Map plots</h2>
 
@@ -68,9 +94,12 @@
         <p>Get a plot of the given dataset time series, as identified by a
         combination of feedback and injection.</p>
 
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
+
         <h3>Usage</h3> 
 
-        <pre>/time_series_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;</pre>
+        <pre>/time_series_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
 
         <h3>Example</h3>
 
@@ -87,9 +116,12 @@
         <p>Get the raw data (CSV) for the given dataset time series, as
         identified by a combination of feedback and injection.</p>
 
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
+
         <h3>Usage</h3> 
 
-        <pre>/time_series_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;</pre>
+        <pre>/time_series_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
 
         <h3>Example</h3>
 
