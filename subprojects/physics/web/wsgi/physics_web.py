@@ -114,6 +114,29 @@ def cache_time_series_plot(dataset_name, feedback, injection, time_series,
         p.join()
     return plot_location
 
+def render_phase_plot(from_time, to_time, time_series, time_series_selected, offset, plot_filename):
+    ts_y = time_series[(from_time+offset):(to_time+offset)]
+    ts_x = time_series[from_time:(from_time + len(ts_y))]
+    fig = plt.figure()
+    plt.plot(ts_x, ts_y, 'r.')
+    with open(plot_filename, 'w') as fh:
+        fig.canvas.print_png(fh)
+    plt.close(fig)
+
+
+def cache_phase_plot(dataset_name, feedback, injection, 
+        from_time, to_time, time_series, time_series_selected, offset):
+    key = cache_key('phase', dataset_name, feedback, injection, 
+            from_time, to_time, offset)
+    cache_dirname = make_cache_dir(key)
+    plot_location = os.path.join(cache_dirname, key + '.png')
+    plot_filename = os.path.join(CACHE_ROOT, plot_location)
+    if not os.path.exists(plot_filename):
+        p = Process(target=render_phase_plot, args=(from_time, to_time, time_series, 
+            time_series_selected, offset, plot_filename))
+        p.start()
+        p.join()
+    return plot_location
 
 def open_dataset(f):
     """
@@ -250,6 +273,15 @@ def get_time_series_data(dataset_name, dataset, feedback, injection,
             attachment_filename="FB_{0:03d}_INJ_{1:03d}_{2}_{3}.csv".format(
                 feedback, injection, from_time, to_time), mimetype='text/csv',
             as_attachment=True)
+
+
+@app.route("/phase_plots/<path:dataset_name>")
+@open_dataset_and_time_series
+def get_phase_plot(dataset_name, dataset, feedback, injection,
+        from_time, to_time, time_series, time_series_selected):
+    offset = int(request.args.get('offset', 1))
+    cache_path = cache_phase_plot(dataset_name, feedback, injection, from_time, to_time, time_series, time_series_selected, offset)
+    return redirect(cache_path, code=302)
 
 
 @app.route("/")
