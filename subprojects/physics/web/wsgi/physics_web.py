@@ -139,6 +139,34 @@ def cache_phase_plot(dataset_name, feedback, injection,
         p.join()
     return plot_location
 
+
+def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
+        plot_filename):
+    data = np.array(time_series_selected)
+    sp = np.fft.fft(data)
+    freq = np.fft.fftfreq(data.shape[-1])
+    freq = freq[0:-(-(data.shape[-1]) // 2)]
+    fig = plt.figure()
+    plt.plot(freq, sp.real[0:len(freq)])
+    with open(plot_filename, 'w') as fh:
+        fig.canvas.print_png(fh)
+    plt.close(fig)
+
+
+def cache_fft_plot(dataset_name, feedback, injection, 
+        from_time, to_time, time_series, time_series_selected):
+    key = cache_key('phase', dataset_name, feedback, injection, 
+            from_time, to_time)
+    cache_dirname = make_cache_dir(key)
+    plot_location = os.path.join(cache_dirname, key + '.png')
+    plot_filename = os.path.join(CACHE_ROOT, plot_location)
+    if not os.path.exists(plot_filename):
+        p = Process(target=render_fft_plot, args=(from_time, to_time, time_series, 
+            time_series_selected, plot_filename))
+        p.start()
+        p.join()
+    return plot_location
+
 def open_dataset(f):
     """
     Wrapper for routes using 'dataset_name' and 'map_name', to provide a dataset.
@@ -283,6 +311,16 @@ def get_phase_plot(dataset_name, dataset, feedback, injection,
     delay = int(request.args.get('delay', 1))
     cache_path = cache_phase_plot(dataset_name, feedback, injection, 
             from_time, to_time, time_series, time_series_selected, delay)
+    return redirect(cache_path, code=302)
+
+
+@app.route("/fft_plots/<path:dataset_name>")
+@open_dataset_and_time_series
+def get_fft_plot(dataset_name, dataset, feedback, injection,
+        from_time, to_time, time_series, time_series_selected):
+    delay = int(request.args.get('delay', 1))
+    cache_path = cache_fft_plot(dataset_name, feedback, injection, 
+            from_time, to_time, time_series, time_series_selected)
     return redirect(cache_path, code=302)
 
 

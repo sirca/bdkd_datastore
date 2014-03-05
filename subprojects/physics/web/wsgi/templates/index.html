@@ -83,6 +83,11 @@
             </form></p>
         </div>
 
+        <div id="fft_header" class="sliding_header">FFT</div>
+        <div id="fft_panel"  class="sliding_panel">
+            <p><span id="fft_plot"></span></p>
+        </div>
+
         <div id="documentation_header" class="sliding_header">Documentation</div>
         <div id="documentation_panel"  class="sliding_panel">
             <p><a href="/static/doc/api.html">API documentation</a></p>
@@ -102,6 +107,11 @@
                 $('#phase_panel').slideToggle();
                 });
             $('#phase_panel').css('display', 'none');
+
+            $('#fft_header').click(function () {
+                $('#fft_panel').slideToggle();
+                });
+            $('#fft_panel').css('display', 'none');
 
             $('#documentation_header').click(function () {
                 $('#documentation_panel').slideToggle();

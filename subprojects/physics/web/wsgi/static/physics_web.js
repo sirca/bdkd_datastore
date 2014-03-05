@@ -69,6 +69,8 @@ function onChangeTimeSeries() {
     updateTimeSeries();
     $('#phase_panel').slideDown();
     updatePhaseDiagram();
+    $('#fft_panel').slideDown();
+    updateFFTDiagram();
 };
 
 function onZoomTimeSeries() {
@@ -80,6 +82,7 @@ function onZoomTimeSeries() {
 
     updateTimeSeries();
     updatePhaseDiagram();
+    updateFFTDiagram();
 };
 
 
@@ -93,6 +96,7 @@ function onResetZoomTimeSeries() {
 
     updateTimeSeries();
     updatePhaseDiagram();
+    updateFFTDiagram();
 };
 
 
@@ -142,6 +146,16 @@ function updatePhaseDiagram() {
         "&to=" + BDKD.to_time + 
         "&delay=" + BDKD.phase_delay;
     $('#phase_plot').replaceWith("<img id='phase_plot' width=640 height=480 src='"+plot_src+"' />");
+};
+
+
+function updateFFTDiagram() {
+    var plot_src = "/fft_plots/" + BDKD.dataset + 
+        "?feedback=" + BDKD.feedback +
+        "&injection=" + BDKD.injection + 
+        "&from=" + BDKD.from_time + 
+        "&to=" + BDKD.to_time;
+    $('#fft_plot').replaceWith("<img id='fft_plot' width=640 height=480 src='"+plot_src+"' />");
 };
 
 
