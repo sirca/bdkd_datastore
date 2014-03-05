@@ -114,9 +114,10 @@ def cache_time_series_plot(dataset_name, feedback, injection, time_series,
         p.join()
     return plot_location
 
-def render_phase_plot(from_time, to_time, time_series, time_series_selected, offset, plot_filename):
-    ts_y = time_series[(from_time+offset):(to_time+offset)]
-    ts_x = time_series[from_time:(from_time + len(ts_y))]
+def render_phase_plot(from_time, to_time, time_series, time_series_selected, 
+        delay, plot_filename):
+    ts_y = time_series[((from_time // 50)+delay):(-(-to_time // 50)+delay)]
+    ts_x = time_series[(from_time // 50):((from_time // 50) + len(ts_y))]
     fig = plt.figure()
     plt.plot(ts_x, ts_y, 'r.')
     with open(plot_filename, 'w') as fh:
@@ -125,15 +126,15 @@ def render_phase_plot(from_time, to_time, time_series, time_series_selected, off
 
 
 def cache_phase_plot(dataset_name, feedback, injection, 
-        from_time, to_time, time_series, time_series_selected, offset):
+        from_time, to_time, time_series, time_series_selected, delay):
     key = cache_key('phase', dataset_name, feedback, injection, 
-            from_time, to_time, offset)
+            from_time, to_time, delay)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
         p = Process(target=render_phase_plot, args=(from_time, to_time, time_series, 
-            time_series_selected, offset, plot_filename))
+            time_series_selected, delay, plot_filename))
         p.start()
         p.join()
     return plot_location
@@ -279,8 +280,9 @@ def get_time_series_data(dataset_name, dataset, feedback, injection,
 @open_dataset_and_time_series
 def get_phase_plot(dataset_name, dataset, feedback, injection,
         from_time, to_time, time_series, time_series_selected):
-    offset = int(request.args.get('offset', 1))
-    cache_path = cache_phase_plot(dataset_name, feedback, injection, from_time, to_time, time_series, time_series_selected, offset)
+    delay = int(request.args.get('delay', 1))
+    cache_path = cache_phase_plot(dataset_name, feedback, injection, 
+            from_time, to_time, time_series, time_series_selected, delay)
     return redirect(cache_path, code=302)
 
 

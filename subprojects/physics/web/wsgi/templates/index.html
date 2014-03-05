@@ -19,17 +19,18 @@
         <h1>Experiment results</h1>
         <p>
             <label id="explabel" for="dataset">Dataset:</label>
-            <select id="dataset" onchange="updateMapList()">
+            <select id="dataset" onchange="onChangeDataset()">
                 {% for dataset in datasets %}
                 <option>{{ dataset }}</option>
                 {% endfor %}
             </select>
             <label id="label_map" for "map">Map:</label>
-            <select id="map" onchange="updateMapPlot()"></select>
+            <select id="map" onchange="onChangeMap()"></select>
         </p>
+
         <div id="map_header" class="sliding_header">Map</div>
         <div id="map_panel"  class="sliding_panel">
-            <p><span id="heatmap_download"/></p>
+            <p><span id="heatmap_download"></span></p>
             <table border="0">
                 <tr>
                     <td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
@@ -45,7 +46,7 @@
                     <td/>
                 </tr>
             </table>
-            <p><form onsubmit="displayTimeSeries(); return false;">
+            <p><form onsubmit="onChangeTimeSeries(); return false;">
                 Injection: <select id="map_injection"></select>
                 Feedback: <select id="map_feedback"></select>
                 <input type="submit" value="Show"/>
@@ -58,32 +59,54 @@
             <table border="0">
                 <tr>
                     <td style="vertical-align:center;">Signal Amplitude<br/>(V)</td>
-                    <td><span id="graph1"></td>
+                    <td><span id="time_series_plot"></span></td>
                 </tr>
                 <tr>
                     <td/>
                     <td>Time (ps)</td>
                 </tr>
             </table>
-            <p><form onsubmit="zoomTimeSeries(); return false;">
+            <p><form onsubmit="onZoomTimeSeries(); return false;">
                     From: <input id="from_time" type="text" size="6"/> 
                     To: <input id="to_time" type="text" size="6"/>
                     <input type="submit" value="Zoom"/>
-                </form> | <a href="#" onClick="updateTimeSeries(0, 999999); false">Reset</a>
+                </form> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
             </p>
         </div>
 
-        <hr style="display:block; clear:both;"/>
-        <p><a href="/static/doc/api.html">API documentation</a></p>
+        <div id="phase_header" class="sliding_header">Phase diagram</div>
+        <div id="phase_panel"  class="sliding_panel">
+            <p><span id="phase_plot"></span></p>
+            <p><form onsubmit="onChangePhaseDelay(); return false;">
+                Delay: <input id="phase_delay" type="text" value="1" size="3"/>
+                <input type="submit" value="Show"/>
+            </form></p>
+        </div>
+
+        <div id="documentation_header" class="sliding_header">Documentation</div>
+        <div id="documentation_panel"  class="sliding_panel">
+            <p><a href="/static/doc/api.html">API documentation</a></p>
+        </div>
 
         <script type="text/javascript">
             $('#map_header').click(function () {
                 $('#map_panel').slideToggle();
-            });
+                });
+
             $('#time_series_header').click(function () {
                 $('#time_series_panel').slideToggle();
-            });
+                });
             $('#time_series_panel').css('display', 'none');
+
+            $('#phase_header').click(function () {
+                $('#phase_panel').slideToggle();
+                });
+            $('#phase_panel').css('display', 'none');
+
+            $('#documentation_header').click(function () {
+                $('#documentation_panel').slideToggle();
+            });
+            $('#documentation_panel').css('display', 'none');
         </script>
     </body>
 <html>
