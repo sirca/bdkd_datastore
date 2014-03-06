@@ -1,6 +1,23 @@
 <html>
     <head>
         <title>Laser REST API</title>
+        <style>
+            h2 {
+                border-top: 3px solid grey;
+                background-color: darkturquoise;
+            }
+            h3 {
+                background-color: peachpuff;
+                border-bottom: 1px solid lightgrey;
+            }
+            dt {
+                font-weight: bold;
+            }
+            pre {
+                margin-left: 24px;
+                background-color: azure;
+            }
+        </style>
     </head>
 
     <body>
@@ -9,7 +26,71 @@
         <p>The Laser REST API enables the user to retrieve experiment data and
         plots, for maps and time series.</p>
 
-        <h2>Map names</h2>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#meta-data">Meta-data resources</a></li>
+            <li><a href="#data">Data resources</a></li>
+            <li><a href="#plots">Plot resources</a></li>
+        </ul>
+
+        <a id="overview"/>
+        <h2>Overview</h2>
+
+        <p>This REST API can be used to retrieve the original time series data
+        for an experiment, as well as generated "maps" (i.e. analyses of
+        combinations of feedback and injection).  The data is provided as CSV
+        file downloads, or as plot images.</p>
+
+       <p>Some meta-data is also provided via the API, such as the names of all
+       available maps and the values of feedback and injection parameters for
+       the experiment.  This information can be used to navigate the data, and
+       to supplement its display.</p>
+
+        <p>Clarification of some terms used in this document:</p>
+        <dl>
+            <dt>Dataset</dt>
+            <dd>All the data for a particular experiment, conducted on some
+            date.</dd>
+
+            <dt>Feedback</dt> <dd>Optical feedback, varied by changing the RF
+            power to an acousto-optic modulator (AOM) which varies the amount
+            of laser power.  During an experiment feedback is varied from 0.45V
+            to 0.8V in 0.001V steps, giving 351 distinct values (classified
+            from 0 to 350).</dd>
+
+            <dt>Injection</dt> <dd>Laser injection, controlled by directly
+            varying the current supply to the device.  During an experiment
+            injection is varied from 45mA to 70mA in 0.1mA steps, giving 251
+            distinct values (classified from 0 to 250).</dd>
+
+            <dt>Time series</dt> <dd>A sequence of 20,000 amplitude values
+            measured as the voltage across the 50ohm oscilloscope input.  Time
+            series are sampled at 20GSamples/s (50 picoseconds per point), for
+            a total duration of 1 microsecond.  There are 88,101 time series
+            per dataset, i.e. 251 x 351 for each combination of feedback and
+            injection.</dd>
+
+            <dt>Map</dt> <dd>Result data generated from all time series, as a
+            251 x 351 array.  The maps represent various analyses of the time
+            series data, including amplitudes, permutation entropy and
+            auto-correlation.</dd>
+
+            <dt>Phase diagram</dt> <dd>A plot of time series values against
+            themselves, offset by a user-defined delay (in 50 picosecond
+            steps).</dd> 
+
+        </dl>
+
+
+        <!-- ========================================================== -->
+        <a id="meta-data"/>
+        <h2>Meta-data resources</h2>
+
+        <p>Methods to retrieve information about datasets, such as available
+        map names and the feedback/injection values used in the creation of the
+        dataset.</p>
+
+        <h3>Map names</h3>
 
         <p>Retrieve a list of available map names for a dataset.</p>
 
@@ -17,53 +98,135 @@
         below): for those resources, these are the names that can be
         requested.</p>
 
-        <h3>Usage:</h3> 
+        <h4>Usage:</h4> 
         
         <pre>/map_names/&lt;dataset name&gt;</pre>
 
-        <h3>Example:</h3>
+        <h4>Example:</h4>
 
         <p><a href="/map_names/datasets/Sample dataset">
             /map_names/datasets/Sample dataset</a></p>
 
-        <h2>Feedback</h2>
+        <h3>Feedback</h3>
 
         <p>Retrieve a list of feedback values for a dataset.</p>
 
-        <h3>Usage:</h3> 
+        <h4>Usage:</h4> 
         
         <pre>/feedback/&lt;dataset name&gt;</pre>
 
-        <h3>Example:</h3>
+        <h4>Example:</h4>
 
         <p><a href="/feedback/datasets/Sample dataset">
             /feedback/datasets/Sample dataset</a></p>
 
-        <h2>Injection</h2>
+        <h3>Injection</h3>
 
         <p>Retrieve a list of injection values for a dataset.</p>
 
-        <h3>Usage:</h3> 
+        <h4>Usage:</h4> 
         
         <pre>/injection/&lt;dataset name&gt;</pre>
 
-        <h3>Example:</h3>
+        <h4>Example:</h4>
 
         <p><a href="/injection/datasets/Sample dataset">
             /injection/datasets/Sample dataset</a></p>
 
-        <h2>Map plots</h2>
+
+        <!-- ========================================================== -->
+        <a id="data"/>
+        <h2>Data resources</h2>
+
+        <p>Methods to retrieve the data from a dataset: either maps or
+        individual time series, for a combination of feedback and
+        injection.</p>
+
+        <h3>Map data</h3>
+
+        <p>Get the raw data (CSV) for the given map, for the given dataset.</p>
+
+        <p>The output is a 251 x 351 2D array of floats, corresponding with
+        each combination of injection and feedback from the original
+        results.</p>
+
+        <p>For a list of available maps for a dataset, see <em>Map names</em>
+        above.</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/map_data/&lt;dataset name&gt;/&lt;map name&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/map_data/datasets/Sample dataset/PE_map_m5t01.csv">
+            /map_data/datasets/Sample dataset/PE_map_m5t01.csv</a></p>
+
+
+        <h3>Time series data</h3>
+
+        <p>Get the raw data (CSV) for the given dataset time series, as
+        identified by a combination of feedback and injection.</p>
+
+        <p>The output is one-dimensional: one floating point per line.</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/time_series_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/time_series_data/datasets/Sample dataset?feedback=0&injection=0">
+            /time_series_data/datasets/Sample dataset?feedback=0&injection=0</a></p>
+
+
+        <h3>FFT data</h3>
+
+        <p>Get data used to produce a FFT plot of the raw data (CSV) for the
+        given dataset time series, as identified by a combination of feedback
+        and injection.</p>
+
+        <p>The output is in JSON format, containing FFT frequency buckets
+        ("fftfreq") and all positive, real FFT results ("fft").</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/fft_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/fft_data/datasets/Sample dataset?feedback=0&injection=0">
+            /fft_data/datasets/Sample dataset?feedback=0&injection=0</a></p>
+
+
+        <!-- ========================================================== -->
+        <a id="plots"/>
+        <h2>Plot resources</h2>
+
+        <p>Methods to get rendered plots as images, generated from the map or timeseries data of a dataset.</p>
+
+        <p><em><strong>Note:</strong> For plot requests, your HTTP client may
+            receive a redirect to a cached resource.  Therefore your HTTP
+            client must be capable of following redirects.</em></p>
+        
+        <h3>Map plots</h3>
 
         <p>Get a plot of the given map, for the given dataset.</p>
 
         <p>For a list of available maps for a dataset, see <em>Map names</em>
         above.</p>
 
-        <h3>Usage</h3> 
+        <h4>Usage</h4> 
 
         <pre>/map_plots/&lt;dataset name&gt;/&lt;map name&gt;</pre>
 
-        <h3>Example</h3>
+        <h4>Example</h4>
 
         <p><a href="/map_plots/datasets/Sample dataset/PE_map_m5t01.csv">
             /map_plots/datasets/Sample dataset/PE_map_m5t01.csv</a></p>
@@ -73,23 +236,7 @@
         <p>Note that your HTTP client will need to be able to follow redirects
         (plots are generated and served from a cache).</p>
 
-        <h2>Map data</h2>
-
-        <p>Get the raw data (CSV) for the given map, for the given dataset.</p>
-
-        <p>For a list of available maps for a dataset, see <em>Map names</em>
-        above.</p>
-
-        <h3>Usage</h3> 
-
-        <pre>/map_data/&lt;dataset name&gt;/&lt;map name&gt;</pre>
-
-        <h3>Example</h3>
-
-        <p><a href="/map_data/datasets/Sample dataset/PE_map_m5t01.csv">
-            /map_data/datasets/Sample dataset/PE_map_m5t01.csv</a></p>
-
-        <h2>Time series plot</h2>
+        <h3>Time series plot</h3>
 
         <p>Get a plot of the given dataset time series, as identified by a
         combination of feedback and injection.</p>
@@ -97,11 +244,11 @@
         <p>Optionally "from" and "to" parameters can be provided for the range
         of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
 
-        <h3>Usage</h3> 
+        <h4>Usage</h4> 
 
         <pre>/time_series_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
 
-        <h3>Example</h3>
+        <h4>Example</h4>
 
         <p><a href="/time_series_plots/datasets/Sample dataset?feedback=0&injection=0">
             /time_series_plots/datasets/Sample dataset?feedback=0&injection=0</a></p>
@@ -111,22 +258,46 @@
         <p>Note that your HTTP client will need to be able to follow redirects
         (plots are generated and served from a cache).</p>
 
-        <h3>Time series data</h3>
+        <h3>Phase plot</h3>
 
-        <p>Get the raw data (CSV) for the given dataset time series, as
-        identified by a combination of feedback and injection.</p>
+        <p>Get a phase plot of the given dataset time series, as identified by a
+        combination of feedback and injection, for a specified delay.</p>
+
+        <p>The time series data is offset against itself by the delay, which is
+        a number of 50 picosecond steps, and plotted against itself.</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to 999999).  The default
+        delay is 1.</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/phase_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;&amp;delay=&lt;delay&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/phase_plots/datasets/Sample dataset?feedback=0&injection=0&delay=1">
+            /phase_plots/datasets/Sample dataset?feedback=0&injection=0&delay=1</a></p>
+
+        <p><img src="/phase_plots/datasets/Sample dataset?feedback=0&injection=0"/></p>
+
+        <h3>FFT plot</h3>
+
+        <p>Get a fast Fourier transform (FFT) plot of the given dataset time
+        series, as identified by a combination of feedback and injection.</p>
 
         <p>Optionally "from" and "to" parameters can be provided for the range
         of picoseconds.  Default: all (i.e. from 0 to 999999).</p>
 
-        <h3>Usage</h3> 
+        <h4>Usage</h4> 
 
-        <pre>/time_series_data/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
+        <pre>/fft_plots/&lt;dataset name&gt;?feedback=&lt;feedback: 0-350&gt;&amp;injection=&lt;injection: 0-250&gt;&amp;from=&lt;0 - 999999&gt;&amp;to=&lt;0 - 999999&gt;</pre>
 
-        <h3>Example</h3>
+        <h4>Example</h4>
 
-        <p><a href="/time_series_data/datasets/Sample dataset?feedback=0&injection=0">
-            /time_series_data/datasets/Sample dataset?feedback=0&injection=0</a></p>
+        <p><a href="/fft_plots/datasets/Sample dataset?feedback=0&injection=0">
+            /fft_plots/datasets/Sample dataset?feedback=0&injection=0</a></p>
 
+        <p><img src="/fft_plots/datasets/Sample dataset?feedback=0&injection=0"/></p>
     </body>
 </html>

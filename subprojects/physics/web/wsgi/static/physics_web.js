@@ -150,11 +150,14 @@ function updatePhaseDiagram() {
 
 
 function updateFFTDiagram() {
-    var plot_src = "/fft_plots/" + BDKD.dataset + 
+    var params = BDKD.dataset + 
         "?feedback=" + BDKD.feedback +
         "&injection=" + BDKD.injection + 
         "&from=" + BDKD.from_time + 
         "&to=" + BDKD.to_time;
+    var data_src = "/fft_data/" + params;
+    var plot_src = "/fft_plots/" + params;
+    $('#fft_download').html('Data: <a href="' + data_src + '">' + data_src + '</a>'); 
     $('#fft_plot').replaceWith("<img id='fft_plot' width=640 height=480 src='"+plot_src+"' />");
 };
 

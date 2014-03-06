@@ -140,14 +140,28 @@ def cache_phase_plot(dataset_name, feedback, injection,
     return plot_location
 
 
-def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
-        plot_filename):
+def time_series_fft(time_series_selected):
+    """
+    Get the frequency buckets and positive, real component of a FFT analysis of 
+    the provided time series.
+
+    Both FFT and FFT frequency buckets are calculated for the dataset.  Only 
+    the first half (rounding up) of the results are returned: these correspond 
+    with the positive values. (Negatives are not required: they are a mirror 
+    image of the positive.)
+    """
     data = np.array(time_series_selected)
     sp = np.fft.fft(data)
     freq = np.fft.fftfreq(data.shape[-1])
     freq = freq[0:-(-(data.shape[-1]) // 2)]
+    return ( freq, sp.real[0:len(freq)] )
+
+
+def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
+        plot_filename):
+    (freq, sp) = time_series_fft(time_series_selected)
     fig = plt.figure()
-    plt.plot(freq, sp.real[0:len(freq)])
+    plt.plot(freq, sp)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
@@ -155,7 +169,7 @@ def render_fft_plot(from_time, to_time, time_series, time_series_selected,
 
 def cache_fft_plot(dataset_name, feedback, injection, 
         from_time, to_time, time_series, time_series_selected):
-    key = cache_key('phase', dataset_name, feedback, injection, 
+    key = cache_key('fft', dataset_name, feedback, injection, 
             from_time, to_time)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
@@ -312,6 +326,14 @@ def get_phase_plot(dataset_name, dataset, feedback, injection,
     cache_path = cache_phase_plot(dataset_name, feedback, injection, 
             from_time, to_time, time_series, time_series_selected, delay)
     return redirect(cache_path, code=302)
+
+
+@app.route("/fft_data/<path:dataset_name>")
+@open_dataset_and_time_series
+def get_fft_data(dataset_name, dataset, feedback, injection,
+        from_time, to_time, time_series, time_series_selected):
+    (freq, sp) = time_series_fft(time_series_selected)
+    return json.dumps({'fftfreq': freq.tolist(), 'fft': sp.tolist()})
 
 
 @app.route("/fft_plots/<path:dataset_name>")
