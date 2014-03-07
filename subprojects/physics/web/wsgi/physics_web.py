@@ -154,14 +154,14 @@ def time_series_fft(time_series_selected):
     sp = np.fft.fft(data)
     freq = np.fft.fftfreq(data.shape[-1])
     freq = freq[0:-(-(data.shape[-1]) // 2)]
-    return ( freq, sp.real[0:len(freq)] )
+    return ( freq, sp.real[0:len(freq)], sp.imag[0:len(freq)] )
 
 
 def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
         plot_filename):
-    (freq, sp) = time_series_fft(time_series_selected)
+    (freq, sp_real, sp_imag) = time_series_fft(time_series_selected)
     fig = plt.figure()
-    plt.plot(freq, sp)
+    plt.plot(freq, sp_real)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
@@ -243,6 +243,16 @@ def open_dataset_and_time_series(f):
         kwargs['to_time'] = to_idx * 50
         return f(*args, **kwargs)
     return wrapper
+
+
+@app.route("/readme/<path:dataset_name>")
+@open_dataset
+def get_readme(dataset_name, dataset):
+    readme_txt = dataset.get_readme()
+    if readme_txt:
+        return readme_txt
+    else:
+        abort(404)
 
 
 @app.route("/map_names/<path:dataset_name>")
@@ -332,8 +342,9 @@ def get_phase_plot(dataset_name, dataset, feedback, injection,
 @open_dataset_and_time_series
 def get_fft_data(dataset_name, dataset, feedback, injection,
         from_time, to_time, time_series, time_series_selected):
-    (freq, sp) = time_series_fft(time_series_selected)
-    return json.dumps({'fftfreq': freq.tolist(), 'fft': sp.tolist()})
+    (freq, sp_real, sp_imag) = time_series_fft(time_series_selected)
+    return json.dumps({'fftfreq': freq.tolist(), 'fft_real': sp_real.tolist(),
+        'fft_imag': sp_imag.tolist() })
 
 
 @app.route("/fft_plots/<path:dataset_name>")

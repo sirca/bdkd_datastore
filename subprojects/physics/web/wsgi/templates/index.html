@@ -28,6 +28,11 @@
             <select id="map" onchange="onChangeMap()"></select>
         </p>
 
+        <div id="readme_header" class="sliding_header">README</div>
+        <div id="readme_panel"  class="sliding_panel">
+            <p><pre id="readme"></pre></p>
+        </div>
+
         <div id="map_header" class="sliding_header">Map</div>
         <div id="map_panel"  class="sliding_panel">
             <p><span id="heatmap_download"></span></p>
@@ -95,6 +100,11 @@
         </div>
 
         <script type="text/javascript">
+            $('#readme_header').click(function () {
+                $('#readme_panel').slideToggle();
+                });
+            $('#readme_panel').css('display', 'none');
+
             $('#map_header').click(function () {
                 $('#map_panel').slideToggle();
                 });

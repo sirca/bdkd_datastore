@@ -9,8 +9,10 @@ class Dataset(object):
         self.shard_size = resource.metadata.get('shard-size', None)
         self.shards = {}
         self.maps = None
+        self.readme = None
         shard_name_re = re.compile(r".*FB_(\d+)_INJ_(\d+)_(\d+)\.hdf5$")
         maps_name_re = re.compile(r".*maps.hdf5$")
+        readme_name_re = re.compile(r"read\s*me")
         for rfile in resource.files:
             match = shard_name_re.match(rfile.location_or_remote())
             if match:
@@ -21,6 +23,8 @@ class Dataset(object):
                 self.shards[(fb, inj)] = rfile
             elif maps_name_re.match(rfile.location_or_remote()):
                 self.maps = rfile
+            elif readme_name_re.search(rfile.location_or_remote().lower()):
+                self.readme = rfile
     
 
     @classmethod
@@ -87,3 +91,14 @@ class Dataset(object):
             shard_file.close()
         return data
 
+    def get_readme(self):
+        """
+        Gets the README text for the dataset.
+
+        If no README file is available, returns None.
+        """
+        if not self.readme:
+            return None
+        with open (self.readme.local_path(), 'r') as readme:
+            readme_text = readme.read()
+        return readme_text

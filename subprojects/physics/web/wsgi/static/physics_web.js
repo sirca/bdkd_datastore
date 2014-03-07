@@ -19,6 +19,7 @@ function onChangeDataset() {
      */
     BDKD.dataset = $('#dataset').val();
     updateMapList();
+    updateReadme();
     updateFeedback();
     updateInjection();
 };
@@ -180,6 +181,16 @@ function updateMapList() {
                 }
                 $('#map').html(map_options);
                 onChangeMap();
+            }
+    });
+};
+
+
+function updateReadme() {
+    $.ajax({url: '/readme/' + BDKD.dataset,
+            context: document.body,
+            success: function(data) {
+                $('#readme').html(data);
             }
     });
 };
