@@ -24,6 +24,7 @@ REPOSITORY='bdkd-laser-demo'
 DEFAULT_DATASET='datasets/Sample dataset'
 FBT_MAP='FBT_map.csv'
 INJ_MAP='INJ_map.csv'
+PEAK_VOLTAGE=0.316
 
 app = Flask(__name__)
 
@@ -158,7 +159,7 @@ def time_series_fft(time_series_selected, timestep=50e-12):
     sp = np.fft.fft(data)
     spp = np.sqrt(np.multiply(sp[0:xs_half], 
         np.ma.conjugate(sp[0:xs_half]))) / xs_half
-    dBm = 20 * np.log10(spp / 0.315)
+    dBm = 20 * np.log10(spp / PEAK_VOLTAGE)
     return ( freq, dBm )
 
 
