@@ -25,7 +25,16 @@ class Dataset(object):
                 self.maps = rfile
             elif readme_name_re.search(rfile.location_or_remote().lower()):
                 self.readme = rfile
-    
+
+
+    @classmethod
+    def list(cls, repo_name, prefix=''):
+        repository = bdkd.datastore.repository(repo_name)
+        if repository:
+            return repository.list(prefix)
+        else:
+            return None
+
 
     @classmethod
     def open(cls, repo_name, resource_name):
