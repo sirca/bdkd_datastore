@@ -140,7 +140,7 @@ def cache_phase_plot(dataset_name, feedback, injection,
     return plot_location
 
 
-def time_series_fft(time_series_selected):
+def time_series_fft(time_series_selected, timestep=50e-12):
     """
     Get the frequency buckets and positive, real component of a FFT analysis of 
     the provided time series.
@@ -151,17 +151,22 @@ def time_series_fft(time_series_selected):
     image of the positive.)
     """
     data = np.array(time_series_selected)
+    xs = len(data)
+    xs_half = -(-xs // 2)
+    freq = np.fft.fftfreq(data.shape[-1], d=timestep)
+    freq = freq[0:xs_half]
     sp = np.fft.fft(data)
-    freq = np.fft.fftfreq(data.shape[-1])
-    freq = freq[0:-(-(data.shape[-1]) // 2)]
-    return ( freq, sp.real[0:len(freq)], sp.imag[0:len(freq)] )
+    spp = np.sqrt(np.multiply(sp[0:xs_half], 
+        np.ma.conjugate(sp[0:xs_half]))) / xs_half
+    dBm = 20 * np.log10(spp / 0.315)
+    return ( freq, dBm )
 
 
 def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
         plot_filename):
-    (freq, sp_real, sp_imag) = time_series_fft(time_series_selected)
+    (freq, dBm) = time_series_fft(time_series_selected)
     fig = plt.figure()
-    plt.plot(freq, sp_real)
+    plt.plot(freq, dBm)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
@@ -342,9 +347,9 @@ def get_phase_plot(dataset_name, dataset, feedback, injection,
 @open_dataset_and_time_series
 def get_fft_data(dataset_name, dataset, feedback, injection,
         from_time, to_time, time_series, time_series_selected):
-    (freq, sp_real, sp_imag) = time_series_fft(time_series_selected)
-    return json.dumps({'fftfreq': freq.tolist(), 'fft_real': sp_real.tolist(),
-        'fft_imag': sp_imag.tolist() })
+    (freq, dBm) = time_series_fft(time_series_selected)
+    return json.dumps({'fftfreq': freq.tolist(), 'fft_real': dBm.real.data.tolist(),
+        'fft_imag': dBm.imag.data.tolist() })
 
 
 @app.route("/fft_plots/<path:dataset_name>")
