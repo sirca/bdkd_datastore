@@ -250,6 +250,14 @@ def open_dataset_and_time_series(f):
     return wrapper
 
 
+@app.route("/datasets")
+def get_datasets():
+    dataset_names = Dataset.list(REPOSITORY)
+    if not dataset_names:
+        abort(404)
+    return json.dumps(dataset_names)
+
+
 @app.route("/readme/<path:dataset_name>")
 @open_dataset
 def get_readme(dataset_name, dataset):

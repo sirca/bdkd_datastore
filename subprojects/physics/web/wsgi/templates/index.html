@@ -10,7 +10,7 @@
         <script type="text/javascript">
             var BDKD = {};
             $(document).ready(function() {
-                BDKD.dataset = "{{ datasets[0] }}";    
+                onPageLoad();
             });
         </script>
         <script src="static/physics_web.js"></script>
@@ -19,11 +19,7 @@
         <h1>Experiment results</h1>
         <p>
             <label id="explabel" for="dataset">Dataset:</label>
-            <select id="dataset" onchange="onChangeDataset()">
-                {% for dataset in datasets %}
-                <option>{{ dataset }}</option>
-                {% endfor %}
-            </select>
+            <select id="dataset" onchange="onChangeDataset()"></select>
             <label id="label_map" for "map">Map:</label>
             <select id="map" onchange="onChangeMap()"></select>
         </p>

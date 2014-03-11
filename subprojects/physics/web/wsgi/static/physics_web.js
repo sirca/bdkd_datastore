@@ -12,6 +12,28 @@ BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX +
 BDKD.TIME_SERIES_HEIGHT_PX = 480;
 
 
+function onPageLoad() {
+    /**
+     * When the page is loaded update the list of available datasets, and go to
+     * the first one by default.
+     */
+    $.ajax({url: '/datasets',
+            context: document.body,
+            success: function(data) {
+                var dataset_names = JSON.parse(data);
+                if ( dataset_names.length > 0 ) {    
+                    dataset_options = '';
+                    for ( var i = 0; i < dataset_names.length; i++ ) {
+                        dataset_options += '<option>' + dataset_names[i] + '</option>';
+                    }
+                    $('#dataset').html(dataset_options);
+                    onChangeDataset();
+                }
+            }
+    });
+};
+
+
 function onChangeDataset() {
     /**
      * On change of selected dataset, update values related to it including the
@@ -329,8 +351,3 @@ function timeSeriesPxToTimeRange(x1, x2) {
             ) * BDKD.TIME_SERIES_STEP - 1;
     return {from_time: from_time, to_time: to_time};
 };
-
-
-$(document).ready(function() {
-    onChangeDataset();
-});
