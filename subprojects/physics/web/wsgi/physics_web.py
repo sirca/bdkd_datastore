@@ -8,6 +8,7 @@ from functools import wraps
 
 from bdkd.physics.data import Dataset
 import bdkd.physics.plot as bdkd_plot
+from PIL import Image
 
 from flask import ( Flask, request, render_template, send_file, 
         make_response, abort, redirect)
@@ -46,10 +47,19 @@ def make_cache_dir(key):
     return cache_dirname
 
 
-def subprocess_plot(target, args):
-    p = Process(target=target, args=args)
-    p.start()
-    p.join()
+def subprocess_plot(filename, target, args):
+    if not os.path.exists(filename):
+        p = Process(target=target, args=args)
+        p.start()
+        p.join()
+    else:
+        os.utime(filename, None)
+
+
+def large_map_plot(plot_filename, plot_large_filename):
+    img = Image.open(plot_filename)
+    large_img = img.resize([x * 10 for x in img.size])
+    large_img.save(plot_large_filename)
 
 
 def cache_map_plot(dataset, map_name, large=False):
@@ -60,9 +70,12 @@ def cache_map_plot(dataset, map_name, large=False):
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     plot_large_location = plot_name + '-large.png'
     plot_large_filename = os.path.join(CACHE_ROOT, plot_large_location)
-    if not os.path.exists(plot_filename):
-        subprocess_plot(target=bdkd_plot.render_map_plot, 
-                args=(dataset, map_name, plot_filename, plot_large_filename))
+    subprocess_plot(filename=plot_filename, 
+            target=bdkd_plot.render_map_plot, 
+            args=(dataset, map_name, plot_filename))
+    subprocess_plot(filename=plot_large_filename,
+            target=large_map_plot,
+            args=(plot_filename, plot_large_filename))
     if large:
         return plot_large_location
     return plot_location
@@ -75,9 +88,9 @@ def cache_time_series_plot(dataset_name, feedback, injection, time_series,
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
-    if not os.path.exists(plot_filename):
-        subprocess_plot(target=bdkd_plot.render_time_series_plot, 
-                args=(time_series, from_time, to_time, plot_filename))
+    subprocess_plot(filename=plot_filename, 
+            target=bdkd_plot.render_time_series_plot, 
+            args=(time_series, from_time, to_time, plot_filename))
     return plot_location
 
 
@@ -88,10 +101,10 @@ def cache_phase_plot(dataset_name, feedback, injection,
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
-    if not os.path.exists(plot_filename):
-        subprocess_plot(target=bdkd_plot.render_phase_plot, 
-                args=(from_time, to_time, time_series, time_series_selected, 
-                    delay, plot_filename))
+    subprocess_plot(filename=plot_filename,
+            target=bdkd_plot.render_phase_plot, 
+            args=(from_time, to_time, time_series, time_series_selected, 
+                delay, plot_filename))
     return plot_location
 
 
@@ -102,10 +115,10 @@ def cache_fft_plot(dataset_name, feedback, injection,
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
-    if not os.path.exists(plot_filename):
-        subprocess_plot(target=bdkd_plot.render_fft_plot, 
-                args=(from_time, to_time, time_series, time_series_selected, 
-                    plot_filename))
+    subprocess_plot(filename=plot_filename, 
+            target=bdkd_plot.render_fft_plot, 
+            args=(from_time, to_time, time_series, time_series_selected, 
+                plot_filename))
     return plot_location
 
 
