@@ -3,7 +3,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import numpy as np
-from PIL import Image
 
 
 FBT_MAP='FBT_map.csv'
@@ -23,16 +22,12 @@ def map_plot(dataset, map_name):
     return fig
 
 
-def render_map_plot(dataset, map_name, plot_filename, plot_large_filename):
+def render_map_plot(dataset, map_name, plot_filename):
     fig = map_plot(dataset, map_name)
     # Regular sized plot
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
-    # Large plot
-    img = Image.open(plot_filename)
-    large_img = img.resize([x * 10 for x in img.size])
-    large_img.save(plot_large_filename)
 
 
 def time_series_plot(time_series, from_time, to_time):
