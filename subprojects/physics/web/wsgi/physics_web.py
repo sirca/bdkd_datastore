@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-import numpy as np
 import hashlib
 import os, errno
 import csv, json, StringIO
 from multiprocessing import Process
-from PIL import Image
 from functools import wraps
 
 from bdkd.physics.data import Dataset
+import bdkd.physics.plot as bdkd_plot
 
 from flask import ( Flask, request, render_template, send_file, 
         make_response, abort, redirect)
@@ -22,9 +17,6 @@ CACHE_LOCATION='static/cache'
 CACHE_SALT='55f329b5b9d620090e763a359e102eb0'
 REPOSITORY='bdkd-laser-demo'
 DEFAULT_DATASET='datasets/Sample dataset'
-FBT_MAP='FBT_map.csv'
-INJ_MAP='INJ_map.csv'
-PEAK_VOLTAGE=0.316
 
 app = Flask(__name__)
 
@@ -54,23 +46,10 @@ def make_cache_dir(key):
     return cache_dirname
 
 
-def render_map_plot(dataset, map_name, plot_filename, plot_large_filename):
-    mapX = np.array(dataset.get_map_data(INJ_MAP))
-    mapY = np.array(dataset.get_map_data(FBT_MAP))
-    mapZ = np.array(dataset.get_map_data(map_name))
-    fig = plt.figure(figsize=(4.07, 4.40), dpi=100)
-    plt.pcolor(mapX,mapY,mapZ)
-    plt.axes().set_xlim(np.min(mapX), np.max(mapX))
-    plt.axes().set_ylim(np.min(mapY), np.max(mapY))
-    plt.colorbar()
-    # Regular sized plot
-    with open(plot_filename, 'w') as fh:
-        fig.canvas.print_png(fh)
-    plt.close(fig)
-    # Large plot
-    img = Image.open(plot_filename)
-    large_img = img.resize([x * 10 for x in img.size])
-    large_img.save(plot_large_filename)
+def subprocess_plot(target, args):
+    p = Process(target=target, args=args)
+    p.start()
+    p.join()
 
 
 def cache_map_plot(dataset, map_name, large=False):
@@ -82,23 +61,11 @@ def cache_map_plot(dataset, map_name, large=False):
     plot_large_location = plot_name + '-large.png'
     plot_large_filename = os.path.join(CACHE_ROOT, plot_large_location)
     if not os.path.exists(plot_filename):
-        p = Process(target=render_map_plot, args=(dataset, map_name, 
-            plot_filename, plot_large_filename))
-        p.start()
-        p.join()
+        subprocess_plot(target=bdkd_plot.render_map_plot, 
+                args=(dataset, map_name, plot_filename, plot_large_filename))
     if large:
         return plot_large_location
     return plot_location
-
-
-def render_time_series_plot(time_series, from_time, to_time, plot_filename):
-    ts_x = range(from_time, to_time, 50)
-    fig = plt.figure()
-    plt.plot(ts_x, np.array(time_series))
-    plt.axes().set_xlim(ts_x[0], ts_x[-1])
-    with open(plot_filename, 'w') as fh:
-        fig.canvas.print_png(fh)
-    plt.close(fig)
 
 
 def cache_time_series_plot(dataset_name, feedback, injection, time_series,
@@ -109,21 +76,9 @@ def cache_time_series_plot(dataset_name, feedback, injection, time_series,
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
-        p = Process(target=render_time_series_plot, args=(time_series, 
-            from_time, to_time, plot_filename))
-        p.start()
-        p.join()
+        subprocess_plot(target=bdkd_plot.render_time_series_plot, 
+                args=(time_series, from_time, to_time, plot_filename))
     return plot_location
-
-def render_phase_plot(from_time, to_time, time_series, time_series_selected, 
-        delay, plot_filename):
-    ts_y = time_series[((from_time // 50)+delay):(-(-to_time // 50)+delay)]
-    ts_x = time_series[(from_time // 50):((from_time // 50) + len(ts_y))]
-    fig = plt.figure()
-    plt.plot(ts_x, ts_y, 'r.')
-    with open(plot_filename, 'w') as fh:
-        fig.canvas.print_png(fh)
-    plt.close(fig)
 
 
 def cache_phase_plot(dataset_name, feedback, injection, 
@@ -134,43 +89,10 @@ def cache_phase_plot(dataset_name, feedback, injection,
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
-        p = Process(target=render_phase_plot, args=(from_time, to_time, time_series, 
-            time_series_selected, delay, plot_filename))
-        p.start()
-        p.join()
+        subprocess_plot(target=bdkd_plot.render_phase_plot, 
+                args=(from_time, to_time, time_series, time_series_selected, 
+                    delay, plot_filename))
     return plot_location
-
-
-def time_series_fft(time_series_selected, timestep=50e-12):
-    """
-    Get the frequency buckets and positive, real component of a FFT analysis of 
-    the provided time series.
-
-    Both FFT and FFT frequency buckets are calculated for the dataset.  Only 
-    the first half (rounding up) of the results are returned: these correspond 
-    with the positive values. (Negatives are not required: they are a mirror 
-    image of the positive.)
-    """
-    data = np.array(time_series_selected)
-    xs = len(data)
-    xs_half = -(-xs // 2)
-    freq = np.fft.fftfreq(data.shape[-1], d=timestep)
-    freq = freq[0:xs_half]
-    sp = np.fft.fft(data)
-    spp = np.sqrt(np.multiply(sp[0:xs_half], 
-        np.ma.conjugate(sp[0:xs_half]))) / xs_half
-    dBm = 20 * np.log10(spp / PEAK_VOLTAGE)
-    return ( freq, dBm )
-
-
-def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
-        plot_filename):
-    (freq, dBm) = time_series_fft(time_series_selected)
-    fig = plt.figure()
-    plt.plot(freq, dBm)
-    with open(plot_filename, 'w') as fh:
-        fig.canvas.print_png(fh)
-    plt.close(fig)
 
 
 def cache_fft_plot(dataset_name, feedback, injection, 
@@ -181,11 +103,11 @@ def cache_fft_plot(dataset_name, feedback, injection,
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     if not os.path.exists(plot_filename):
-        p = Process(target=render_fft_plot, args=(from_time, to_time, time_series, 
-            time_series_selected, plot_filename))
-        p.start()
-        p.join()
+        subprocess_plot(target=bdkd_plot.render_fft_plot, 
+                args=(from_time, to_time, time_series, time_series_selected, 
+                    plot_filename))
     return plot_location
+
 
 def open_dataset(f):
     """
@@ -273,7 +195,7 @@ def get_readme(dataset_name, dataset):
 @open_dataset
 def get_map_names(dataset_name, dataset):
     map_names = dataset.get_map_names()
-    for map in (FBT_MAP, INJ_MAP):
+    for map in (bdkd_plot.FBT_MAP, bdkd_plot.INJ_MAP):
         if map in map_names:
             map_names.remove(map)
     return json.dumps(map_names)
@@ -282,7 +204,7 @@ def get_map_names(dataset_name, dataset):
 @app.route("/feedback/<path:dataset_name>")
 @open_dataset
 def get_feedback(dataset_name, dataset):
-    fbt = dataset.get_map_data(FBT_MAP)
+    fbt = dataset.get_map_data(bdkd_plot.FBT_MAP)
     if fbt != None:
         return json.dumps(fbt[0,:].tolist())
     else:
@@ -292,7 +214,7 @@ def get_feedback(dataset_name, dataset):
 @app.route("/injection/<path:dataset_name>")
 @open_dataset
 def get_injection(dataset_name, dataset):
-    inj = dataset.get_map_data(INJ_MAP)
+    inj = dataset.get_map_data(bdkd_plot.INJ_MAP)
     if inj != None:
         return json.dumps(inj[:,0].tolist())
     else:
