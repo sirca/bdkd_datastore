@@ -83,6 +83,8 @@ class RepositoryTest(unittest.TestCase):
 
     def test_list(self):
         self.assertEquals(len(self.repository.list()), 0)
+        self.repository.save(self.resource)
+        self.assertEquals(len(self.repository.list()), 1)
 
     def test_get(self):
         self.assertEquals(self.repository.get(self.resource_name), None)

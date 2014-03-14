@@ -443,6 +443,14 @@ class Repository(object):
         if bucket:
             for key in bucket.list(resources_prefix):
                 resource_names.append(key.name[(len(type(self).resources_prefix) + 1):])
+        else:
+            resource_path = os.path.join(self.local_cache, 
+                    type(self).resources_prefix)
+            for (dirpath, dirnames, filenames) in os.walk(resource_path):
+                if len(filenames):
+                    for filename in filenames:
+                        resource_names.append(os.path.join(
+                            dirpath[(len(resource_path) + 1):], filename))
         return resource_names
 
     def get(self, name):
