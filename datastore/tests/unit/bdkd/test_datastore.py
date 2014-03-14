@@ -1,18 +1,21 @@
 import unittest
-import os, shutil
+import os, shutil, re
 
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(os.path.dirname(__file__), '..', 'conf', 'test.conf')
 import bdkd.datastore
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
+TEST_PATH='/var/tmp/test'
 
 class ConfigurationTest(unittest.TestCase):
     def test_config_settings(self):
         settings = bdkd.datastore.settings()
         self.assertTrue(isinstance(settings, dict))
-        self.assertTrue(settings['cache_root'] == '/var/tmp/bdkd/cache')
-        self.assertTrue(settings['working_root'] == '/var/tmp/bdkd/working')
+        self.assertTrue(settings['cache_root'] == 
+                os.path.join(TEST_PATH, 'bdkd/cache'))
+        self.assertTrue(settings['working_root'] == 
+                os.path.join(TEST_PATH, 'bdkd/working'))
 
     def test_config_hosts(self):
         hosts = bdkd.datastore.hosts()
@@ -45,7 +48,7 @@ class RepositoryTest(unittest.TestCase):
     @classmethod
     def _clear_local(cls, repository):
         for tmp_path in [ repository.local_cache, repository.working ]:
-            if tmp_path and tmp_path.startswith('/var/tmp'):
+            if tmp_path and tmp_path.startswith(TEST_PATH):
                 if os.path.exists(tmp_path):
                     shutil.rmtree(tmp_path)
 
@@ -131,6 +134,18 @@ class ResourceTest(unittest.TestCase):
                 os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
                 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'))
 
+    @classmethod
+    def _resource_sans_modified(cls, filename):
+        """
+        The "last-modified" date of a Resource is variable: it depends on when 
+        the test is run.  For the purposes of comparing actual versus expected, 
+        the content of this field needs to be ignored.
+        """
+        with open(filename, 'r') as fh:
+            content = fh.read()
+        return re.sub(r'"last-modified": "[^"]*"', 
+            r'"last-modified": ""', content)
+        
     def test_resource_init(self):
         resource = bdkd.datastore.Resource('test-resource', [])
         self.assertEquals(resource.name, 'test-resource')
@@ -151,8 +166,9 @@ class ResourceTest(unittest.TestCase):
         out_filename = os.path.join(self.repository.working, 'test-resource.json')
         fixture_filename = os.path.join(FIXTURES, 'resource.json')
         self.resource.write(out_filename)
-        self.assertEquals(bdkd.datastore.checksum(out_filename), 
-                bdkd.datastore.checksum(fixture_filename))
+        self.assertEquals(
+                type(self)._resource_sans_modified(out_filename), 
+                type(self)._resource_sans_modified(fixture_filename))
 
     def test_local_paths(self):
         local_paths = self.resource.local_paths()
