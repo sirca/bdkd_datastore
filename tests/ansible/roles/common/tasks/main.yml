@@ -1,0 +1,3 @@
+# Test that system is up-to-date
+- name: Test update
+  command: apt-get --show-upgraded upgrade --assume-no
