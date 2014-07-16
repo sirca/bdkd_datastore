@@ -1,0 +1,10 @@
+# Compute cluster client tasks.
+---
+- name: Test installation of iPython Notebook
+  include: ipython.yml
+
+- name: Test installation of other client-side software
+  command: dpkg-query --show {{ item }}
+  with_items:
+    - s3cmd
+
