@@ -1,0 +1,15 @@
+---
+- name: Test installation of datastore dependencies
+  command: dpkg-query --show {{ item }}
+  with_items:
+    - python-boto
+    - python-yaml
+
+#- name: Test presence of BDKD datastore default configuration
+- stat: path=/etc/bdkd/Current/datastore.conf
+  register: st
+- fail: msg="Permissions not correct on datatstore configuration"
+  when: st.stat.mode != '0644'
+
+- name: Test installation of BDKD datastore library
+  shell: pip list | grep bdkd-datastore
