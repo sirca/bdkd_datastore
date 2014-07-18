@@ -1,8 +1,0 @@
----
-- name: Test installation of scientific packages
-  command: dpkg-query --show {{ item }}
-  with_items:
-    - python-matplotlib
-    - python-numpy
-    - python-sklearn
-
