@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+
+"""
+Add a time-dependent raster sequence to a Repository.
+
+This utility is modeled after `datastore-add`.  It takes the same parameters,
+except that the one file argument is a GPML file.  This file is parsed for the
+paths of a set of time-dependent rasters.  The GPML file and all raster files
+are used as the files of the created Resource.
+"""
+
+
+import bdkd.datastore
+import json, optparse, os, sys
+import xml.etree.ElementTree
+
+GML='{http://www.opengis.net/gml}' 
+GPML='{http://www.gplates.org/gplates}'
+
+def xml_format(str):
+    return str.format(gml=GML, gpml=GPML)
+
+def main():
+    usage = "usage: %prog [options] 'repository' 'resource name' file..."
+    optparser = optparse.OptionParser(usage=usage)
+    optparser.add_option('-m', '--meta', dest='metadata', 
+            help='Meta-data for resource (JSON string)')
+    optparser.add_option('-f', '--force', action='store_true',
+            help='Force overwrite any existing resource')
+    (options, args) = optparser.parse_args()
+    
+    if len(args) != 3:
+        optparser.error("Need to provide a repository, resource name, and one GPML file")
+
+    # Repository
+    repository_name = args.pop(0)
+    repository = bdkd.datastore.repository(repository_name)
+    if not repository:
+        optparser.error("The repository '{0}' is not valid or not configured"
+                .format(repository_name))
+    
+    # Resource name
+    resource_name = args.pop(0)
+    
+    # Unpack metadata, check
+    if options.metadata:
+        try:
+            metadata = json.loads(options.metadata)
+        except ValueError as error:
+            optparser.error("Could not parse metadata: '{0}'".format(error.message))
+        if not isinstance(metadata, dict):
+            optparser.error("The JSON meta-data must contain a dictionary")
+    else:
+        metadata = {}
+
+    # Process GPML file
+    gpml_filename = args.pop(0)
+    if not os.path.exists(gpml_filename):
+        optparse.error("The GPML file '{0}' does not exist"
+                .format(gpml_filename))
+    # Rasters should be located relative to the .gpml file
+    files_path = os.path.dirname(gpml_filename)
+
+    # Parse XML
+    xml_tree = xml.etree.ElementTree.parse(gpml_filename)
+    xml_root = xml_tree.getroot()
+
+    identity = xml_root.find(xml_format('.//{gpml}identity'))
+    if identity != None:
+        metadata['identity'] = identity.text
+    revision = xml_root.find(xml_format('.//{gpml}revision'))
+    if revision != None:
+        metadata['revision'] = revision.text
+
+    # File data
+    files = [ dict(path=gpml_filename) ]
+    for time_window in xml_root.findall(xml_format('.//{gpml}timeWindow')):
+        file_data = dict()
+        start_time = time_window.find(xml_format(
+            './/{gml}TimePeriod/{gml}begin/{gml}TimeInstant/{gml}timePosition'))
+        if start_time != None:
+            file_data['begin'] = start_time.text
+        end_time = time_window.find(xml_format(
+            './/{gml}TimePeriod/{gml}end/{gml}TimeInstant/{gml}timePosition'))
+        if end_time != None:
+            file_data['end'] = end_time.text
+        filename = time_window.find(xml_format(
+            './/{gml}File/{gml}fileName'))
+        if filename != None:
+            file_data['path'] = os.path.join(files_path, filename.text)
+            # Only append if filename can be expanded into a real file
+            if os.path.exists(os.path.expanduser(file_data['path'])):
+                files.append(file_data)
+
+    # Check if resource exists
+    existing = repository.get(resource_name)
+    if existing:
+        if options.force:
+            repository.delete(existing)
+        else:
+            optparser.error("Resource '{0}' already exists (use --force to overwrite)".format(resource_name))
+
+    # Save resource
+    resource = bdkd.datastore.Resource.new(resource_name, files, 
+            **metadata)
+    repository.save(resource)
+
+
+if __name__ == "__main__":
+    main()
+

@@ -1,0 +1,32 @@
+13 May 2013
+
+This directory contains the present day EarthByte Global Coastline Dataset consist with the Seton et al (2012) model.  Coastlines are represented as lines.  Timescale used is Cande and Kent (1995) and Gradstein et. al. (1994).
+
+Four file formats are given:
+
+Seton_etal_ESR2012_Coastlines_2012.1.gpmlz - native GPlates Markup Language .gpml format
+Shapefile/Seton_etal_ESR2012_Coastlines_2012.1.shp - ESRI shapefile .shp format
+
+To load these datasets in GPlates do the following:
+
+1.  Open GPlates
+2.  Pull down the GPlates File menu and select the operation Open Feature Collection
+3.  Click the file format you want to load
+4.  Click Open 
+
+Alternatively, drag and drop the files onto the globe.
+
+Note: When loading a shapefile, GPlates will prompt you to associate shapefile attributes with GPlates model properties.  You just need to click OK.  However, if loading your own shapefiles, you may need to ensure that the model properties are mapped correctly.
+                   
+In order to reconstruct these features, you will need to load in the underlying rotation model (.rot file) which can be downloaded from http://www.earthbyte.org/Resources/earthbyte_gplates.html.  
+
+Play around with the GPlates buttons to make an animation, select features, draw features, etc.  For more information, read the GPlates manual which can be downloaded from www.gplates.org or http://www.earthbyte.org/Resources/earthbyte_gplates.html
+   
+Known bugs:  The shapefiles that are created in GPlates will not load correctly if using other commercial software like ArcGIS.  The problem is that most commercial packages cannot handle data that cross the dateline, unlike GPlates which is designed to handle global datasets.  We do not anticipate that commercial packages will fix this bug anytime soon but we will endeavour to provide a solution within GPlates in a future release.
+     
+Updates:  See README under DataBundleForNovices/ for description of updates to the dataset.
+          
+Any questions, please email:            
+                                        Dietmar Muller dietmar.muller@sydney.edu.au
+                                        Maria Seton maria.seton@sydney.edu.au
+										Simon Williams simon.williams@sydney.edu.au
