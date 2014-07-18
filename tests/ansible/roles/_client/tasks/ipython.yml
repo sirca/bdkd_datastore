@@ -1,0 +1,4 @@
+---
+
+- name: Test installation of iPython Pip package
+  shell: pip list | grep ipython

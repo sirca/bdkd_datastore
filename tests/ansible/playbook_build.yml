@@ -1,0 +1,8 @@
+---
+- hosts: build
+  remote_user: ubuntu
+  sudo: yes
+  vars:
+    master_ip: "{{ master_ip | default(10.0.0.10) }}"
+  roles:
+    - "{{ build_role }}"
