@@ -8,6 +8,26 @@ import bdkd.datastore
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
 TEST_PATH='/var/tmp/test'
 
+
+class UtilitiesTest(unittest.TestCase):
+
+    def test_common_directory_single(self):
+        self.assertEquals(bdkd.datastore.common_directory(['a/b']),
+                'a/b')
+
+    def test_common_directory_common(self):
+        self.assertEquals(bdkd.datastore.common_directory(['a/b', 'a/c']),
+                'a')
+
+    def test_common_directory_different(self):
+        self.assertEquals(bdkd.datastore.common_directory(['a/b', 'c/d']),
+                '')
+
+    def test_common_directory_blanks(self):
+        self.assertEquals(bdkd.datastore.common_directory(['', '']),
+                '')
+
+
 class ConfigurationTest(unittest.TestCase):
     def test_config_settings(self):
         settings = bdkd.datastore.settings()

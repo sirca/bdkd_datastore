@@ -70,7 +70,7 @@ def common_directory(paths):
     common_parts = common_parts[0:common_count]
     if common_count:
         leading = ''
-        if paths[0][0] == os.sep:
+        if len(paths[0]) and paths[0][0] == os.sep:
             leading = os.sep
         common_path = leading + os.path.join(*common_parts)
     else:
