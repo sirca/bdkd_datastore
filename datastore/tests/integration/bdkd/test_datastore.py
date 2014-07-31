@@ -147,6 +147,21 @@ class RepositoryTest(unittest.TestCase):
         self.assertTrue(os.access(resource.path, os.W_OK))
         self._check_file_count(self.repository.working, 2)
 
+    def test_overwrite_resource_blocked(self):
+        # You shouldn't be able to save over an existing resource
+        # (overwrite=True is required)
+        resource = self.resources.get('single')
+        self.repository.save(resource)
+        self.repository.edit_resource(resource)
+        self.assertRaises(ValueError, self.repository.save, resource)
+
+    def test_overwrite_resource(self):
+        resource = self.resources.get('single')
+        self.repository.save(resource)
+        self.repository.edit_resource(resource)
+        self.repository.save(resource, overwrite=True)
+        self.assertFalse(resource.is_edit)
+
     def test_delete_resource(self):
         resource = self.resources.get('single')
         self.repository.save(resource)
