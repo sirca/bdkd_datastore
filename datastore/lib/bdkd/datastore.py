@@ -70,7 +70,7 @@ def common_directory(paths):
     common_parts = common_parts[0:common_count]
     if common_count:
         leading = ''
-        if paths[0][0] == os.sep:
+        if len(paths[0]) and paths[0][0] == os.sep:
             leading = os.sep
         common_path = leading + os.path.join(*common_parts)
     else:
@@ -356,13 +356,15 @@ class Repository(object):
         if not resource_file.is_edit:
             raise ValueError("Resource file is not currently being edited")
         file_cache_path = self.__file_cache_path(resource_file)
+        file_working_path = self.__file_working_path(resource_file)
         if resource_file.path and os.path.exists(resource_file.path) and resource_file.location():
-            if resource_file.path != file_cache_path:
-                resource_file.relocate(file_cache_path)
+            if resource_file.path != file_working_path:
+                resource_file.relocate(file_working_path)
             bucket = self.get_bucket()
             if bucket:
                 file_keyname = self.__file_keyname(resource_file)
-                self.__upload(file_keyname, file_cache_path)
+                self.__upload(file_keyname, file_working_path)
+            resource_file.relocate(file_cache_path, move=True)
         resource_file.is_edit = False
         
     def edit_resource(self, resource):
@@ -406,27 +408,30 @@ class Repository(object):
                     ', '.join(conflicting_names))
 
         resource_cache_path = self.__resource_name_cache_path(resource.name)
-        resource.write(resource_cache_path)
+        resource_working_path = self.__resource_name_working_path(resource.name)
+        resource.write(resource_working_path)
+        resource.path = resource_working_path
+
         bucket = self.get_bucket()
         if bucket:
             resource_keyname = self.__resource_name_key(resource.name)
             resource_key = bucket.get_key(resource_keyname)
             if resource_key:
-                if overwrite:
-                    self.delete(resource)
-                else:
+                if not overwrite:
                     raise ValueError("Resource already exists!")
             else:
                 resource_key = boto.s3.key.Key(bucket, resource_keyname)
-            logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
-            resource_key.set_contents_from_filename(resource_cache_path)
+            logger.debug("Uploading resource from %s to key %s", resource_working_path, resource_keyname)
+            resource_key.set_contents_from_filename(resource_working_path)
         if resource.repository != self:
             logger.debug("Setting the repository for the resource")
             resource.repository = self
-        resource.is_edit = False
 
         for resource_file in resource.files:
             self.__save_resource_file(resource_file)
+
+        resource.relocate(resource_cache_path, move=True)
+        resource.is_edit = False
 
     def list(self, prefix=''):
         """
@@ -503,7 +508,8 @@ class Asset(object):
         self.is_edit = False
         self.metadata = None
 
-    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
+    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH, 
+            move=False):
         """
         Relocate an Asset's file to some other path, and set the mode of the 
         relocated file.
@@ -516,7 +522,10 @@ class Asset(object):
                 os.remove(dest_path)
             else:
                 mkdir_p(os.path.dirname(dest_path))
-            shutil.copy2(self.path, dest_path)
+            if move:
+                shutil.move(self.path, dest_path)
+            else:
+                shutil.copy2(self.path, dest_path)
             os.chmod(dest_path, mod)
             self.path = dest_path
     
