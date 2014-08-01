@@ -1,0 +1,1 @@
+datastore-add bdkd-dlau-test 'TestGroup/TestDataSet' testdata/* -m '{"description":"Test Data\n---------\nThis is a test data set.","author":"Daniel Lau","author_email":"daniel.lau@sirca.org.au","maintainer":"Daniel Lau","maintainer_email":"daniel.lau@sirca.org.au","version":"1.0","custom_fields":{"custom_field1":"custom_value1","custom_field2":"custom_value2"} }'
