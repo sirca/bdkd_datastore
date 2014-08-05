@@ -12,19 +12,17 @@ if root_dir != "":
 setup(name='bdkd-portal-primer',
       version='0.1',
       description='BDKD Data Portal Primer',
-      long_description = open('README.md').read(),
-      install_requires=['boto', 'PyYAML', 'ckanapi', 'argparse', 'bdkd-datastore'],
+      long_description = open('README.rst').read(),
       author='Daniel Lau',
       author_email='daniel.lau@sirca.org.au',
       url='http://github.com/sirca/bdkd',
       entry_points = {
           'console_scripts' : [
-              'portal_primer = portal_primer:main',
+              'portal_primer = primer.primer:main',
           ],
       },
-      # package_dir={'': 'primer'},
-      packages=find_packages(exclude='tests'),
+      packages=['primer'],
       scripts=[
-          'bin/purge_dataset.sh',
+          'scripts/purge_portal_dataset',
           ],
       )
