@@ -1,6 +1,8 @@
 import unittest
 import bdkd.datastore
 import glob, os, shutil
+import boto
+import time
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
 
@@ -161,6 +163,19 @@ class RepositoryTest(unittest.TestCase):
         self.repository.edit_resource(resource)
         self.repository.save(resource, overwrite=True)
         self.assertFalse(resource.is_edit)
+
+    def test_resource_last_modified(self):
+        # Force resource into remote storage.
+        resource = self.resources.get('single')
+        self.repository.save(resource)
+        datetime1 = boto.utils.parse_ts(self.repository.get_resource_last_modified(resource.name))
+        # Force an update to the resource 1 second later.
+        time.sleep(1) 
+        self.repository.edit_resource(resource)
+        self.repository.save(resource, overwrite=True)
+        datetime2 = boto.utils.parse_ts(self.repository.get_resource_last_modified(resource.name))
+        # The sequence of events should produce a sequential set of times.
+        self.assertTrue(datetime1 < datetime2)
 
     def test_delete_resource(self):
         resource = self.resources.get('single')
