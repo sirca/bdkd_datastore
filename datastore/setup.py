@@ -20,5 +20,11 @@ setup(
                 'bin/datastore-list',
                 'bin/datastore-repositories',
                 ],
+        entry_points = {
+            'console_scripts': [
+                'datastore-getkey = bdkd.util:getkey_util',
+                'datastore-lastmod = bdkd.util:lastmod_util',
+            ],
+        },
         install_requires=['boto', 'PyYAML']
         )
