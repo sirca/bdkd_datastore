@@ -491,6 +491,35 @@ class Repository(object):
         resource.repository = None
 
 
+    def get_resource_key(self, name, key_attr=None):
+        """
+        Acquire the key for a resource in the object storage.
+        :param name:  name of the resource
+        :param key_attr:  the attribute of the key of interest (error purposes)
+        :returns: the boto key for the resource
+        """
+        bucket = self.get_bucket()
+        if not bucket:
+            if key_attr is None:
+                key_attr = 'the bucket'
+            raise ValueError('Cannot get %s for this repository.' %s (key_attr))
+        key_name = self.__resource_name_key(name)
+        key = bucket.get_key(key_name)
+        if not key:
+            raise ValueError('Key %s does not exist in the repository' % (key_name))
+        return key
+
+
+    def get_resource_last_modified(self, name):
+        """
+        Acquire the last modified time of the resource (only look at the resource
+        meta data rather than interrogate every single files under that resource)
+        :param name:  name of the resource
+        :returns: the last modified date/time in a long string format as per S3
+        """
+        key = self.get_resource_key(name, key_attr='last modified date')
+        return key.last_modified
+
 class Asset(object):
     """
     Superclass of things that can be stored within a Repository.  This includes 
