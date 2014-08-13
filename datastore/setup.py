@@ -22,6 +22,7 @@ setup(
                 ],
         entry_points = {
             'console_scripts': [
+                'datastore-add-bdkd = bdkd.datastore_util.add:add_bdkd_util',
                 'datastore-getkey = bdkd.util:getkey_util',
                 'datastore-lastmod = bdkd.util:lastmod_util',
             ],
