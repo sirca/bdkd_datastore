@@ -25,4 +25,10 @@ setup(name='bdkd-portal-primer',
       scripts=[
           'scripts/purge_portal_dataset',
           ],
-      )
+      install_requires=[
+          "ckanapi",
+          "requests",
+          "PyYAML",
+          "argparse",
+          "bdkd-datastore",
+      ])
