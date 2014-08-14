@@ -4,7 +4,8 @@ import glob, os, shutil
 import boto
 import time
 
-FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
+FIXTURES = os.path.join(os.path.dirname(__file__), 
+    '..', '..', '..', 'fixtures')
 
 class RepositoryTest(unittest.TestCase):
     

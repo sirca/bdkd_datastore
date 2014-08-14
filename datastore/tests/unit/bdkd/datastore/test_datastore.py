@@ -2,10 +2,12 @@ import unittest
 import os, shutil, re
 
 # Load a custom configuration for unit testing
-os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(os.path.dirname(__file__), '..', 'conf', 'test.conf')
+os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(os.path.dirname(__file__), 
+    '..', '..', 'conf', 'test.conf')
 import bdkd.datastore
 
-FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
+FIXTURES = os.path.join(os.path.dirname(__file__), 
+    '..', '..', '..', 'fixtures')
 TEST_PATH='/var/tmp/test'
 
 

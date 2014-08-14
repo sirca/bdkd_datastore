@@ -13,7 +13,6 @@ setup(
         package_dir={'': 'lib'},
         packages=['bdkd'],
         scripts=[
-                'bin/datastore-add',
                 'bin/datastore-delete',
                 'bin/datastore-files',
                 'bin/datastore-get',
@@ -22,8 +21,10 @@ setup(
                 ],
         entry_points = {
             'console_scripts': [
-                'datastore-getkey = bdkd.util:getkey_util',
-                'datastore-lastmod = bdkd.util:lastmod_util',
+                'datastore-add = bdkd.datastore.util.add:add_util',
+                'datastore-add-bdkd = bdkd.datastore.util.add:add_bdkd_util',
+                'datastore-getkey = bdkd.datastore.util.info:getkey_util',
+                'datastore-lastmod = bdkd.datastore.util.info:lastmod_util',
             ],
         },
         install_requires=['boto', 'PyYAML']
