@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+"""
+Utility library for adding resources.
+"""
+
 import argparse
 import bdkd.datastore
 import bdkd.datastore_util.common

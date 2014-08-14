@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 Module providing various common components for utilities.
 """
@@ -23,14 +22,21 @@ class RepositoryAction(argparse.Action):
         setattr(namespace, self.dest, repository)
 
 
-
-def _repository_resource_parser():
+def _repository_parser():
     """
-    Parser providing the mandatory options 'repository_name' and 'resource_name'
+    Parser providing the mandatory option 'repository'.
     """
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('repository', action=RepositoryAction)
-    parser.add_argument('resource_name')
     return parser
 
 
+def _repository_resource_parser():
+    """
+    Parser providing the mandatory options 'repository' and 'resource_name'
+    """
+    parser = argparse.ArgumentParser(add_help=False, parents=[
+        _repository_parser(),
+        ])
+    parser.add_argument('resource_name')
+    return parser

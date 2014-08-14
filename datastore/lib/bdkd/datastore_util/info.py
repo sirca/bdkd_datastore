@@ -1,38 +1,39 @@
 #!/usr/bin/env python
+"""
+Module providing utilities for listing resource information.
+"""
 
-import bdkd.datastore
+import bdkd.datastore_util.common
 import argparse
 import pprint
 
-def _repo_resource_op(prog, desc):
-    """ A common function that can be used by a typical repo-resource utility
-    as they all have something in common.
-    :param prog: the name of the utility
-    :param desc: the description of the utility
-    :returns (repo,resource_name)
+
+def info_parser(prog, desc):
     """
-    parser = argparse.ArgumentParser(prog=prog, description=desc)
-    parser.add_argument("repository", help="The repository that the resource is under")
-    parser.add_argument("resource", help="The resource to get the key from")
-    args = parser.parse_args()
-
-    repo = bdkd.datastore.repository(args.repository)
-    if not repo:
-        ArgumentParser.error("The repository {0} is not valid or not configured".format(args.repository))
-    return (repo, args.resource)
+    Parser for info utilities
+    """
+    parser = argparse.ArgumentParser(prog=prog, description=desc, 
+            parents=[
+                bdkd.datastore_util.common._repository_resource_parser(),
+            ])
+    return parser
 
 
-def getkey_util():
+def getkey_util(argv=None):
     """ Entry point for the datastore-getkey utility.
     """
-    (repo, resource_name) = _repo_resource_op(prog='datastore-getkey', desc='To get the information about the key of a resource')
-    resource_key = repo.get_resource_key(resource_name)
+    parser = info_parser(prog='datastore-getkey', 
+            desc='To get the information about the key of a resource')
+    args = parser.parse_args(argv)
+    resource_key = args.repository.get_resource_key(args.resource_name)
     pprint.pprint(resource_key.__dict__)
 
 
-def lastmod_util():
+def lastmod_util(argv=None):
     """ Entry point for the datastore-lastmod utility.
     """
-    (repo, resource_name) = _repo_resource_op(prog='datastore-lastmod', desc='To get the last modified date of a resource')
-    last_mod = repo.get_resource_last_modified(resource_name)
+    parser = info_parser(prog='datastore-lastmod', 
+            desc='To get the last modified date of a resource')
+    args = parser.parse_args(argv)
+    last_mod = args.repository.get_resource_last_modified(args.resource_name)
     print "Last modified: %s" % (last_mod)
