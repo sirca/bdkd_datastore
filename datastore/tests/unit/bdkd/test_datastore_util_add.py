@@ -54,7 +54,7 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'test-repository', 'my_resource', 
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author_email', 'fred@here', 
+                '--author-email', 'fred@here', 
                 self.filepath ]
         args = parser.parse_args(args_in)
         self.assertTrue(args)
@@ -68,11 +68,11 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'test-repository', 'my_resource', 
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author_email', 'fred@here', 
+                '--author-email', 'fred@here', 
                 '--tags', '["foo", "bar"]',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
-                '--maintainer_email', 'joe@here',
+                '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
         args = parser.parse_args(args_in)
@@ -85,13 +85,13 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'test-repository', 'my_resource', 
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author_email', 'fred@here', 
-                '--data_type', 'feature collection',
+                '--author-email', 'fred@here', 
+                '--data-type', 'feature collection',
                 '--tags', '["foo", "bar"]',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
-                '--maintainer_email', 'joe@here',
-                '--custom_fields', '{"continent":"asia", "dataset_type":"features"}',
+                '--maintainer-email', 'joe@here',
+                '--custom-fields', '{"continent":"asia", "dataset_type":"features"}',
                 self.filepath
                 ]
         expected_metadata = dict(

@@ -59,15 +59,15 @@ def _bdkd_metadata_parser():
     # Mandatory arguments
     parser.add_argument('--description', required=True)
     parser.add_argument('--author', required=True)
-    parser.add_argument('--author_email', required=True)
+    parser.add_argument('--author-email', required=True)
 
     # Optional arguments
-    parser.add_argument('--data_type')
+    parser.add_argument('--data-type')
     parser.add_argument('--tags', action=util_common.JsonArrayAction)
     parser.add_argument('--version')
     parser.add_argument('--maintainer')
-    parser.add_argument('--maintainer_email')
-    parser.add_argument('--custom_fields', action=util_common.JsonDictionaryAction)
+    parser.add_argument('--maintainer-email')
+    parser.add_argument('--custom-fields', action=util_common.JsonDictionaryAction)
 
     return parser
 

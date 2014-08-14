@@ -43,11 +43,11 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         args_in = [ 'bdkd-datastore-test', 'my_resource', 
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author_email', 'fred@here', 
+                '--author-email', 'fred@here', 
                 '--tags', '["foo", "bar"]',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
-                '--maintainer_email', 'joe@here',
+                '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
         add_utils.add_bdkd_util(args_in)
