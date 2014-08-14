@@ -5,7 +5,7 @@ import os
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(
         os.path.dirname(__file__), '..', 'conf', 'test.conf')
 import bdkd.datastore
-import bdkd.datastore_util.add as add_utils
+import bdkd.datastore.util.add as add_utils
 import sys
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')

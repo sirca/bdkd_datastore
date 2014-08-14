@@ -21,10 +21,10 @@ setup(
                 ],
         entry_points = {
             'console_scripts': [
-                'datastore-add = bdkd.datastore_util.add:add_util',
-                'datastore-add-bdkd = bdkd.datastore_util.add:add_bdkd_util',
-                'datastore-getkey = bdkd.datastore_util.info:getkey_util',
-                'datastore-lastmod = bdkd.datastore_util.info:lastmod_util',
+                'datastore-add = bdkd.datastore.util.add:add_util',
+                'datastore-add-bdkd = bdkd.datastore.util.add:add_bdkd_util',
+                'datastore-getkey = bdkd.datastore.util.info:getkey_util',
+                'datastore-lastmod = bdkd.datastore.util.info:lastmod_util',
             ],
         },
         install_requires=['boto', 'PyYAML']

@@ -3,7 +3,7 @@
 Module providing utilities for listing resource information.
 """
 
-import bdkd.datastore_util.common
+import bdkd.datastore.util.common as util_common
 import argparse
 import pprint
 
@@ -14,7 +14,7 @@ def info_parser(prog, desc):
     """
     parser = argparse.ArgumentParser(prog=prog, description=desc, 
             parents=[
-                bdkd.datastore_util.common._repository_resource_parser(),
+                util_common._repository_resource_parser(),
             ])
     return parser
 

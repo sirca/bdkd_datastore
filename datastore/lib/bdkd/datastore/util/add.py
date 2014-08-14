@@ -6,7 +6,7 @@ Utility library for adding resources.
 
 import argparse
 import bdkd.datastore
-import bdkd.datastore_util.common as util_common
+import bdkd.datastore.util.common as util_common
 import json
 import os
 import sys

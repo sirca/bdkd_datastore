@@ -1,6 +1,6 @@
 import unittest
 import bdkd.datastore
-import bdkd.datastore_util.add as add_utils
+import bdkd.datastore.util.add as add_utils
 import glob, os, shutil
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
