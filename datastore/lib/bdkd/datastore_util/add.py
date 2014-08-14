@@ -6,56 +6,11 @@ Utility library for adding resources.
 
 import argparse
 import bdkd.datastore
-import bdkd.datastore_util.common
+import bdkd.datastore_util.common as util_common
 import json
 import os
 import sys
 import urlparse
-
-class MetaDataAction(argparse.Action):
-    """
-    Action to perform for meta-data arguments: parse as JSON and check that 
-    it's a dictionary.
-    """
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("Multiple arguments not allowed")
-        super(MetaDataAction, self).__init__(option_strings, dest, **kwargs)
-
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        metadata = {}
-        if values:
-            try:
-                metadata = json.loads(values)
-            except ValueError as error:
-                raise ValueError("Could not parse metadata: {0}".format(error.message))
-            if not isinstance(metadata, dict):
-                raise ValueError("The JSON meta-data string must contain a dictionary")
-        setattr(namespace, self.dest, metadata)
-
-
-class TagsAction(argparse.Action):
-    """
-    Action to perform for tags arguments: parse as JSON and check that it's an array.
-    """
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("Multiple arguments not allowed")
-        super(TagsAction, self).__init__(option_strings, dest, **kwargs)
-
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values:
-            try:
-                tags = json.loads(values)
-            except ValueError as error:
-                raise ValueError("Could not parse metadata: {0}".format(error.message))
-            if not isinstance(tags, list):
-                raise ValueError("The JSON tags string must contain a list")
-        else:
-            tags = []
-        setattr(namespace, self.dest, tags)
 
 
 class FilesAction(argparse.Action):
@@ -87,7 +42,9 @@ def _add_options_parser():
     Parser for various options related to adding
     """
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--metadata', action=MetaDataAction, default=dict(),
+    parser.add_argument('--metadata', 
+            action=util_common.JsonDictionaryAction, 
+            default=dict(),
             help="Meta-data for resource (JSON string)")
     parser.add_argument('--force', action='store_true',
             help="Force overwriting any existing resource")
@@ -105,10 +62,12 @@ def _bdkd_metadata_parser():
     parser.add_argument('--author_email', required=True)
 
     # Optional arguments
-    parser.add_argument('--tags', action=TagsAction)
+    parser.add_argument('--data_type')
+    parser.add_argument('--tags', action=util_common.JsonArrayAction)
     parser.add_argument('--version')
     parser.add_argument('--maintainer')
     parser.add_argument('--maintainer_email')
+    parser.add_argument('--custom_fields', action=util_common.JsonDictionaryAction)
 
     return parser
 
@@ -120,7 +79,7 @@ def add_parser():
     parser = argparse.ArgumentParser(prog='datastore-add', 
             description="Add a Resource to a datastore", 
             parents=[
-                bdkd.datastore_util.common._repository_resource_parser(),
+                util_common._repository_resource_parser(),
                 _files_parser(),
                 _add_options_parser(),
             ])
@@ -134,7 +93,7 @@ def add_bdkd_parser():
     parser = argparse.ArgumentParser(prog='datastore-add-bdkd', 
             description="Add a BDKD Resource to a datastore", 
             parents=[
-                bdkd.datastore_util.common._repository_resource_parser(),
+                util_common._repository_resource_parser(),
                 _files_parser(),
                 _add_options_parser(),
                 _bdkd_metadata_parser(),

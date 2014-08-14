@@ -86,20 +86,24 @@ class AddUtilitiesTest(unittest.TestCase):
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author_email', 'fred@here', 
+                '--data_type', 'feature collection',
                 '--tags', '["foo", "bar"]',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer_email', 'joe@here',
+                '--custom_fields', '{"continent":"asia", "dataset_type":"features"}',
                 self.filepath
                 ]
         expected_metadata = dict(
                 description='Description of resource',
                 author='fred',
                 author_email='fred@here',
+                data_type='feature collection',
                 tags=['foo', 'bar'],
                 version='1.0',
                 maintainer='Joe',
-                maintainer_email='joe@here'
+                maintainer_email='joe@here',
+                custom_fields= dict(continent='asia', dataset_type='features'),
                 )
         resource_args = add_utils.add_bdkd_parser().parse_args(args_in)
         resource = add_utils.create_parsed_resource(
