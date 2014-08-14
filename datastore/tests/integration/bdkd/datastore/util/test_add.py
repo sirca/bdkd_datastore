@@ -3,7 +3,8 @@ import bdkd.datastore
 import bdkd.datastore.util.add as add_utils
 import glob, os, shutil
 
-FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
+FIXTURES = os.path.join(os.path.dirname(__file__), 
+    '..', '..', '..', '..', 'fixtures')
 
 class DatastoreUtilsAddTest(unittest.TestCase):
     

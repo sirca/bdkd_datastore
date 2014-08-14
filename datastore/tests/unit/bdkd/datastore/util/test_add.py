@@ -3,12 +3,13 @@ import unittest
 import os
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(
-        os.path.dirname(__file__), '..', 'conf', 'test.conf')
+        os.path.dirname(__file__), '..', '..', '..', 'conf', 'test.conf')
 import bdkd.datastore
 import bdkd.datastore.util.add as add_utils
 import sys
 
-FIXTURES = os.path.join(os.path.dirname(__file__), '..', '..', 'fixtures')
+FIXTURES = os.path.join(os.path.dirname(__file__), 
+    '..', '..', '..', '..', 'fixtures')
 
 
 class AddUtilitiesTest(unittest.TestCase):
