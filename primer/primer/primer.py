@@ -103,7 +103,7 @@ class Primer:
                     if f.location():
                         manifest_file.write('%s%s/%s\n' % (S3_PREFIX, bucket_name, f.location()))
                     elif f.remote():
-                        manifest_file.write(f.remote())
+                        manifest_file.write(f.remote() + '\n')
                     else:
                         # Unknown resource error.
                         raise Exception('Unable to determine file location in resource %s.' % (r_name))
@@ -122,15 +122,6 @@ class Primer:
                 maintainer_email = resource.metadata.get('maintainer_email', '')
                 version = resource.metadata.get("version", "")
                 notes = resource.metadata.get("description", "")
-                extras = []
-                for k,v in resource.metadata.get("custom_fields", {}).items():
-                    extras.append({ 'key':k, 'value':v })
-                """
-                [
-                    {'key':'key1','value':'value1'},
-                    {'key':'key2','value':'value2'},
-                ]
-                """
     
                 # Create the groups if there are not there yet.
                 logging.debug("Existing groups:" + str(dataset_groups))
@@ -151,7 +142,6 @@ class Primer:
                 logging.debug("version =" + '1.0')
                 logging.debug("author =" + author)
                 logging.debug("notes =" + notes)
-                logging.debug("extras =" + str(extras))
                 logging.debug("groups =" + str(dataset_group_names))
                 dataset = site.action.package_create(
                     name = dataset_name,
@@ -160,12 +150,10 @@ class Primer:
                     version = '1.0',
                     author = author,
                     notes = notes,
-                    extras = extras,
                     groups = dataset_group_names,
                     # groups = [{'name':g} for g in dataset_groups],
                 )
-    
-    
+
                 # Now upload the manifest file into this dataset.
                 logging.info("Creating manifest file for %s" % (r_name))
                 site.action.resource_create(
@@ -176,7 +164,7 @@ class Primer:
                     upload=open(manifest_filename))
     
                 # Create a visualization link if there is one.
-                datatype = resource.metadata.get('data_type')
+                datatype = resource.metadata.get('data_type', None)
                 if datatype:
                     visual_site = self._find_visual_site_for_datatype(datatype)
                     if visual_site:
