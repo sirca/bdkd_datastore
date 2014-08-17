@@ -7,6 +7,7 @@ import ckanapi
 import tempfile
 import yaml
 import logging
+import urllib
 from argparse import RawTextHelpFormatter
 from bdkd import datastore as ds
 
@@ -15,115 +16,6 @@ S3_PREFIX = 's3://'
 
 # Constants
 __version__ = '0.1'
-
-
-def build_ckan_data(bucket_name, api_key, org_name, ds_host, ckan_host):
-    """ Builds a CKAN portal data using data taken from a datastore repository.
-    :param bucket_name: the name of the bucket where the datastore repository can be found.
-    :param api_key: the CKAN API key for the CKAN user login
-    :param org_name: the organization name (can be ID too) for the organization that the data will be stored under.
-    :param host: the object storage host.
-    """
-    logging.info('Priming portal data from bucket: %s' % (bucket_name))
-    repo = ds.Repository(ds.Host(host=ds_host), bucket_name)
-    r_names = repo.list() # get a list of resource names
-
-    workdir = tempfile.mkdtemp()
-    try:
-        # Prepare a CKAN connection for use.
-        site = ckanapi.RemoteCKAN(ckan_host, apikey=api_key)
-
-        # For each resource found, build a manifest list from the raw data files under that resource.
-        manifest_filename = workdir + MANIFEST_FILENAME
-
-        # Get a list of existing CKAN groups so it doesn't get recreated.
-        ckan_groups = site.action.group_list()
-
-        for r_name in r_names:
-            logging.debug("Priming repository " + r_name)
-            # First Bulid the manifest file.
-            manifest_file = open(manifest_filename, 'w')
-            resource = repo.get(r_name)
-            for f in resource.files:
-                # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
-                # Otherwise assume it is a remote file and just push that directly into the manifest.
-                if f.location():
-                    manifest_file.write('%s%s/%s\n' % (S3_PREFIX, bucket_name, f.location()))
-                elif f.remote():
-                    manifest_file.write(f.remote())
-                else:
-                    # Unknown resource error.
-                    raise Exception('Unable to determine file location in resource %s.' % (r_name))
-            manifest_file.close()
-
-            # Turn pseudo path into a unique string that CKAN can use.
-            # Note that it is possible that collusion can happen if the pseudo path contains
-            # too many non alphanumeric characters.
-            dataset_name = re.sub(r'[^0-9a-zA-Z_-]', '-', r_name).lower()
-            pseudo_path = r_name.split('/')
-            dataset_title = pseudo_path[-1]    # the last field of the pseudo path is the title
-            dataset_groups = pseudo_path[0:-1] # the in middle fields will be the 'groups'
-            author = resource.metadata.get('author', '')
-            author_email = resource.metadata.get('author_email', '')
-            maintainer = resource.metadata.get('maintainer', '')
-            maintainer_email = resource.metadata.get('maintainer_email', '')
-            version = resource.metadata.get("version", "")
-            notes = resource.metadata.get("description", "")
-            extras = []
-            for k,v in resource.metadata.get("custom_fields", {}).items():
-                extras.append({ 'key':k, 'value':v })
-            """
-            [
-                {'key':'key1','value':'value1'},
-                {'key':'key2','value':'value2'},
-            ]
-            """
-
-            # Create the groups if there are not there yet.
-            logging.debug("Existing groups:" + str(dataset_groups))
-            dataset_group_names = []
-            for group_name in dataset_groups:
-                group_ckan_name = re.sub(r'[^0-9a-zA-Z_-]', '-', group_name).lower()
-                if group_ckan_name not in ckan_groups:
-                    logging.info("Group %s not found, creating group..." % (group_ckan_name))
-                    site.action.group_create(name=group_ckan_name, title=group_name)
-                    ckan_groups.append(group_ckan_name)
-                dataset_group_names.append({'name':group_ckan_name})
-
-            # Prepare a CKAN data set by creating a 'package'.
-            logging.debug("Creating dataset " + dataset_name)
-            logging.debug("name =" + dataset_name)
-            logging.debug("owner_org =" + org_name)
-            logging.debug("title =" + dataset_title)
-            logging.debug("version =" + '1.0')
-            logging.debug("author =" + author)
-            logging.debug("notes =" + notes)
-            logging.debug("extras =" + str(extras))
-            logging.debug("groups =" + str(dataset_group_names))
-            dataset = site.action.package_create(
-                name = dataset_name,
-                owner_org = org_name,
-                title = dataset_title,
-                version = '1.0',
-                author = author,
-                notes = notes,
-                extras = extras,
-                groups = dataset_group_names,
-                # groups = [{'name':g} for g in dataset_groups],
-            )
-
-
-            # Now upload the manifest file into this dataset.
-            site.action.resource_create(
-                package_id = dataset_name,
-                # revision_id = created_at,
-                description = 'Manifest for resource ' + r_name,
-                name = 'manifest',
-                upload=open(manifest_filename)
-            )
-
-    finally:
-        os.removedirs(workdir)
 
 
 """
@@ -164,6 +56,132 @@ class Primer:
                logging.info("config:%s = %s" % (item, cfg_dict[item]))
 
 
+    def _find_visual_site_for_datatype(self, datatype):
+        """ To find the visualization site for a particular datatype from the configuration.
+        :return: the site, or None if not found or not configured.
+        """
+        site = None
+        cfg_sites = self._cfg.get('visual-sites')
+        if cfg_sites:
+            matched_sites = filter(lambda x: x['data_type']==datatype, cfg_sites)
+            # If multiple sites are found for that data_type, only use the first one.
+            if matched_sites:
+                site = matched_sites[0].get('url')
+        return site
+
+
+    def build_repo_ckan_data(self, bucket_name, org_name, ds_host, ckan_host):
+        """ Builds a CKAN portal data using data taken from a datastore repository.
+        :param bucket_name: the name of the bucket where the datastore repository can be found.
+        :param org_name: the organization name (can be ID too) for the organization that the data will be stored under.
+        :param ds_host: the datastore host
+        :param ckan_host: the CKAN host
+        """
+        logging.info('Priming portal data from bucket: %s' % (bucket_name))
+        repo = ds.Repository(ds.Host(host=ds_host), bucket_name)
+        r_names = repo.list() # get a list of resource names
+    
+        workdir = tempfile.mkdtemp()
+        try:
+            # Prepare a CKAN connection for use.
+            site = ckanapi.RemoteCKAN(ckan_host, apikey=self._cfg['api_key'])
+    
+            # For each resource found, build a manifest list from the raw data files under that resource.
+            manifest_filename = workdir + MANIFEST_FILENAME
+    
+            # Get a list of existing CKAN groups so it doesn't get recreated.
+            ckan_groups = site.action.group_list()
+    
+            for r_name in r_names:
+                logging.debug("Priming repository " + r_name)
+                # First Bulid the manifest file.
+                manifest_file = open(manifest_filename, 'w')
+                resource = repo.get(r_name)
+                for f in resource.files:
+                    # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
+                    # Otherwise assume it is a remote file and just push that directly into the manifest.
+                    if f.location():
+                        manifest_file.write('%s%s/%s\n' % (S3_PREFIX, bucket_name, f.location()))
+                    elif f.remote():
+                        manifest_file.write(f.remote() + '\n')
+                    else:
+                        # Unknown resource error.
+                        raise Exception('Unable to determine file location in resource %s.' % (r_name))
+                manifest_file.close()
+    
+                # Turn pseudo path into a unique string that CKAN can use.
+                # Note that it is possible that collusion can happen if the pseudo path contains
+                # too many non alphanumeric characters.
+                dataset_name = re.sub(r'[^0-9a-zA-Z_-]', '-', r_name).lower()
+                pseudo_path = r_name.split('/')
+                dataset_title = pseudo_path[-1]    # the last field of the pseudo path is the title
+                dataset_groups = pseudo_path[0:-1] # the in middle fields will be the 'groups'
+                author = resource.metadata.get('author', '')
+                author_email = resource.metadata.get('author_email', '')
+                maintainer = resource.metadata.get('maintainer', '')
+                maintainer_email = resource.metadata.get('maintainer_email', '')
+                version = resource.metadata.get("version", "")
+                notes = resource.metadata.get("description", "")
+    
+                # Create the groups if there are not there yet.
+                logging.debug("Existing groups:" + str(dataset_groups))
+                dataset_group_names = []
+                for group_name in dataset_groups:
+                    group_ckan_name = re.sub(r'[^0-9a-zA-Z_-]', '-', group_name).lower()
+                    if group_ckan_name not in ckan_groups:
+                        logging.info("Group %s not found, creating group..." % (group_ckan_name))
+                        site.action.group_create(name=group_ckan_name, title=group_name)
+                        ckan_groups.append(group_ckan_name)
+                    dataset_group_names.append({'name':group_ckan_name})
+    
+                # Prepare a CKAN data set by creating a 'package'.
+                logging.debug("Creating dataset " + dataset_name)
+                logging.debug("name =" + dataset_name)
+                logging.debug("owner_org =" + org_name)
+                logging.debug("title =" + dataset_title)
+                logging.debug("version =" + '1.0')
+                logging.debug("author =" + author)
+                logging.debug("notes =" + notes)
+                logging.debug("groups =" + str(dataset_group_names))
+                dataset = site.action.package_create(
+                    name = dataset_name,
+                    owner_org = org_name,
+                    title = dataset_title,
+                    version = '1.0',
+                    author = author,
+                    notes = notes,
+                    groups = dataset_group_names,
+                    # groups = [{'name':g} for g in dataset_groups],
+                )
+
+                # Now upload the manifest file into this dataset.
+                logging.info("Creating manifest file for %s" % (r_name))
+                site.action.resource_create(
+                    package_id = dataset_name,
+                    # revision_id = created_at,
+                    description = 'Manifest for resource ' + r_name,
+                    name = 'manifest',
+                    upload=open(manifest_filename))
+    
+                # Create a visualization link if there is one.
+                datatype = resource.metadata.get('data_type', None)
+                if datatype:
+                    visual_site = self._find_visual_site_for_datatype(datatype)
+                    if visual_site:
+                        logging.info("Creating explore link for %s" % (r_name))
+                        url = visual_site.format(urllib.quote_plus(bucket_name), urllib.quote_plus(r_name))
+                        logging.debug("visual url:" + url)
+                        site.action.resource_create(
+                            package_id = dataset_name,
+                            url = url,
+                            description = 'Explore the dataset',
+                            format = 'html',
+                            name = 'explore')
+
+        finally:
+            os.removedirs(workdir)
+
+
     def prime_portal(self, repo_name=None):
         """ Executes the priming process for the portal for all repos configured.
         :param repo_name: if specified, then only the repo with the matching bucket name will be primed.
@@ -179,13 +197,14 @@ class Primer:
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
             try:
-                build_ckan_data(bucket_name=repo['bucket'],
-                                api_key=self._cfg['api_key'],
-                                org_name=repo['org_name'],
-                                ckan_host=repo['ckan_url'],
-                                ds_host=repo['ds_host'])
+                self.build_repo_ckan_data(
+                    bucket_name=repo['bucket'],
+                    org_name=repo['org_name'],
+                    ckan_host=repo['ckan_url'],
+                    ds_host=repo['ds_host']
+                )
             except Exception as e:
-                logging.error(e.message)
+                logging.error("Priming failed " + str(e))
 
 
     def setup_organizations(self, repo_name=None):
@@ -232,12 +251,15 @@ def main():
     parser.add_argument('-c', '--config', help='Configuration file')
     parser.add_argument('-b', '--bucket-name', help='Select the bucket to prime (must be in the config)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Run in verbose mode')
+    parser.add_argument('--debug', action='store_true', help='Run in very verbose mode')
     if len(sys.argv)==1:
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args()
 
     if args.verbose:
+        logging.basicConfig(level=logging.INFO)
+    if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
     cfg_filename = '/etc/bdkd/primer.conf'

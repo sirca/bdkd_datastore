@@ -1,0 +1,4 @@
+ckanapi==3.2
+requests==2.3
+PyYAML==3.11
+argparse==1.2.1
