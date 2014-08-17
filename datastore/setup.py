@@ -11,7 +11,7 @@ setup(
         author_email='david.nelson@sirca.org.au',
         url='http://github.com/sirca/bdkd',
         package_dir={'': 'lib'},
-        packages=['bdkd'],
+        packages=['bdkd', 'bdkd.datastore', 'bdkd.datastore.util'],
         scripts=[
                 'bin/datastore-delete',
                 'bin/datastore-files',
