@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import glob
 
 setup(
@@ -11,7 +11,7 @@ setup(
         author_email='david.nelson@sirca.org.au',
         url='http://github.com/sirca/bdkd',
         package_dir={'': 'lib'},
-        packages=['bdkd'],
+        packages=find_packages('lib'),
         scripts=[
                 'bin/datastore-delete',
                 'bin/datastore-files',
