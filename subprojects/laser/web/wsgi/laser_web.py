@@ -6,8 +6,8 @@ import csv, json, StringIO
 from multiprocessing import Process
 from functools import wraps
 
-from bdkd.physics.data import Dataset
-import bdkd.physics.plot as bdkd_plot
+from bdkd.laser.data import Dataset
+import bdkd.laser.plot as bdkd_plot
 from PIL import Image
 
 from flask import ( Flask, request, render_template, send_file, 
