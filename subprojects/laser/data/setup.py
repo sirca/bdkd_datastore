@@ -14,5 +14,10 @@ setup(
         scripts=[
                 'bin/pack_dataset.py',            
                 ],
-        install_requires=['boto', 'PyYAML', 'bdkd-datastore']
+        entry_points = {
+            'console_scripts': [
+                'datastore-add-laser = bdkd.laser.util.add:add_laser_util',
+                ],
+            },
+        install_requires=['boto', 'PyYAML', 'bdkd-datastore', 'h5py']
         )

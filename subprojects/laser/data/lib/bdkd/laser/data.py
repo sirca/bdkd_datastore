@@ -1,30 +1,82 @@
-import bdkd.datastore, h5py, re
+import bdkd.datastore
+import h5py
 
 
 class Dataset(object):
+    META_MAPS='maps'
+    META_RAW_ALL='raw_all'
+    META_SHARD_SIZE='shard_size'
+    META_README='readme'
 
-    def __init__(self, name, resource):
-        self.name = name
-        self.resource = resource
-        self.shard_size = resource.metadata.get('shard-size', None)
-        self.shards = {}
-        self.maps = None
-        self.readme = None
-        shard_name_re = re.compile(r".*FB_(\d+)_INJ_(\d+)_(\d+)\.hdf5$")
-        maps_name_re = re.compile(r".*maps.hdf5$")
-        readme_name_re = re.compile(r"read\s*me")
-        for rfile in resource.files:
-            match = shard_name_re.match(rfile.location_or_remote())
-            if match:
-                fb = int(match.group(1))
-                inj = int(match.group(2))
-                if not self.shard_size:
-                    self.shard_size = int(m.group(3))
-                self.shards[(fb, inj)] = rfile
-            elif maps_name_re.match(rfile.location_or_remote()):
-                self.maps = rfile
-            elif readme_name_re.search(rfile.location_or_remote().lower()):
-                self.readme = rfile
+    META_X_NAME='x_name'
+    META_X_SIZE='x_size'
+    META_X_VARIABLES='x_variables'
+
+    META_Y_NAME='y_name'
+    META_Y_SIZE='y_size'
+    META_Y_VARIABLES='y_variables'
+
+    META_Z_NAME='z_name'
+    META_Z_SIZE='z_size'
+    META_Z_INTERVAL='z_interval'
+    META_Z_PEAK_VOLTAGE='z_peak_voltage'
+
+    META_REQUIRED_FIELDS=[
+            META_MAPS,
+            META_RAW_ALL,
+            META_SHARD_SIZE,
+            META_README,
+            META_X_NAME,
+            META_X_SIZE,
+            META_X_VARIABLES,
+            META_Y_NAME,
+            META_Y_SIZE,
+            META_Y_VARIABLES,
+            META_Z_NAME,
+            META_Z_SIZE,
+            META_Z_INTERVAL,
+            META_Z_PEAK_VOLTAGE,
+            ]
+
+
+    @classmethod
+    def validate(cls, resource):
+        """
+        Verifies that the given resource is valid for use as a laser dataset.
+
+        Not any old resource can be used as a source of laser data: a number of 
+        meta-data fields in particular need to be provided.  This method will 
+        throw ValueError if something's wrong.
+        """
+        # Required meta-data fields
+        for required_field in cls.META_REQUIRED_FIELDS:
+            if not resource.meta(required_field):
+                raise ValueError("Required meta-data field '{0}' absent"
+                        .format(required_field))
+
+        # Check the README file
+        readme_filename = resource.meta(Dataset.META_README)
+        readme_file = resource.file_ending(readme_filename)
+        if not readme_file:
+            raise ValueError("README file name '{0}' doesn't refer to a file"
+                    .format(readme_filename))
+
+        # Check the maps file, including its contents (X and Y variables)
+        maps_filename = resource.meta(Dataset.META_MAPS)
+        maps_file = resource.file_ending(maps_filename)
+        if not maps_file:
+            raise ValueError("Maps file name '{0}' doesn't refer to a file"
+                    .format(maps_filename))
+        else:
+            # Check that the X and Y variables are available in the maps file
+            maps = h5py.File(maps_file.local_path(), 'r')
+            if not maps.get(resource.meta(Dataset.META_X_VARIABLES)):
+                raise ValueError("Maps file does not contain X variables '{0}'"
+                        .format(resource.meta(Dataset.META_X_VARIABLES)))
+            if not maps.get(resource.meta(Dataset.META_Y_VARIABLES)):
+                raise ValueError("Maps file does not contain Y variables '{0}'"
+                        .format(resource.meta(Dataset.META_Y_VARIABLES)))
+            maps.close()
 
 
     @classmethod
@@ -46,7 +98,29 @@ class Dataset(object):
         return None
 
 
-    def get_map_names(self):
+    def _map_shard_files(self):
+        """
+        Map the raw shard files by (X,Y) to facilitate lookup.
+        """
+        self.shards = dict()
+        for shard_file in self.resource.files_matching(r'shard'):
+            x = shard_file.metadata.get('x_index_min', None)
+            y = shard_file.metadata.get('y_index_min', None)
+            if x != None and y != None:
+                self.shards[(x, y)] = shard_file
+
+
+    def __init__(self, name, resource):
+        type(self).validate(resource)
+        # Expose all mandatory fields as attributes
+        for attr_name in type(self).META_REQUIRED_FIELDS:
+            setattr(self, attr_name, resource.metadata.get(attr_name))
+        self.name = name
+        self.resource = resource
+        self._map_shard_files()
+
+
+    def get_map_names(self, include_variables=True):
         """
         Get the names of all available maps from the maps file.
 
@@ -54,10 +128,20 @@ class Dataset(object):
         """
         if not self.maps:
             return None
-        map_file = h5py.File(self.maps.local_path(), 'r')
-        names = map_file.keys()
-        map_file.close()
-        return names
+        maps_file = self.resource.file_ending(self.maps)
+        maps = h5py.File(maps_file.local_path(), 'r')
+        map_names = []
+        for name, data in maps.items():
+            map_type = data.attrs.get('type', None)
+            if map_type:
+                if map_type.endswith('variables') and not include_variables:
+                    pass
+                else:
+                    map_names.append(name)
+            else:
+                map_names.append(name)
+        maps.close()
+        return map_names
 
 
     def get_map_data(self, map_name):
@@ -68,37 +152,39 @@ class Dataset(object):
         """
         if not self.maps:
             return None
-        map_file = h5py.File(self.maps.local_path(), 'r')
+        maps_file = self.resource.file_ending(self.maps)
+        maps = h5py.File(maps_file.local_path(), 'r')
         data = None
-        if map_name in map_file:
-            data = map_file[map_name][()]
-        map_file.close()
+        if map_name in maps:
+            data = maps[map_name][()]
+        maps.close()
         return data
-
-        filename = self.get_map_filename()
-        if filename:
-            pass
-        else:
-            return None
         
-    def get_time_series(self, feedback, injection):
-        """
-        Get the time series (array of floats) for the given combination of feedback and injection.
 
-        If the time series doesn't exist, return None.
-        """
-        fb_shard = int(feedback / self.shard_size) * self.shard_size
-        inj_shard = int(injection / self.shard_size) * self.shard_size
+    def get_x_variables(self):
+        return self.get_map_data(self.x_variables)
+
+
+    def get_y_variables(self):
+        return self.get_map_data(self.y_variables)
+
+
+    def get_time_series(self, x, y):
+        x_shard = int(x / self.shard_size) * self.shard_size
+        y_shard = int(y / self.shard_size) * self.shard_size
         data = None
-        if (fb_shard, inj_shard) in self.shards:
-            shard_file = h5py.File(
-                    self.shards[(fb_shard, inj_shard)].local_path(), 'r')
-            time_series_name = "FB_{0:03d}_INJ_{1:03d}.csv".format(
-                    feedback, injection)
-            if time_series_name in shard_file:
-                data = shard_file[time_series_name][()]
-            shard_file.close()
+        if (x_shard, y_shard) in self.shards:
+            shard_file = self.shards[(x_shard,y_shard)]
+            shard = h5py.File(shard_file.local_path(), 'r')
+            for (name, dataset) in shard.items():
+                x_index = dataset.attrs.get('x_index', None)
+                y_index = dataset.attrs.get('y_index', None)
+                if (x_index == x and y_index == y):
+                    data = dataset[()]
+                    break
+            shard.close()
         return data
+
 
     def get_readme(self):
         """
@@ -106,8 +192,11 @@ class Dataset(object):
 
         If no README file is available, returns None.
         """
+        readme_text = None
         if not self.readme:
             return None
-        with open (self.readme.local_path(), 'r') as readme:
-            readme_text = readme.read()
+        readme_file = self.resource.file_ending(self.readme)
+        if readme_file:
+            with open (readme_file.local_path(), 'r') as fh:
+                readme_text = fh.read()
         return readme_text
