@@ -18,7 +18,9 @@ class Dataset(object):
 
     META_Z_NAME='z_name'
     META_Z_SIZE='z_size'
-    META_Z_INTERVAL='z_interval'
+    META_Z_INTERVAL_BASE='z_interval_base'
+    META_Z_INTERVAL_EXPONENT='z_interval_exponent'
+
     META_Z_PEAK_VOLTAGE='z_peak_voltage'
 
     META_REQUIRED_FIELDS=[
@@ -34,7 +36,8 @@ class Dataset(object):
             META_Y_VARIABLES,
             META_Z_NAME,
             META_Z_SIZE,
-            META_Z_INTERVAL,
+            META_Z_INTERVAL_BASE,
+            META_Z_INTERVAL_EXPONENT,
             META_Z_PEAK_VOLTAGE,
             ]
 
@@ -115,6 +118,9 @@ class Dataset(object):
         # Expose all mandatory fields as attributes
         for attr_name in type(self).META_REQUIRED_FIELDS:
             setattr(self, attr_name, resource.metadata.get(attr_name))
+        # Other convenience
+        setattr(self, 'z_interval', 
+                self.z_interval_base * self.z_interval_exponent)
         self.name = name
         self.resource = resource
         self._map_shard_files()
@@ -131,7 +137,7 @@ class Dataset(object):
         maps_file = self.resource.file_ending(self.maps)
         maps = h5py.File(maps_file.local_path(), 'r')
         map_names = []
-        for name, data in maps.items():
+        for name, data in maps.iteritems():
             map_type = data.attrs.get('type', None)
             if map_type:
                 if map_type.endswith('variables') and not include_variables:
@@ -176,7 +182,7 @@ class Dataset(object):
         if (x_shard, y_shard) in self.shards:
             shard_file = self.shards[(x_shard,y_shard)]
             shard = h5py.File(shard_file.local_path(), 'r')
-            for (name, dataset) in shard.items():
+            for (name, dataset) in shard.iteritems():
                 x_index = dataset.attrs.get('x_index', None)
                 y_index = dataset.attrs.get('y_index', None)
                 if (x_index == x and y_index == y):

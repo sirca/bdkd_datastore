@@ -17,7 +17,8 @@ def _laser_metadata_parser():
     parser.add_argument('--x-name', required=True)
     parser.add_argument('--y-name', required=True)
     parser.add_argument('--z-name', required=True)
-    parser.add_argument('--z-interval', type=float, required=True)
+    parser.add_argument('--z-interval-base', type=int, required=True)
+    parser.add_argument('--z-interval-exponent', type=float, required=True)
     parser.add_argument('--z-peak-voltage', type=float, required=True)
 
     # Optional arguments
@@ -60,7 +61,7 @@ def _laser_metadata_raw(resource):
         raw = h5py.File(raw_file.local_path(), 'r')
         # Get Z size if not yet known
         if not z_size:
-            (name, raw_data) = raw.items()[0]
+            (name, raw_data) = raw.iteritems().next()
             z_size = len(raw_data)
         # Get all meta-data
         for key, value in raw.attrs.items():
@@ -102,7 +103,7 @@ def _laser_metadata_maps(resource):
             )
         
     # Set x_variables and y_variables if not already
-    for name, data in maps.items():
+    for name, data in maps.iteritems():
         map_type = data.attrs.get('type', None)
         if map_type:
             if map_type == Dataset.META_X_VARIABLES:

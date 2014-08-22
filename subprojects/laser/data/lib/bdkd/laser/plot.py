@@ -1,18 +1,13 @@
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')  # belongs elsewhere
 import matplotlib.pyplot as plt
 
 import numpy as np
 
 
-FBT_MAP='FBT_map.csv'
-INJ_MAP='INJ_map.csv'
-PEAK_VOLTAGE=0.316
-
-
 def map_plot(dataset, map_name):
-    mapX = np.array(dataset.get_map_data(INJ_MAP))
-    mapY = np.array(dataset.get_map_data(FBT_MAP))
+    mapX = np.array(dataset.get_x_variables())
+    mapY = np.array(dataset.get_y_variables())
     mapZ = np.array(dataset.get_map_data(map_name))
     fig = plt.figure(figsize=(4.07, 4.40), dpi=100)
     plt.pcolor(mapX,mapY,mapZ)
@@ -30,39 +25,43 @@ def render_map_plot(dataset, map_name, plot_filename):
     plt.close(fig)
 
 
-def time_series_plot(time_series, from_time, to_time):
-    ts_x = range(from_time, to_time, 50)
+def time_series_plot(time_series, from_time, to_time, z_interval_base):
+    ts_x = range(from_time, to_time, z_interval_base)
     fig = plt.figure()
     plt.plot(ts_x, np.array(time_series))
     plt.axes().set_xlim(ts_x[0], ts_x[-1])
     return fig
 
 
-def render_time_series_plot(time_series, from_time, to_time, plot_filename):
-    fig = time_series_plot(time_series, from_time, to_time)
+def render_time_series_plot(time_series, from_time, to_time, z_interval_base, 
+        plot_filename):
+    fig = time_series_plot(time_series, from_time, to_time, z_interval_base)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
 
 
-def phase_plot(from_time, to_time, time_series, time_series_selected, delay):
-    ts_y = time_series[((from_time // 50)+delay):(-(-to_time // 50)+delay)]
-    ts_x = time_series[(from_time // 50):((from_time // 50) + len(ts_y))]
+def phase_plot(time_series, from_time, to_time, 
+        delay, z_interval_base):
+    ts_y = time_series[((from_time // z_interval_base)+delay):
+            (-(-to_time // z_interval_base)+delay)]
+    ts_x = time_series[(from_time // z_interval_base):
+            ((from_time // z_interval_base) + len(ts_y))]
     fig = plt.figure()
     plt.plot(ts_x, ts_y, 'r.')
     return fig
 
 
-def render_phase_plot(from_time, to_time, time_series, time_series_selected, 
-        delay, plot_filename):
-    fig = phase_plot(from_time, to_time, time_series, time_series_selected, 
-        delay)
+def render_phase_plot(time_series, from_time, to_time, 
+        delay, z_interval_base, plot_filename):
+    fig = phase_plot(time_series, from_time, to_time, 
+        delay, z_interval_base)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
 
 
-def time_series_fft(time_series_selected, timestep=50e-12):
+def time_series_fft(time_series_selected, z_interval, z_peak_voltage):
     """
     Get the frequency buckets and positive, real component of a FFT analysis of 
     the provided time series.
@@ -75,25 +74,25 @@ def time_series_fft(time_series_selected, timestep=50e-12):
     data = np.array(time_series_selected)
     xs = len(data)
     xs_half = -(-xs // 2)
-    freq = np.fft.fftfreq(data.shape[-1], d=timestep)
+    freq = np.fft.fftfreq(data.shape[-1], d=z_interval)
     freq = freq[0:xs_half]
     sp = np.fft.fft(data)
     spp = np.sqrt(np.multiply(sp[0:xs_half], 
         np.ma.conjugate(sp[0:xs_half]))) / xs_half
-    dBm = 20 * np.log10(spp / PEAK_VOLTAGE)
+    dBm = 20 * np.log10(spp / z_peak_voltage)
     return ( freq, dBm )
 
 
-def fft_plot(from_time, to_time, time_series, time_series_selected):
-    (freq, dBm) = time_series_fft(time_series_selected)
+def fft_plot(time_series_selected, z_interval, z_peak_voltage):
+    (freq, dBm) = time_series_fft(time_series_selected, z_interval, z_peak_voltage)
     fig = plt.figure()
     plt.plot(freq, dBm)
     return fig
 
 
-def render_fft_plot(from_time, to_time, time_series, time_series_selected, 
+def render_fft_plot(time_series_selected, z_interval, z_peak_voltage,
         plot_filename):
-    fig = fft_plot(from_time, to_time, time_series, time_series_selected)
+    fig = fft_plot(time_series_selected, z_interval, z_peak_voltage)
     with open(plot_filename, 'w') as fh:
         fig.canvas.print_png(fh)
     plt.close(fig)
