@@ -27,8 +27,9 @@ setup(name='bdkd-portal-primer',
           ],
       install_requires=[
           "ckanapi",
-          "requests",
           "PyYAML",
           "argparse",
           "bdkd-datastore",
+          "python-dateutil",
+          "pytz",
       ])

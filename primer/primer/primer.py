@@ -8,8 +8,10 @@ import tempfile
 import yaml
 import logging
 import urllib
+import dateutil.parser
+import pytz
 from argparse import RawTextHelpFormatter
-from bdkd import datastore as ds
+from bdkd import datastore
 
 MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
@@ -19,25 +21,250 @@ __version__ = '0.1'
 
 
 """
+Dataset class holds information that can be used to build a CKAN dataset (or CKAN package)
+for a BDKD-datastore dataset.
+"""
+class Dataset:
+
+    def __init__(self, name, title, owner_org, description):
+        self.name = name
+        self.title = title
+        self.owner_org = owner_org
+        self.description = description
+
+
+"""
+The RepositoryBuilder class is used to build/update all the portal information for a single
+datastore repository.
+"""
+class RepositoryBuilder:
+
+    def _reset(self):
+        self._repo_name = None
+        self._ckan_site = None
+        self._tmp_dir = None
+
+
+    def __init__(self, primer):
+        """
+        :param primer: The primer object that created this builder object.
+        :type  primer: Primer
+        """
+        self._reset()
+        self._primer = primer
+
+
+    @staticmethod
+    def to_ckan_usable_name(dataset_name):
+        """ Takes a BDKD datastore dataset name and turn it into a dataset that
+        is usable as a dataset name in CKAN. This basically involves turning anything
+        that is not an alphanumeric, underscores, or dashes, into dashes.
+        If the dataset name came from datastore, it is likely to be a pseudo path of the
+        resource name. In the case, it is possible that collusion can happen if the pseudo path
+        contains too many non alphanumeric characters.
+        """
+        return re.sub(r'[^0-9a-zA-Z_-]', '-', dataset_name).lower()
+
+
+    def release(self):
+        """ End the building process, cleaning up any temporary resources used.
+        """
+        if self._tmp_dir:
+            os.removedirs(self._tmp_dir)
+        self._reset()
+
+
+    def _create_ckan_dataset(self, dataset):
+        """ Create a CKAN dataset using this dataset object.
+        :param dataset: the dataset object to create in CKAN
+        :type  dataset: Dataset
+        :return: the CKAN dataset object created.
+        """
+        ckan_ds = self._ckan_site.action.package_create(
+            name = dataset.name,
+            owner_org = dataset.owner_org,
+            title = dataset.title,
+            version = dataset.version,
+            author = dataset.author,
+            notes = dataset.description,
+            groups = dataset.groups)
+        return ckan_ds
+
+
+    def _create_manifest_file(self, dataset_name, ds_resource):
+        """ Creates a manifest file for all the files in a datastore resource.
+        :param dataset_name: the name of the dataset
+        :param ds_resource: the datastore resource to build the manifest file from
+        :type  ds_resource: datastore.Resource
+        """
+        manifest_filename = self._tmp_dir + MANIFEST_FILENAME
+        manifest_file = open(manifest_filename, 'w')
+        for f in ds_resource.files:
+            # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
+            # Otherwise assume it is a remote file and just push that directly into the manifest.
+            if f.location():
+                manifest_file.write('%s%s/%s\n' % (S3_PREFIX, self._repo_name, f.location()))
+            elif f.remote():
+                manifest_file.write(f.remote() + '\n')
+            else:
+                # Unknown resource error.
+                raise Exception('Unable to determine file location in resource %s.' % (ds_resource.name))
+        manifest_file.close()
+        logging.info("Creating manifest file for %s" % (ds_resource.name))
+        self._ckan_site.action.resource_create(
+            package_id = dataset_name,
+            description = 'Manifest for resource ' + ds_resource.name,
+            name = 'manifest',
+            upload=open(manifest_filename))
+
+
+    def _create_visualization_resource(self, dataset_name, ds_resource):
+        """ To create a visualization ckan resource for the datastore resource.
+        :param dataset_name: the name of the CKAN dataset to put the visual link under
+        :param ds_resource: the resource in datastore to create visualization for
+        :type  ds_resource: datastore.Resource
+        """
+        datatype = ds_resource.metadata.get('data_type', None)
+        if datatype:
+            visual_site = self._primer.find_visual_site_for_datatype(datatype)
+            if visual_site:
+                url = visual_site.format(urllib.quote_plus(self._repo_name), urllib.quote_plus(ds_resource.name))
+                logging.debug("Explore link for '%s' is '%s'" % (ds_resource.name, url))
+                self._ckan_site.action.resource_create(
+                    package_id = dataset_name,
+                    description = 'Explore the dataset',
+                    url = url, format = 'html', name = 'explore')
+
+
+    def _purge_dataset_from_portal(self, ds_to_purge):
+        """ Delete a dataset from the portal.
+        Note: this method was created as CKAN 2.2 does not support purging of dataset from its API.
+        Purging is done through the UI or through a paster command. So this function is created to
+        wraps the nastiness up so that it can be replaced easily when CKAN implements purging through API.
+        :param ds_to_purge: the unique name of the dataset to purge.
+        """
+        from ckan.lib.cli import DatasetCmd
+        dataset_cmd = DatasetCmd("purger")
+        dataset_cmd.run(["purge", ds_to_purge, "-c", self._ckan_cfg])
+
+
+    def build_portal_from_repo(self, **kwargs):
+        """ Prepare to prime a single datastore repository into a CKAN portal.
+        :param ds_host: the name of the datastore host
+        :param repo_name: the name of the repository to prime from the datastore host.
+        :param ckan_host: the CKAN host to prime the repository to.
+        :param org_name: the CKAN organization name (can be ID too) where the datasets will be stored under.
+        :param api_key: the CKAN API key to use when priming (i.e. login account)
+        :param ckan_cfg: the CKAN configuration file (for purging only)
+        """
+        self.release() # in case someone forgot to cleanup
+        for key in ['ds_host','repo_name','ckan_host','org_name', 'api_key', 'ckan_cfg']:
+            if kwargs.get(key) is None:
+                raise Exception("Cannot build a repository without param %s" % (key))
+        self._repo_name = kwargs.get('repo_name')
+        self._ckan_site = ckanapi.RemoteCKAN(kwargs.get('ckan_host'), apikey=kwargs.get('api_key'))
+        self._ckan_cfg = kwargs.get('ckan_cfg')
+        self._tmp_dir = tempfile.mkdtemp()
+
+        org_name = kwargs.get('org_name')
+        ds_host = kwargs.get('ds_host')
+
+        logging.info('Priming portal data from bucket: %s' % (self._repo_name))
+        repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
+        repo_resource_names = repo.list()
+
+        # Get a list of existing CKAN groups so repeated groups don't get recreated.
+        existing_groups = self._ckan_site.action.group_list()
+        groups_to_cleanup = {}
+        logging.debug("Existing groups:" + str(existing_groups))
+
+        # Get a full list of all existing dataset in CKAN along side their meta data so that
+        # 1. deleted dataset can be tracked and removed
+        # 2. last mod time of the dataset can be compare to decide if that dataset needs to be rebuild.
+        datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
+    
+        for r_name in repo_resource_names:
+            logging.debug("Priming repository " + r_name)
+            dataset_name = RepositoryBuilder.to_ckan_usable_name(r_name)
+            build_dataset_portal_data = True
+            # Look for the dataset in the portal.
+            for dataset in datasets_in_portal:
+                if dataset['name'] == dataset_name:
+                    # Remove it from the list to indicate the dataset still exists in the datastore.
+                    datasets_in_portal.remove(dataset)
+
+                    # Dataset already exists in the portal, check if it was modified in datastore since
+                    # last primed. Add TZ before comparing as CKAN stores it in UTC without TZ.
+                    last_primed_in_portal = dateutil.parser.parse(dataset['revision_timestamp']).replace(tzinfo=pytz.UTC)
+                    last_mod_in_datastore = repo.get_resource_last_modified(r_name)
+                    if last_mod_in_datastore <= last_primed_in_portal:
+                        # Dataset has not changed, so mark to skip the update.
+                        build_dataset_portal_data = False
+                    else:
+                        # Dataset has changed, need to remove the existing dataset from the portal,
+                        # and build up a list of 'groups' to possibly remove at the end of all these.
+                        for group in dataset['groups']:
+                            groups_to_cleanup[group['name']] = True
+                        self._purge_dataset_from_portal(dataset_name)
+                    break
+                # else continue to search for a matching dataset.
+                # If not found in existing dataset, then it will be added in as a new dataset.
+
+            if build_dataset_portal_data:
+                resource = repo.get(r_name)
+                pseudo_path = r_name.split('/')
+                dataset = Dataset(
+                    name = RepositoryBuilder.to_ckan_usable_name(r_name),
+                    title = pseudo_path[-1], # the last directory of the pseudo path is the title of the dataset
+                    owner_org = org_name,
+                    description = resource.metadata.get('description',''))
+                # Bring over other optional fields from the metadata.
+                for field in ['author','author_email','maintainer','maintainer_email','version']:
+                    setattr(dataset, field, resource.metadata.get(field, ""))
+
+                # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
+                group_names = pseudo_path[0:-1]
+                dataset.groups = []
+                for group_name in group_names:
+                    group_ckan_name = RepositoryBuilder.to_ckan_usable_name(group_name)
+                    if group_ckan_name not in existing_groups:
+                        logging.info("Group %s not found, creating group..." % (group_ckan_name))
+                        self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)
+                        existing_groups.append(group_ckan_name)
+                    dataset.groups.append({'name':group_ckan_name})
+
+                # Build and upload the manifest file into this dataset.
+                self._create_ckan_dataset(dataset)
+                self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
+                self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
+            # else don't need to update the dataset as it hasn't changed.
+        # end-for r_name in repo_resource_names
+
+
+"""
 Primer is a class that encapsulates operations required to prime a data portal with
 information about research data and resources store in an object storage (such as S3).
 """
 class Primer:
     def __init__(self):
         self._cfg = {}
+        self._ckan_site = None
         pass
 
 
-    def load_config(self, cfg_filename):
-        """ Loads the primer configuration file.
+    def load_config(self, from_file=None, from_string=None):
+        """ Loads the primer configuration file either from a file or from a YAML string.
         :raises: IOError if the config can't be loaded.
         """
-        # Put some default values
-        if not os.path.exists(cfg_filename):
-            raise Exception("Error: primer config file %s not found." % (cfg_filename))
-
-        logging.info("Using config from " + cfg_filename)
-        self._cfg = yaml.load(open(cfg_filename))
+        if from_file:
+            logging.info("Using config from " + from_file)
+            if not os.path.exists(from_file):
+                raise Exception("Error: primer config file %s not found." % (from_file))
+            self._cfg = yaml.load(open(from_file))
+        elif from_string:
+            self._cfg = yaml.load(from_string)
+        else:
+            raise Exception("Error: Unable to load primer config without any configuration")
 
 
     def _check_cfg(self, cfg_dict, req_keys, name=None):
@@ -56,130 +283,18 @@ class Primer:
                logging.info("config:%s = %s" % (item, cfg_dict[item]))
 
 
-    def _find_visual_site_for_datatype(self, datatype):
+    def find_visual_site_for_datatype(self, datatype):
         """ To find the visualization site for a particular datatype from the configuration.
         :return: the site, or None if not found or not configured.
         """
-        site = None
+        visual_site = None
         cfg_sites = self._cfg.get('visual-sites')
         if cfg_sites:
             matched_sites = filter(lambda x: x['data_type']==datatype, cfg_sites)
             # If multiple sites are found for that data_type, only use the first one.
             if matched_sites:
-                site = matched_sites[0].get('url')
-        return site
-
-
-    def build_repo_ckan_data(self, bucket_name, org_name, ds_host, ckan_host):
-        """ Builds a CKAN portal data using data taken from a datastore repository.
-        :param bucket_name: the name of the bucket where the datastore repository can be found.
-        :param org_name: the organization name (can be ID too) for the organization that the data will be stored under.
-        :param ds_host: the datastore host
-        :param ckan_host: the CKAN host
-        """
-        logging.info('Priming portal data from bucket: %s' % (bucket_name))
-        repo = ds.Repository(ds.Host(host=ds_host), bucket_name)
-        r_names = repo.list() # get a list of resource names
-    
-        workdir = tempfile.mkdtemp()
-        try:
-            # Prepare a CKAN connection for use.
-            site = ckanapi.RemoteCKAN(ckan_host, apikey=self._cfg['api_key'])
-    
-            # For each resource found, build a manifest list from the raw data files under that resource.
-            manifest_filename = workdir + MANIFEST_FILENAME
-    
-            # Get a list of existing CKAN groups so it doesn't get recreated.
-            ckan_groups = site.action.group_list()
-    
-            for r_name in r_names:
-                logging.debug("Priming repository " + r_name)
-                # First Bulid the manifest file.
-                manifest_file = open(manifest_filename, 'w')
-                resource = repo.get(r_name)
-                for f in resource.files:
-                    # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
-                    # Otherwise assume it is a remote file and just push that directly into the manifest.
-                    if f.location():
-                        manifest_file.write('%s%s/%s\n' % (S3_PREFIX, bucket_name, f.location()))
-                    elif f.remote():
-                        manifest_file.write(f.remote() + '\n')
-                    else:
-                        # Unknown resource error.
-                        raise Exception('Unable to determine file location in resource %s.' % (r_name))
-                manifest_file.close()
-    
-                # Turn pseudo path into a unique string that CKAN can use.
-                # Note that it is possible that collusion can happen if the pseudo path contains
-                # too many non alphanumeric characters.
-                dataset_name = re.sub(r'[^0-9a-zA-Z_-]', '-', r_name).lower()
-                pseudo_path = r_name.split('/')
-                dataset_title = pseudo_path[-1]    # the last field of the pseudo path is the title
-                dataset_groups = pseudo_path[0:-1] # the in middle fields will be the 'groups'
-                author = resource.metadata.get('author', '')
-                author_email = resource.metadata.get('author_email', '')
-                maintainer = resource.metadata.get('maintainer', '')
-                maintainer_email = resource.metadata.get('maintainer_email', '')
-                version = resource.metadata.get("version", "")
-                notes = resource.metadata.get("description", "")
-    
-                # Create the groups if there are not there yet.
-                logging.debug("Existing groups:" + str(dataset_groups))
-                dataset_group_names = []
-                for group_name in dataset_groups:
-                    group_ckan_name = re.sub(r'[^0-9a-zA-Z_-]', '-', group_name).lower()
-                    if group_ckan_name not in ckan_groups:
-                        logging.info("Group %s not found, creating group..." % (group_ckan_name))
-                        site.action.group_create(name=group_ckan_name, title=group_name)
-                        ckan_groups.append(group_ckan_name)
-                    dataset_group_names.append({'name':group_ckan_name})
-    
-                # Prepare a CKAN data set by creating a 'package'.
-                logging.debug("Creating dataset " + dataset_name)
-                logging.debug("name =" + dataset_name)
-                logging.debug("owner_org =" + org_name)
-                logging.debug("title =" + dataset_title)
-                logging.debug("version =" + '1.0')
-                logging.debug("author =" + author)
-                logging.debug("notes =" + notes)
-                logging.debug("groups =" + str(dataset_group_names))
-                dataset = site.action.package_create(
-                    name = dataset_name,
-                    owner_org = org_name,
-                    title = dataset_title,
-                    version = '1.0',
-                    author = author,
-                    notes = notes,
-                    groups = dataset_group_names,
-                    # groups = [{'name':g} for g in dataset_groups],
-                )
-
-                # Now upload the manifest file into this dataset.
-                logging.info("Creating manifest file for %s" % (r_name))
-                site.action.resource_create(
-                    package_id = dataset_name,
-                    # revision_id = created_at,
-                    description = 'Manifest for resource ' + r_name,
-                    name = 'manifest',
-                    upload=open(manifest_filename))
-    
-                # Create a visualization link if there is one.
-                datatype = resource.metadata.get('data_type', None)
-                if datatype:
-                    visual_site = self._find_visual_site_for_datatype(datatype)
-                    if visual_site:
-                        logging.info("Creating explore link for %s" % (r_name))
-                        url = visual_site.format(urllib.quote_plus(bucket_name), urllib.quote_plus(r_name))
-                        logging.debug("visual url:" + url)
-                        site.action.resource_create(
-                            package_id = dataset_name,
-                            url = url,
-                            description = 'Explore the dataset',
-                            format = 'html',
-                            name = 'explore')
-
-        finally:
-            os.removedirs(workdir)
+                visual_site = matched_sites[0].get('url')
+        return visual_site
 
 
     def prime_portal(self, repo_name=None):
@@ -188,23 +303,28 @@ class Primer:
         :raises: Exception if there is any failure.
         """
         # Validate primer config
-        self._check_cfg(self._cfg, ['repos', "api_key"],)
+        self._check_cfg(self._cfg, ['repos', "api_key", "ckan_cfg"],)
 
-        if repo_name is not None:
-            logging.debug("Priming only repository %s" % (repo_name))
+        logging.debug("Priming repository: %s" % (repo_name if repo_name else "ALL"))
         for repo in self._cfg['repos']:
             self._check_cfg(repo, ['bucket','ckan_url',"ds_host",'org_name',], name='the repo config')
+
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
+
+            repo_builder = RepositoryBuilder(self)
             try:
-                self.build_repo_ckan_data(
-                    bucket_name=repo['bucket'],
-                    org_name=repo['org_name'],
-                    ckan_host=repo['ckan_url'],
-                    ds_host=repo['ds_host']
-                )
+                repo_builder.build_portal_from_repo(
+                    ds_host = repo['ds_host'],
+                    repo_name = repo['bucket'],
+                    ckan_host = repo['ckan_url'],
+                    org_name = repo['org_name'],
+                    api_key = self._cfg['api_key'],
+                    ckan_cfg = self._cfg['ckan_cfg'])
+
             except Exception as e:
                 logging.error("Priming failed " + str(e))
+                repo_builder.release()
 
 
     def setup_organizations(self, repo_name=None):
@@ -268,13 +388,13 @@ def main():
 
     primer = Primer()
 
-    if args.command == 'prime':
-        primer.load_config(cfg_filename)
+    if args.command == 'prime' or args.command == 'update':
+        primer.load_config(from_file=cfg_filename)
         primer.prime_portal(repo_name=args.bucket_name)
         sys.exit(0)
 
     elif args.command == 'setup':
-        primer.load_config(cfg_filename)
+        primer.load_config(from_file=cfg_filename)
         primer.setup_organizations(repo_name=args.bucket_name)
         sys.exit(0)
 
