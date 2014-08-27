@@ -12,6 +12,8 @@ import dateutil.parser
 import pytz
 from argparse import RawTextHelpFormatter
 from bdkd import datastore
+import paste.script.command
+import ckan.lib.cli
 
 MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
@@ -20,11 +22,11 @@ S3_PREFIX = 's3://'
 __version__ = '0.1'
 
 
-"""
-Dataset class holds information that can be used to build a CKAN dataset (or CKAN package)
-for a BDKD-datastore dataset.
-"""
 class Dataset:
+    """
+    Dataset class holds information that can be used to build a CKAN dataset (or CKAN package)
+    for a BDKD-datastore dataset.
+    """
 
     def __init__(self, name, title, owner_org, description):
         self.name = name
@@ -33,11 +35,23 @@ class Dataset:
         self.description = description
 
 
-"""
-The RepositoryBuilder class is used to build/update all the portal information for a single
-datastore repository.
-"""
+def purge_ckan_dataset(ds_to_purge, ckan_ini):
+    """ Delete a dataset from the portal.
+    Note: this method was created as CKAN 2.2 does not support purging of dataset from its API.
+    Purging is done through the UI or through a paster command. So this function is created to
+    wraps the nastiness up so that it can be replaced easily when CKAN implements purging through API.
+    :param ds_to_purge: the unique name of the dataset to purge.
+    :param ckan_ini: the CKAN ini file to use when purgin via python paste
+    """
+    dataset_cmd = ckan.lib.cli.DatasetCmd("purger")
+    dataset_cmd.run(["purge", ds_to_purge, "-c", ckan_ini])
+
+
 class RepositoryBuilder:
+    """
+    The RepositoryBuilder class is used to build/update all the portal information for a single
+    datastore repository.
+    """
 
     def _reset(self):
         self._repo_name = None
@@ -52,6 +66,7 @@ class RepositoryBuilder:
         """
         self._reset()
         self._primer = primer
+        self._dataset_audit = None
 
 
     @staticmethod
@@ -138,14 +153,15 @@ class RepositoryBuilder:
 
     def _purge_dataset_from_portal(self, ds_to_purge):
         """ Delete a dataset from the portal.
-        Note: this method was created as CKAN 2.2 does not support purging of dataset from its API.
-        Purging is done through the UI or through a paster command. So this function is created to
-        wraps the nastiness up so that it can be replaced easily when CKAN implements purging through API.
         :param ds_to_purge: the unique name of the dataset to purge.
         """
-        from ckan.lib.cli import DatasetCmd
-        dataset_cmd = DatasetCmd("purger")
-        dataset_cmd.run(["purge", ds_to_purge, "-c", self._ckan_cfg])
+        purge_ckan_dataset(ds_to_purge, self._ckan_cfg)
+
+
+    def set_dataset_audit(self, dataset_audit):
+        """ Indicate that dataset is to be tracked when building.
+        """
+        self._dataset_audit = dataset_audit
 
 
     def build_portal_from_repo(self, **kwargs):
@@ -171,7 +187,7 @@ class RepositoryBuilder:
 
         logging.info('Priming portal data from bucket: %s' % (self._repo_name))
         repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
-        repo_resource_names = repo.list()
+        repo_dataset_names = repo.list()
 
         # Get a list of existing CKAN groups so repeated groups don't get recreated.
         existing_groups = self._ckan_site.action.group_list()
@@ -183,20 +199,19 @@ class RepositoryBuilder:
         # 2. last mod time of the dataset can be compare to decide if that dataset needs to be rebuild.
         datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
     
-        for r_name in repo_resource_names:
-            logging.debug("Priming repository " + r_name)
-            dataset_name = RepositoryBuilder.to_ckan_usable_name(r_name)
+        for ds_dataset_name in repo_dataset_names:
+            logging.debug("Priming repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
+            dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
             build_dataset_portal_data = True
             # Look for the dataset in the portal.
             for dataset in datasets_in_portal:
                 if dataset['name'] == dataset_name:
-                    # Remove it from the list to indicate the dataset still exists in the datastore.
-                    datasets_in_portal.remove(dataset)
+                    self._dataset_audit[dataset_name] = True # Mark dataset is touched and audited
 
                     # Dataset already exists in the portal, check if it was modified in datastore since
                     # last primed. Add TZ before comparing as CKAN stores it in UTC without TZ.
                     last_primed_in_portal = dateutil.parser.parse(dataset['revision_timestamp']).replace(tzinfo=pytz.UTC)
-                    last_mod_in_datastore = repo.get_resource_last_modified(r_name)
+                    last_mod_in_datastore = repo.get_resource_last_modified(ds_dataset_name)
                     if last_mod_in_datastore <= last_primed_in_portal:
                         # Dataset has not changed, so mark to skip the update.
                         build_dataset_portal_data = False
@@ -211,10 +226,10 @@ class RepositoryBuilder:
                 # If not found in existing dataset, then it will be added in as a new dataset.
 
             if build_dataset_portal_data:
-                resource = repo.get(r_name)
-                pseudo_path = r_name.split('/')
+                resource = repo.get(ds_dataset_name)
+                pseudo_path = ds_dataset_name.split('/')
                 dataset = Dataset(
-                    name = RepositoryBuilder.to_ckan_usable_name(r_name),
+                    name = dataset_name,
                     title = pseudo_path[-1], # the last directory of the pseudo path is the title of the dataset
                     owner_org = org_name,
                     description = resource.metadata.get('description',''))
@@ -238,7 +253,9 @@ class RepositoryBuilder:
                 self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
                 self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
             # else don't need to update the dataset as it hasn't changed.
-        # end-for r_name in repo_resource_names
+        # end-for ds_dataset_name in repo_dataset_names
+
+        # For datasets that were in the portal before the 
 
 
 """
@@ -303,29 +320,62 @@ class Primer:
         :raises: Exception if there is any failure.
         """
         # Validate primer config
-        self._check_cfg(self._cfg, ['repos', "api_key", "ckan_cfg"],)
-
+        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url'],)
         logging.debug("Priming repository: %s" % (repo_name if repo_name else "ALL"))
+
+        ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
+        datasets_before_prime = ckan_site.action.current_package_list_with_resources()
+        datasets_touched = {}
         for repo in self._cfg['repos']:
-            self._check_cfg(repo, ['bucket','ckan_url',"ds_host",'org_name',], name='the repo config')
+            self._check_cfg(repo, ['bucket','ds_host','org_name',], name='the repo config')
 
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
 
             repo_builder = RepositoryBuilder(self)
+            repo_builder.set_dataset_audit(datasets_touched)
             try:
                 repo_builder.build_portal_from_repo(
                     ds_host = repo['ds_host'],
                     repo_name = repo['bucket'],
-                    ckan_host = repo['ckan_url'],
                     org_name = repo['org_name'],
                     api_key = self._cfg['api_key'],
+                    ckan_host = self._cfg['ckan_url'],
                     ckan_cfg = self._cfg['ckan_cfg'])
+
 
             except Exception as e:
                 logging.error("Priming failed " + str(e))
                 repo_builder.release()
+                raise
 
+        # Clean up leftover (i.e. datasets that were not touched are assume to be deleted from datastore)
+        # This will only take place if the priming is for all repo, otherwise some dataset might not be 'touched'.
+        if repo_name is None:
+            try:
+                groups_to_cleanup = {}
+                for dataset in datasets_before_prime:
+                    if not datasets_touched.get(dataset['name'], False):
+                        # Found a dataset that was not touched, so remove it from the portal.
+                        purge_ckan_dataset(dataset['name'], self._cfg['ckan_cfg'])
+                        
+                        # Track the groups that the purged dataset belongs to.
+                        for group in dataset['groups']:
+                            groups_to_cleanup[group['name']] = True
+                # end-for dataset
+
+                # Go through all groups whose dataset were touched and see if they are still needed.
+                for group in groups_to_cleanup:
+                    group_info = ckan_site.action.group_show(id=group)
+                    if group_info and group_info['package_count'] == 0:
+                        ckan_site.action.group_purge(id=group)  # no dataset in that group anymore, purge!
+
+
+            except Exception as e:
+                logging.error("Priming failed " + str(e))
+                repo_builder.release()
+                success = False
+            
 
     def setup_organizations(self, repo_name=None):
         """ Check that the organizations in the configuration file exist
@@ -333,17 +383,17 @@ class Primer:
         :param repo_name: Only setup the organization for that repo config.
         """
         # Validate primer config
-        self._check_cfg(self._cfg, ['repos', "api_key"],)
+        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_url'],)
         api_key = self._cfg['api_key']
 
         action = False
         for repo in self._cfg['repos']:
-            self._check_cfg(repo, ['bucket','ckan_url','org_name','org_title'], name='the repo config')
+            self._check_cfg(repo, ['bucket','org_name','org_title'], name='the repo config')
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
             action = True
             # Prepare a CKAN connection for use.
-            ckan_host = repo['ckan_url']
+            ckan_host = self._cfg['ckan_url']
             org_name = repo['org_name']
             site = ckanapi.RemoteCKAN(ckan_host, apikey=api_key)
             orgs = site.action.organization_list()
@@ -388,7 +438,7 @@ def main():
 
     primer = Primer()
 
-    if args.command == 'prime' or args.command == 'update':
+    if args.command == 'prime':
         primer.load_config(from_file=cfg_filename)
         primer.prime_portal(repo_name=args.bucket_name)
         sys.exit(0)

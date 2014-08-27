@@ -26,6 +26,7 @@ setup(name='bdkd-portal-primer',
           'scripts/purge_portal_dataset',
           ],
       install_requires=[
+          "ckan",
           "ckanapi",
           "PyYAML",
           "argparse",

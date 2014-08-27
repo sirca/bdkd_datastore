@@ -1,3 +1,4 @@
+ckan=2.2
 ckanapi==3.2
 PyYAML==3.11
 argparse==1.2.1
