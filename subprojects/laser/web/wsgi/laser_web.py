@@ -6,6 +6,8 @@ import csv, json, StringIO
 from multiprocessing import Process
 from functools import wraps
 
+import matplotlib
+matplotlib.use('Agg')
 from bdkd.laser.data import Dataset
 import bdkd.laser.plot as bdkd_plot
 from PIL import Image
@@ -16,8 +18,7 @@ from flask import ( Flask, request, render_template, send_file,
 CACHE_ROOT='/var/tmp'
 CACHE_LOCATION='static/cache'
 CACHE_SALT='55f329b5b9d620090e763a359e102eb0'
-REPOSITORY='bdkd-laser-demo'
-DEFAULT_DATASET='datasets/Sample dataset'
+
 
 app = Flask(__name__)
 
@@ -56,86 +57,72 @@ def subprocess_plot(filename, target, args):
         os.utime(filename, None)
 
 
-def large_map_plot(plot_filename, plot_large_filename):
-    img = Image.open(plot_filename)
-    large_img = img.resize([x * 10 for x in img.size])
-    large_img.save(plot_large_filename)
-
-
-def cache_map_plot(dataset, map_name, large=False):
-    key = cache_key('map', dataset.name, map_name)
-    cache_dirname = make_cache_dir(key)
-    plot_name = os.path.join(cache_dirname, key)
-    plot_location = plot_name + '.png'
-    plot_filename = os.path.join(CACHE_ROOT, plot_location)
-    plot_large_location = plot_name + '-large.png'
-    plot_large_filename = os.path.join(CACHE_ROOT, plot_large_location)
-    subprocess_plot(filename=plot_filename, 
-            target=bdkd_plot.render_map_plot, 
-            args=(dataset, map_name, plot_filename))
-    subprocess_plot(filename=plot_large_filename,
-            target=large_map_plot,
-            args=(plot_filename, plot_large_filename))
-    if large:
-        return plot_large_location
-    return plot_location
-
-
-def cache_time_series_plot(dataset_name, feedback, injection, time_series,
-        from_time, to_time):
-    key = cache_key('time_series', dataset_name, feedback, injection, 
+def cache_time_series_plot(repository_name, dataset_name, x, y, time_series,
+        from_time, to_time, z_interval_base):
+    key = cache_key('time_series', repository_name, dataset_name, x, y, 
             from_time, to_time)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     subprocess_plot(filename=plot_filename, 
             target=bdkd_plot.render_time_series_plot, 
-            args=(time_series, from_time, to_time, plot_filename))
+            args=(time_series, from_time, to_time, z_interval_base, 
+                plot_filename))
     return plot_location
 
 
-def cache_phase_plot(dataset_name, feedback, injection, 
-        from_time, to_time, time_series, time_series_selected, delay):
-    key = cache_key('phase', dataset_name, feedback, injection, 
+def cache_phase_plot(repository_name, dataset_name, x, y, 
+        from_time, to_time, time_series, time_series_selected, delay, 
+        z_interval_base):
+    key = cache_key('phase', repository_name, dataset_name, x, y, 
             from_time, to_time, delay)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
+    print len(time_series_selected)
+    print from_time
+    print to_time
+    print delay
+    print z_interval_base
     subprocess_plot(filename=plot_filename,
             target=bdkd_plot.render_phase_plot, 
-            args=(from_time, to_time, time_series, time_series_selected, 
-                delay, plot_filename))
+            args=(time_series, from_time, to_time, delay, 
+                z_interval_base, plot_filename))
     return plot_location
 
 
-def cache_fft_plot(dataset_name, feedback, injection, 
-        from_time, to_time, time_series, time_series_selected):
-    key = cache_key('fft', dataset_name, feedback, injection, 
+def cache_fft_plot(repository_name, dataset_name, x, y, 
+        from_time, to_time, time_series, time_series_selected, 
+        z_interval, z_peak_voltage):
+    key = cache_key('fft', repository_name, dataset_name, x, y, 
             from_time, to_time)
     cache_dirname = make_cache_dir(key)
     plot_location = os.path.join(cache_dirname, key + '.png')
     plot_filename = os.path.join(CACHE_ROOT, plot_location)
     subprocess_plot(filename=plot_filename, 
             target=bdkd_plot.render_fft_plot, 
-            args=(from_time, to_time, time_series, time_series_selected, 
+            args=(time_series_selected, z_interval, z_peak_voltage, 
                 plot_filename))
     return plot_location
 
 
+
 def open_dataset(f):
     """
-    Wrapper for routes using 'dataset_name' and 'map_name', to provide a dataset.
+    Wrapper for routes using 'repository_name', 'dataset_name' and 'map_name', 
+    to provide a dataset.
 
     Uses the 'dataset_name' kwarg to open and provide a kwarg called 'dataset'.  
     If the dataset is not found, aborts with 404.
 
-    Furthermore, if a map_name kwarg is provided this is checked for existence in the 
-    dataset.  If it does not exist, 404 is returned.
+    Furthermore, if a map_name kwarg is provided this is checked for existence 
+    in the dataset.  If it does not exist, 404 is returned.
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if 'dataset_name' in kwargs:
-            dataset = Dataset.open(REPOSITORY, kwargs['dataset_name'])
+        if 'repository_name' in kwargs and 'dataset_name' in kwargs:
+            dataset = Dataset.open(kwargs['repository_name'], 
+                    kwargs['dataset_name'])
             if not dataset:
                 abort(404)
             kwargs['dataset'] = dataset
@@ -143,16 +130,18 @@ def open_dataset(f):
                 if not kwargs['map_name'] in dataset.get_map_names():
                     abort(404)
             return f(*args, **kwargs)
+        else:
+            abort(400)
     return wrapper
 
 
 def open_dataset_and_time_series(f):
     """
-    Wrapper for loading time series data.  Provides 'feedback', 'injection' and 
+    Wrapper for loading time series data.  Provides 'y', 'x' and 
     'time_series' to the kwargs.
 
     Uses the @open_dataset decorator to ensure a valid dataset first.  Then it 
-    relies on 'feedback' and 'injection' to be provided in the request args 
+    relies on 'y' and 'x' to be provided in the request args 
     (otherwise 400).  If the time series exists, it  will be provided in the 
     kwargs as time_series; otherwise 404.
 
@@ -165,38 +154,40 @@ def open_dataset_and_time_series(f):
     @open_dataset
     def wrapper(*args, **kwargs):
         dataset = kwargs['dataset']
-        if not 'feedback' in request.args or not 'injection' in request.args:
+        if not 'y' in request.args or not 'x' in request.args:
             abort(400)
-        feedback = int(request.args.get('feedback', 0))
-        injection = int(request.args.get('injection', 0))
-        time_series = dataset.get_time_series(feedback, injection)
+        x = int(request.args.get('x', 0))
+        y = int(request.args.get('y', 0))
+        interval = dataset.z_interval_base
+        time_series = dataset.get_time_series(x, y)
         if time_series == None or len(time_series) == 0:
             abort(404)
         from_time = int(request.args.get('from', 0))
-        to_time = int(request.args.get('to', (len(time_series) - 1) * 50))
-        from_idx = (from_time // 50)
-        to_idx = -(-to_time // 50)
-        kwargs['feedback'] = feedback
-        kwargs['injection'] = injection
+        to_time = int(request.args.get('to', (len(time_series) - 1) * interval))
+        from_idx = (from_time // interval)
+        to_idx = -(-to_time // interval)
+        kwargs['y'] = y
+        kwargs['x'] = x
         kwargs['time_series'] = time_series
         kwargs['time_series_selected'] = time_series[from_idx:to_idx]
-        kwargs['from_time'] = from_idx * 50
-        kwargs['to_time'] = to_idx * 50
+        kwargs['from_time'] = from_idx * interval
+        kwargs['to_time'] = to_idx * interval
         return f(*args, **kwargs)
     return wrapper
 
 
-@app.route("/datasets")
-def get_datasets():
-    dataset_names = Dataset.list(REPOSITORY)
+@app.route("/repositories/<repository_name>/datasets")
+def get_datasets(repository_name):
+    dataset_names = Dataset.list(kwargs.get('repository_name', None))
     if not dataset_names:
         abort(404)
     return json.dumps(dataset_names)
 
 
-@app.route("/readme/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/readme")
 @open_dataset
-def get_readme(dataset_name, dataset):
+def get_readme(repository_name, dataset_name, dataset):
     readme_txt = dataset.get_readme()
     if readme_txt:
         return readme_txt
@@ -204,113 +195,103 @@ def get_readme(dataset_name, dataset):
         abort(404)
 
 
-@app.route("/map_names/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/map_names")
 @open_dataset
-def get_map_names(dataset_name, dataset):
-    map_names = dataset.get_map_names()
-    for map in (bdkd_plot.FBT_MAP, bdkd_plot.INJ_MAP):
-        if map in map_names:
-            map_names.remove(map)
+def get_map_names(repository_name, dataset_name, dataset):
+    map_names = dataset.get_map_names(include_variables=False)
     return json.dumps(map_names)
 
 
-@app.route("/feedback/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>"
+        "/map_data/<map_name>")
 @open_dataset
-def get_feedback(dataset_name, dataset):
-    fbt = dataset.get_map_data(bdkd_plot.FBT_MAP)
-    if fbt != None:
-        return json.dumps(fbt[0,:].tolist())
+def get_map_data(repository_name, dataset_name, dataset, map_name):
+    map_data = dataset.get_map_and_variables_data(map_name)
+    if map_data != None:
+        return json.dumps(map_data)
     else:
         abort(404)
 
 
-@app.route("/injection/<path:dataset_name>")
-@open_dataset
-def get_injection(dataset_name, dataset):
-    inj = dataset.get_map_data(bdkd_plot.INJ_MAP)
-    if inj != None:
-        return json.dumps(inj[:,0].tolist())
-    else:
-        abort(404)
-
-
-@app.route("/map_plots/<path:dataset_name>/<map_name>")
-@open_dataset
-def get_map_plot(dataset_name, dataset, map_name):
-    is_large = ('size' in request.args and request.args.get('size') == 'large')
-    cache_path = cache_map_plot(dataset, map_name, large=is_large)
-    return redirect(cache_path, code=302)
-    
-
-@app.route("/map_data/<path:dataset_name>/<map_name>")
-@open_dataset
-def get_map_data(dataset_name, dataset, map_name):
-    map_data = dataset.get_map_data(map_name)
-    output = StringIO.StringIO()
-    writer = csv.writer(output)
-    for row in map_data:
-        writer.writerow(row)
-    output.seek(0)
-    return send_file(output, attachment_filename=map_name, 
-            mimetype='text/csv', as_attachment=True)
-
-
-@app.route("/time_series_plots/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/time_series_plots")
 @open_dataset_and_time_series
-def get_time_series_plot(dataset_name, dataset, feedback, injection,
+def get_time_series_plot(repository_name, dataset_name, dataset, x, y,
         from_time, to_time, time_series, time_series_selected):
-    cache_path = cache_time_series_plot(dataset_name, feedback, injection, time_series_selected,
-            from_time, to_time)
+    cache_path = cache_time_series_plot(repository_name, dataset_name, 
+            x, y, time_series_selected, from_time, to_time, 
+            dataset.z_interval_base)
     return redirect(cache_path, code=302)
 
 
-@app.route("/time_series_data/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/time_series_data")
 @open_dataset_and_time_series
-def get_time_series_data(dataset_name, dataset, feedback, injection,
+def get_time_series_data(repository_name, dataset_name, dataset, x, y,
         from_time, to_time, time_series, time_series_selected):
     output = StringIO.StringIO()
-    output.writelines(["{0}\n".format(str(x)) for x in time_series_selected])
+    output.writelines(["{0}\n".format(str(val)) for val in time_series_selected])
     output.seek(0)
     return send_file(output, 
-            attachment_filename="FB_{0:03d}_INJ_{1:03d}_{2}_{3}.csv".format(
-                feedback, injection, from_time, to_time), mimetype='text/csv',
+            attachment_filename="X_{0:03d}_Y_{1:03d}_{2}_{3}.csv".format(
+                x, y, from_time, to_time), mimetype='text/csv',
             as_attachment=True)
 
 
-@app.route("/phase_plots/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>"
+        "/phase_plots")
 @open_dataset_and_time_series
-def get_phase_plot(dataset_name, dataset, feedback, injection,
+def get_phase_plot(repository_name, dataset_name, dataset, x, y,
         from_time, to_time, time_series, time_series_selected):
     delay = int(request.args.get('delay', 1))
-    cache_path = cache_phase_plot(dataset_name, feedback, injection, 
-            from_time, to_time, time_series, time_series_selected, delay)
+    print time_series_selected
+    cache_path = cache_phase_plot(repository_name, dataset_name, x, y, 
+            from_time, to_time, time_series, time_series_selected, delay,
+            dataset.z_interval_base)
     return redirect(cache_path, code=302)
 
 
-@app.route("/fft_data/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/fft_data")
 @open_dataset_and_time_series
-def get_fft_data(dataset_name, dataset, feedback, injection,
+def get_fft_data(repository_name, dataset_name, dataset, x, y,
         from_time, to_time, time_series, time_series_selected):
-    (freq, dBm) = time_series_fft(time_series_selected)
-    return json.dumps({'fftfreq': freq.tolist(), 'fft_real': dBm.real.data.tolist(),
+    (freq, dBm) = bdkd_plot.time_series_fft(time_series_selected, 
+            dataset.z_interval, dataset.z_peak_voltage)
+    return json.dumps({'fftfreq': freq.tolist(), 
+        'fft_real': dBm.real.data.tolist(),
         'fft_imag': dBm.imag.data.tolist() })
 
 
-@app.route("/fft_plots/<path:dataset_name>")
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/fft_plots")
 @open_dataset_and_time_series
-def get_fft_plot(dataset_name, dataset, feedback, injection,
+def get_fft_plot(repository_name, dataset_name, dataset, x, y,
         from_time, to_time, time_series, time_series_selected):
     delay = int(request.args.get('delay', 1))
-    cache_path = cache_fft_plot(dataset_name, feedback, injection, 
-            from_time, to_time, time_series, time_series_selected)
+    cache_path = cache_fft_plot(repository_name, dataset_name, x, y, 
+            from_time, to_time, time_series, time_series_selected,
+            dataset.z_interval, dataset.z_peak_voltage)
     return redirect(cache_path, code=302)
+
+
+@app.route("/repositories/<repository_name>"
+        "/datasets/<path:dataset_name>/")
+@open_dataset
+def view_dataset(repository_name, dataset_name, dataset):
+    return render_template('resource.html',
+            repository_name=repository_name,
+            dataset_name=dataset_name,
+            dataset=dataset, 
+            ) 
 
 
 @app.route("/")
 def index():
-    return render_template('index.html',
-            datasets=[ DEFAULT_DATASET ], 
-            param2="other") 
+    return render_template('index.html')
 
 
 if __name__=="__main__":
