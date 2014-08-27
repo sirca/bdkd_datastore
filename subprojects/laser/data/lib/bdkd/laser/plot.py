@@ -1,5 +1,4 @@
 import matplotlib
-# matplotlib.use('Agg')  # belongs elsewhere
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -47,6 +46,9 @@ def phase_plot(time_series, from_time, to_time,
             (-(-to_time // z_interval_base)+delay)]
     ts_x = time_series[(from_time // z_interval_base):
             ((from_time // z_interval_base) + len(ts_y))]
+    print "range {0}:{1}".format(((from_time // z_interval_base)+delay),
+(-(-to_time // z_interval_base)+delay))
+    print "ts_x: {0}, ts_y: {1}".format(len(ts_x), len(ts_y)) 
     fig = plt.figure()
     plt.plot(ts_x, ts_y, 'r.')
     return fig

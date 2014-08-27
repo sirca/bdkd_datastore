@@ -175,6 +175,29 @@ class Dataset(object):
         return self.get_map_data(self.y_variables)
 
 
+    def get_map_and_variables_data(self, map_name):
+        map_data = self.get_map_data(map_name)
+        x_variables = self.get_x_variables()
+        y_variables = self.get_y_variables()
+        if map_data != None and x_variables != None and y_variables != None:
+            print map_data
+            data = []
+            for x in range(len(map_data)):
+                row = map_data[x]
+                for y in range(len(row)):
+                    value = row[y]
+                    data.append(dict(
+                        x_index=x,
+                        y_index=y,
+                        x_variable=x_variables[x][y],
+                        y_variable=y_variables[x][y],
+                        value=value
+                        ))
+            return data
+        else:
+            return None
+
+
     def get_time_series(self, x, y):
         x_shard = int(x / self.shard_size) * self.shard_size
         y_shard = int(y / self.shard_size) * self.shard_size
