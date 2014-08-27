@@ -178,7 +178,7 @@ def open_dataset_and_time_series(f):
 
 @app.route("/repositories/<repository_name>/datasets")
 def get_datasets(repository_name):
-    dataset_names = Dataset.list(kwargs.get('repository_name', None))
+    dataset_names = Dataset.list(repository_name, None)
     if not dataset_names:
         abort(404)
     return json.dumps(dataset_names)
