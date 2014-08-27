@@ -1,101 +1,10 @@
 <!doctype html>
 <html>
     <head>
-        <title>Chaos lasers!</title>
-        <link rel="stylesheet" type="text/css" href="static/laser_web.css"/>
-        <link rel="stylesheet" type="text/css" href="static/jquery.imgareaselect-0.9.10/css/imgareaselect-default.css"/>
-        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
-        <script src="static/jquery.elevatezoom-mod.js"></script>
-        <script type="text/javascript" src="static/jquery.imgareaselect-0.9.10/scripts/jquery.imgareaselect.pack.js"></script>
-        <script type="text/javascript">
-            var BDKD = {};
-            $(document).ready(function() {
-                onPageLoad();
-            });
-        </script>
-        <script src="static/laser_web.js"></script>
+        <title>Laser data visualisation</title>
     </head>
     <body>
-        <h1>Experiment results</h1>
-        <p>
-            <label id="explabel" for="dataset">Dataset:</label>
-            <select id="dataset" onchange="onChangeDataset()"></select>
-            <label id="label_map" for "map">Map:</label>
-            <select id="map" onchange="onChangeMap()"></select>
-        </p>
-
-        <div id="readme_header" class="sliding_header">README</div>
-        <div id="readme_panel"  class="sliding_panel">
-            <p><pre id="readme"></pre></p>
-        </div>
-
-        <div id="map_header" class="sliding_header">Map</div>
-        <div id="map_panel"  class="sliding_panel">
-            <p><span id="heatmap_download"></span></p>
-            <table border="0">
-                <tr>
-                    <td style="vertical-align:center;">Feedback<br/>(AOM Transmission)</td>
-                    <td><span id="heatmap"/></td>
-                    <td style="text-align:left;"><span id="map_coords" style="display:none">
-                        <strong>Injection:</strong><br/><span id="injection_coord"></span><br/>
-                        <strong>Feedback:</strong><br/><span id="feedback_coord"></span>
-                    </span></td>
-                </tr>
-                <tr>
-                    <td/>
-                    <td style="text-align:center;">Injection Current (mA)</td>
-                    <td/>
-                </tr>
-            </table>
-            <p><form onsubmit="onChangeTimeSeries(); return false;">
-                Injection: <select id="map_injection"></select>
-                Feedback: <select id="map_feedback"></select>
-                <input type="submit" value="Show"/>
-            </form></p>
-        </div>
-
-        <div id="time_series_header" class="sliding_header">Time series</div>
-        <div id="time_series_panel"  class="sliding_panel">
-            <p><span id="time_series_download"></span></p>
-            <table border="0">
-                <tr>
-                    <td style="vertical-align:center;">Signal Amplitude<br/>(V)</td>
-                    <td><span id="time_series_plot"></span></td>
-                </tr>
-                <tr>
-                    <td/>
-                    <td>Time (ps)</td>
-                </tr>
-            </table>
-            <p><form onsubmit="onZoomTimeSeries(); return false;">
-                    From: <input id="from_time" type="text" size="6"/> 
-                    To: <input id="to_time" type="text" size="6"/>
-                    <input type="submit" value="Zoom"/>
-                </form> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
-            </p>
-        </div>
-
-        <div id="phase_header" class="sliding_header">Phase diagram</div>
-        <div id="phase_panel"  class="sliding_panel">
-            <p><span id="phase_plot"></span></p>
-            <p><form onsubmit="onChangePhaseDelay(); return false;">
-                Delay: <input id="phase_delay" type="text" value="1" size="3"/>
-                <input type="submit" value="Show"/>
-            </form></p>
-        </div>
-
-        <div id="fft_header" class="sliding_header">FFT</div>
-        <div id="fft_panel"  class="sliding_panel">
-            <p><span id="fft_download"></span></p>
-            <p><span id="fft_plot"></span></p>
-        </div>
-
-        <div id="documentation_header" class="sliding_header">Documentation</div>
-        <div id="documentation_panel"  class="sliding_panel">
-            <p><a href="/static/doc/api.html">API documentation</a></p>
-        </div>
-
-        <hr/>
+        <h1>Laser data visualisation</h1>
         <p>The <a href="http://knowledgediscovery.org">Big Data Knowledge 
             Discovery</a> project is a collaboration between <a 
             href="https://www.nicta.com.au/">National ICT Australia 
@@ -113,35 +22,5 @@
             <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SIEF_logo.png" alt="SIEF"/>
         </p>
 
-        <script type="text/javascript">
-            $('#readme_header').click(function () {
-                $('#readme_panel').slideToggle();
-                });
-            $('#readme_panel').css('display', 'none');
-
-            $('#map_header').click(function () {
-                $('#map_panel').slideToggle();
-                });
-
-            $('#time_series_header').click(function () {
-                $('#time_series_panel').slideToggle();
-                });
-            $('#time_series_panel').css('display', 'none');
-
-            $('#phase_header').click(function () {
-                $('#phase_panel').slideToggle();
-                });
-            $('#phase_panel').css('display', 'none');
-
-            $('#fft_header').click(function () {
-                $('#fft_panel').slideToggle();
-                });
-            $('#fft_panel').css('display', 'none');
-
-            $('#documentation_header').click(function () {
-                $('#documentation_panel').slideToggle();
-            });
-            $('#documentation_panel').css('display', 'none');
-        </script>
     </body>
 <html>
