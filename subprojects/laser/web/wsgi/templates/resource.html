@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Chaos lasers!</title>
+        <link rel="stylesheet" type="text/css" href="/static/laser_web.css"/>
+        <link rel="stylesheet" type="text/css" href="/static/jquery.imgareaselect-0.9.10/css/imgareaselect-default.css"/>
+<script type="text/javascript" src="/static/d3.v3.js"></script>
+        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <script type="text/javascript" src="/static/jquery.imgareaselect-0.9.10/scripts/jquery.imgareaselect.pack.js"></script>
+        <script type="text/javascript">
+var BDKD = {};
+BDKD.dataset = {
+    repository_name: "{{ repository_name }}",
+    dataset_name: "{{ dataset_name }}",
+    x_name: "{{ dataset.x_name }}",
+    x_size: {{ dataset.x_size }},
+    y_name: "{{ dataset.y_name }}",
+    y_size: {{ dataset.y_size }},
+    z_name: "{{ dataset.z_name }}",
+    z_size: {{ dataset.z_size }},
+    z_interval_base: {{ dataset.z_interval_base }}
+};
+BDKD.selection = {
+    x_index: 0,
+    y_index: 0,
+    from_time: 0,
+    to_time: (BDKD.dataset.z_size * BDKD.dataset.z_interval_base -1)
+};
+$(document).ready(function() {
+	onPageLoad();
+});
+        </script>
+        <script src="/static/laser_web.js"></script>
+    </head>
+    <body>
+        <h1>Experiment results</h1>
+        <p>
+            <label id="label_map" for="map">Map:</label>
+            <select id="map" onchange="onChangeMap()"></select>
+        </p>
+
+        <div id="readme_header" class="sliding_header">README</div>
+        <div id="readme_panel"  class="sliding_panel">
+            <p><pre id="readme"></pre></p>
+        </div>
+
+        <div id="map_header" class="sliding_header">Map</div>
+        <div id="map_panel"  class="sliding_panel">
+            <p><span id="heatmap_download"></span></p>
+            <table border="0">
+                <tr>
+					<td style="vertical-align:center;">{{ dataset.y_name }}</td>
+                    <td><svg id="heatmap"></svg></td>
+                </tr>
+                <tr>
+                    <td/>
+					<td style="text-align:center;">{{ dataset.x_name }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="time_series_header" class="sliding_header">Time series</div>
+        <div id="time_series_panel"  class="sliding_panel">
+            <p><span id="time_series_download"></span></p>
+            <table border="0">
+                <tr>
+                    <td style="vertical-align:center;">Signal Amplitude<br/>(V)</td>
+                    <td><span id="time_series_plot"></span></td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td>Time (ps)</td>
+                </tr>
+            </table>
+            <p><form onsubmit="onZoomTimeSeries(); return false;">
+                    From: <input id="from_time" type="text" size="6"/> 
+                    To: <input id="to_time" type="text" size="6"/>
+                    <input type="submit" value="Zoom"/>
+                </form> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
+            </p>
+        </div>
+
+        <div id="phase_header" class="sliding_header">Phase diagram</div>
+        <div id="phase_panel"  class="sliding_panel">
+            <p><span id="phase_plot"></span></p>
+            <p><form onsubmit="onChangePhaseDelay(); return false;">
+                Delay: <input id="phase_delay" type="text" value="1" size="3"/>
+                <input type="submit" value="Show"/>
+            </form></p>
+        </div>
+
+        <div id="fft_header" class="sliding_header">FFT</div>
+        <div id="fft_panel"  class="sliding_panel">
+            <p><span id="fft_download"></span></p>
+            <p><span id="fft_plot"></span></p>
+        </div>
+
+        <div id="documentation_header" class="sliding_header">Documentation</div>
+        <div id="documentation_panel"  class="sliding_panel">
+            <p><a href="/static/doc/api.html">API documentation</a></p>
+        </div>
+
+        <hr/>
+        <p>The <a href="http://knowledgediscovery.org">Big Data Knowledge 
+            Discovery</a> project is a collaboration between <a 
+            href="https://www.nicta.com.au/">National ICT Australia 
+            (NICTA)</a>, <a href="http://mq.edu.au/">Macquarie University</a>, 
+        <a href="http://sydney.edu.au/">University of Sydney</a> and <a 
+            href="http://www.sirca.org.au/">Sirca Ltd</a>.</p>
+
+        <p>This research is supported by the <a href="http://www.sief.org.au">Science and Industry Endowment Fund</a>.</p>
+
+        <p style="text-align:center">
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/NICTA_logo.png" alt="NICTA"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/MacquarieUniversity_Logo_RGB.png" alt="Macquarie University"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SydneyUniversity_Logo_RGB.png" alt="Sydney University"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/Sirca_Logo_RGB.png" alt="Sirca Ltd"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SIEF_logo.png" alt="SIEF"/>
+        </p>
+
+        <script type="text/javascript">
+            $('#readme_header').click(function () {
+                $('#readme_panel').slideToggle();
+                });
+            $('#readme_panel').css('display', 'none');
+
+            $('#map_header').click(function () {
+                $('#map_panel').slideToggle();
+                });
+
+            $('#time_series_header').click(function () {
+                $('#time_series_panel').slideToggle();
+                });
+            $('#time_series_panel').css('display', 'none');
+
+            $('#phase_header').click(function () {
+                $('#phase_panel').slideToggle();
+                });
+            $('#phase_panel').css('display', 'none');
+
+            $('#fft_header').click(function () {
+                $('#fft_panel').slideToggle();
+                });
+            $('#fft_panel').css('display', 'none');
+
+            $('#documentation_header').click(function () {
+                $('#documentation_panel').slideToggle();
+            });
+        </script>
+    </body>
+<html>

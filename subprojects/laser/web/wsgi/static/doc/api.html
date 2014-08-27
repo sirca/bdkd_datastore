@@ -1,0 +1,281 @@
+<html>
+    <head>
+        <title>Laser REST API</title>
+        <style>
+            h2 {
+                border-top: 3px solid grey;
+                background-color: darkturquoise;
+            }
+            h3 {
+                background-color: peachpuff;
+                border-bottom: 1px solid lightgrey;
+            }
+            dt {
+                font-weight: bold;
+            }
+            pre {
+                margin-left: 24px;
+                background-color: azure;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Laser REST API</h1>
+
+        <p>The Laser REST API enables the user to retrieve experiment data and
+        plots, for maps and time series.</p>
+
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#meta-data">Meta-data resources</a></li>
+            <li><a href="#data">Data resources</a></li>
+            <li><a href="#plots">Plot resources</a></li>
+        </ul>
+
+        <a id="overview"/>
+        <h2>Overview</h2>
+
+	<p>This REST API can be used to retrieve the original time series data
+	for an experiment, as well as generated map data.  The data is provided 
+	as JSON, CSV file downloads, or as plot images.</p>
+
+       <p>Some meta-data is also provided via the API, such as the names of all
+       available maps.  This information can be used to navigate the data, and
+       to supplement its display.</p>
+
+        <p>Clarification of some terms used in this document:</p>
+        <dl>
+            <dt>Dataset</dt>
+            <dd>All the data for a particular experiment, conducted on some
+            date.</dd>
+
+            <dt>Map</dt> <dd>Result data generated from all time series, as a
+            2D array.  The maps represent various analyses of the time
+            series data, including amplitudes, permutation entropy and
+            auto-correlation.</dd>
+
+            <dt>Phase diagram</dt> <dd>A plot of time series values against
+            themselves, offset by a user-defined delay.</dd> 
+
+        </dl>
+
+
+        <!-- ========================================================== -->
+        <a id="meta-data"/>
+        <h2>Meta-data resources</h2>
+
+        <p>Methods to retrieve information about datasets, such as available
+        map names and the X and Y values used in the creation of the
+        dataset.</p>
+
+        <h3>Datasets</h3>
+
+        <p>Retrieve a list of the names of all available datasets.</p>
+
+        <h4>Usage:</h4>
+
+	<pre>/repositories/&lt;repository name&gt;/datasets</pre>
+
+        <h4>Example:</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets">/repositories/bdkd-laser-public/datasets</a></p>
+
+        <h3>Readme</h3>
+
+        <p>Retrieve the README for a dataset.</p>
+
+        <p>If a README file was stored with the dataset, the text content of
+        this file will be returned; otherwise 404.</p>
+
+        <h4>Usage:</h4> 
+        
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/readme</pre>
+
+        <h4>Example:</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/readme">
+            /repositories/bdkd-laser-public/datasets/Experiment01/readme</a></p>
+
+        <h3>Map names</h3>
+
+        <p>Retrieve a list of available map names for a dataset.</p>
+
+        <p>These resources are relevant to the "map_plots" and "map_data" (see
+        below): for those resources, these are the names that can be
+        requested.</p>
+
+        <h4>Usage:</h4> 
+        
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/map_names</pre>
+
+        <h4>Example:</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/map_names">
+            /repositories/bdkd-laser-public/datasets/Experiment01/map_names</a></p>
+
+        <!-- ========================================================== -->
+        <a id="data"/>
+        <h2>Data resources</h2>
+
+        <p>Methods to retrieve the data from a dataset: either maps or
+        individual time series, for a combination of X and Y.</p>
+
+        <h3>Map data</h3>
+
+        <p>Get the JSON data for the given map, for the given dataset.</p>
+
+	<p>The output is a list of map variable/value sets, representing the 
+	two dimensional space of the map.</p>
+
+        <p>For a list of available maps for a dataset, see <em>Map names</em>
+        above.</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/map_data/&lt;map name&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/map_data/AVG_map.csv">
+            /repositories/bdkd-laser-public/datasets/Experiment01/map_data/AVG_map.csv</a></p>
+
+
+        <h3>Time series data</h3>
+
+        <p>Get the raw data (CSV) for the given dataset time series, as
+        identified by a combination of X and Y.</p>
+
+        <p>The output is one-dimensional: one floating point per line.</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to the end).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/time_series_data?x=&lt;x index&gt;&amp;y=&lt;y index&gt;&amp;from=&lt;time&gt;&amp;to=&lt;time&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/time_series_data?x=0&y=0&from=0&to=999999">
+            /repositories/bdkd-laser-public/datasets/Experiment01/time_series_data?x=0&y=0&from=0&to=999999</a></p>
+
+
+        <h3>FFT data</h3>
+
+        <p>Get data used to produce a FFT plot of the raw data (CSV) for the
+        given dataset time series, as identified by a combination of X
+        and Y.</p>
+
+        <p>The output is in JSON format, containing FFT frequency buckets
+        ("fftfreq") and all positive, real FFT results ("fft").</p>
+
+	<p>Optionally "from" and "to" parameters can be provided for the time 
+	range.  Default: all (i.e. from 0 to end).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/fft_data?x=&lt;x index&gt;&amp;y=&lt;y index&gt;&amp;from=&lt;time&gt;&amp;to=&lt;time&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/fft_data?x=0&y=0&from=0&to=999999">
+            /repositories/bdkd-laser-public/datasets/Experiment01/fft_data?x=0&y=0&from=0&to=999999</a></p>
+
+
+        <!-- ========================================================== -->
+        <a id="plots"/>
+        <h2>Plot resources</h2>
+
+	<p>Methods to get rendered plots as images, generated from the 
+	timeseries data of a dataset.</p>
+
+        <p><em><strong>Note:</strong> For plot requests, your HTTP client may
+            receive a redirect to a cached resource.  Therefore your HTTP
+            client must be capable of following redirects.</em></p>
+        
+        <h3>Time series plot</h3>
+
+        <p>Get a plot of the given dataset time series, as identified by a
+        combination of x and y.</p>
+
+	<p>Optionally "from" and "to" parameters can be provided for a time 
+	range.  Default: all (i.e. from 0 to end).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/time_series_plots?x=&lt;x index&gt;&amp;y=&lt;y index&gt;&amp;from=&lt;time&gt;&amp;to=&lt;time&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/time_series_plots?x=0&y=0&from=0&to=999999">
+            /repositories/bdkd-laser-public/datasets/Experiment01/time_series_plots?x=0&y=0&from=0&to=999999</a></p>
+
+        <p><img src="/repositories/bdkd-laser-public/datasets/Experiment01/time_series_plots?x=0&y=0&from=0&to=999999"/></p>
+
+        <p>Note that your HTTP client will need to be able to follow redirects
+        (plots are generated and served from a cache).</p>
+
+        <h3>Phase plot</h3>
+
+        <p>Get a phase plot of the given dataset time series, as identified by a
+        combination of X and Y, for a specified delay.</p>
+
+        <p>The time series data is offset against itself by the delay, which is
+        a number of time steps, and plotted against itself.</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to end).  The default
+        delay is 1.</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/phase_plots?x=&lt;x index&gt;&amp;y=&lt;y index&gt;&amp;from=&lt;time&gt;&amp;to=&lt;time&gt;&amp;delay=&lt;delay&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/phase_plots?x=0&y=0&from=0&to=999999&delay=1">
+            /repositories/bdkd-laser-public/datasets/Experiment01/phase_plots?x=0&y=0&from=0&to=999999&delay=1</a></p>
+
+        <p><img src="/repositories/bdkd-laser-public/datasets/Experiment01/phase_plots?x=0&y=0&from=0&to=999999&delay=1"/></p>
+
+        <h3>FFT plot</h3>
+
+        <p>Get a fast Fourier transform (FFT) plot of the given dataset time
+        series, as identified by a combination of X and Y.</p>
+
+        <p>Optionally "from" and "to" parameters can be provided for the range
+        of picoseconds.  Default: all (i.e. from 0 to end).</p>
+
+        <h4>Usage</h4> 
+
+        <pre>/repositories/&lt;repository name&gt;/datasets/&lt;dataset name&gt;/fft_plots?x=&lt;x index&gt;&amp;y=&lt;y index&gt;&amp;from=&lt;time&gt;&amp;to=&lt;time&gt;</pre>
+
+        <h4>Example</h4>
+
+        <p><a href="/repositories/bdkd-laser-public/datasets/Experiment01/fft_plots?x=0&y=0&from=0&to=999999">
+            /repositories/bdkd-laser-public/datasets/Experiment01/fft_plots?x=0&y=0&from=0&to=999999</a></p>
+
+        <p><img src="/repositories/bdkd-laser-public/datasets/Experiment01/fft_plots?x=0&y=0&from=0&to=999999"/></p>
+
+
+        <hr/>
+        <p>The <a href="http://knowledgediscovery.org">Big Data Knowledge 
+            Discovery</a> project is a collaboration between <a 
+            href="https://www.nicta.com.au/">National ICT Australia 
+            (NICTA)</a>, <a href="http://mq.edu.au/">Macquarie University</a>, 
+        <a href="http://sydney.edu.au/">University of Sydney</a> and <a 
+            href="http://www.sirca.org.au/">Sirca Ltd</a>.</p>
+
+        <p>This research is supported by the <a href="http://www.sief.org.au">Science and Industry Endowment Fund</a>.</p>
+
+        <p style="text-align:center">
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/NICTA_logo.png" alt="NICTA"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/MacquarieUniversity_Logo_RGB.png" alt="Macquarie University"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SydneyUniversity_Logo_RGB.png" alt="Sydney University"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/Sirca_Logo_RGB.png" alt="Sirca Ltd"/>
+            <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SIEF_logo.png" alt="SIEF"/>
+        </p>
+
+    </body>
+</html>
