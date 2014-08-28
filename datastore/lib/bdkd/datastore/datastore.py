@@ -26,8 +26,11 @@ def checksum(local_path):
     """ Calculate the md5sum of the contents of a local file. """
     result = None
     if os.path.exists(local_path):
-        with open(local_path) as local_file:
-            result = hashlib.md5(local_file.read()).hexdigest()
+        md5 = hashlib.md5()
+        with open(local_path,'rb') as f: 
+            for chunk in iter(lambda: f.read(1048576), b''): 
+                md5.update(chunk)
+        result = md5.hexdigest()
     return result
 
 def mkdir_p(dest_dir):
