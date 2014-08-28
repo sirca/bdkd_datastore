@@ -16,6 +16,8 @@ from argparse import RawTextHelpFormatter
 from bdkd import datastore
 import paste.script.command
 import ckan.lib.cli
+import daemon
+import time
 
 
 MANIFEST_FILENAME = "manifest.txt"
@@ -397,13 +399,23 @@ class PortalBuilder:
         portal building can be done at a time.
         """
         # Prevent more than one portal building from taking place.
-        build_lock = FileLock("/tmp/portal_build.lock")
+        build_lock = FileLock("/tmp/portal_building")
         try:
             build_lock.acquire(1)
             self._build_portal(repo_name=repo_name)
             build_lock.release()
         except LockTimeout:
             raise Exception("Unable to obtain build lock, probably another process is building the portal data.")
+
+
+    def daemonize(self):
+        """ Daemonize the portal build process.
+        """
+        nap_duration = int(self._cfg.get('cycle_nap_in_mins', 60)) * 60
+        with daemon.DaemonContext():
+            while True:
+                self.build_portal()
+                time.sleep(nap_duration)
 
 
     def setup_organizations(self, repo_name=None):
@@ -444,7 +456,8 @@ def main():
 
     parser.add_argument('command',
                         help='The command to execute, which can be:\n'
-                             ' update - to update the portal using metadata from the datastore \n'
+                             ' update - to update the portal using metadata from the datastore\n'
+                             ' daemon - to run the portal update in a daemonize process\n'
                              ' setup - setup the organizations in the config file\n'
     )
     parser.add_argument('-c', '--config', help='Configuration file')
@@ -470,16 +483,19 @@ def main():
     if args.command == 'update':
         portal_builder.load_config(from_file=cfg_filename)
         portal_builder.build_portal(repo_name=args.bucket_name)
-        sys.exit(0)
+
+    elif args.command == 'daemon':
+        portal_builder.load_config(from_file=cfg_filename)
+        portal_builder.daemonize()
 
     elif args.command == 'setup':
         portal_builder.load_config(from_file=cfg_filename)
         portal_builder.setup_organizations(repo_name=args.bucket_name)
-        sys.exit(0)
 
     else:
         sys.exit('Unknown command %s' % (args.command))
 
+    sys.exit(0)
 
 if __name__=='__main__':
     logging.basicConfig(level=logging.WARN)

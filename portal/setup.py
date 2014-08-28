@@ -32,5 +32,6 @@ setup(name='bdkd-portal',
           "argparse",
           "bdkd-datastore",
           "python-dateutil",
+          "python-daemon",
           "pytz",
       ])
