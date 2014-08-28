@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+import os
+
+package_name = 'bdkd-laser-data'
+webdir = 'wsgi'
+datafiles = [(os.path.join(package_name, root), [os.path.join(root, f) for f in files])
+            for root, dirs, files in os.walk(webdir)]
 
 setup(                         
-        name='bdkd-laser-data',
+        name=package_name,
         version='0.0.1',
         description='Access dataset data',
         author='Sirca Ltd',
@@ -11,6 +17,7 @@ setup(
         url='http://github.com/sirca/bdkd',
         package_dir={'': 'lib'},        
         packages=['bdkd.laser'],
+        data_files = datafiles,
         scripts=[
                 'bin/pack_dataset.py',            
                 ],
