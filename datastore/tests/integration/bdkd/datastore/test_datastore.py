@@ -169,12 +169,12 @@ class RepositoryTest(unittest.TestCase):
         # Force resource into remote storage.
         resource = self.resources.get('single')
         self.repository.save(resource)
-        datetime1 = boto.utils.parse_ts(self.repository.get_resource_last_modified(resource.name))
+        datetime1 = self.repository.get_resource_last_modified(resource.name)
         # Force an update to the resource 1 second later.
         time.sleep(1) 
         self.repository.edit_resource(resource)
         self.repository.save(resource, overwrite=True)
-        datetime2 = boto.utils.parse_ts(self.repository.get_resource_last_modified(resource.name))
+        datetime2 = self.repository.get_resource_last_modified(resource.name)
         # The sequence of events should produce a sequential set of times.
         self.assertTrue(datetime1 < datetime2)
 

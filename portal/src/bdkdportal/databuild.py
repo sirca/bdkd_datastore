@@ -43,6 +43,7 @@ def purge_ckan_dataset(ds_to_purge, ckan_ini):
     :param ds_to_purge: the unique name of the dataset to purge.
     :param ckan_ini: the CKAN ini file to use when purgin via python paste
     """
+    logging.info("Purging dataset '%s' from portal" % (ds_to_purge))
     dataset_cmd = ckan.lib.cli.DatasetCmd("purger")
     dataset_cmd.run(["purge", ds_to_purge, "-c", ckan_ini])
 
@@ -95,6 +96,7 @@ class RepositoryBuilder:
         :type  dataset: Dataset
         :return: the CKAN dataset object created.
         """
+        logging.info("Creating CKAN dataset '%s'" % (dataset.name))
         ckan_ds = self._ckan_site.action.package_create(
             name = dataset.name,
             owner_org = dataset.owner_org,
@@ -209,8 +211,8 @@ class RepositoryBuilder:
                     self._dataset_audit[dataset_name] = True # Mark dataset is touched and audited
 
                     # Dataset already exists in the portal, check if it was modified in datastore since
-                    # last built. Add TZ before comparing as CKAN stores it in UTC without TZ.
-                    last_built_in_portal = dateutil.parser.parse(dataset['revision_timestamp']).replace(tzinfo=pytz.UTC)
+                    # last built.
+                    last_built_in_portal = dateutil.parser.parse(dataset['revision_timestamp'])
                     last_mod_in_datastore = repo.get_resource_last_modified(ds_dataset_name)
                     if last_mod_in_datastore <= last_built_in_portal:
                         # Dataset has not changed, so mark to skip the update.
@@ -218,8 +220,6 @@ class RepositoryBuilder:
                     else:
                         # Dataset has changed, need to remove the existing dataset from the portal,
                         # and build up a list of 'groups' to possibly remove at the end of all these.
-                        for group in dataset['groups']:
-                            groups_to_cleanup[group['name']] = True
                         self._purge_dataset_from_portal(dataset_name)
                     break
                 # else continue to search for a matching dataset.
@@ -357,18 +357,29 @@ class PortalBuilder:
                 for dataset in datasets_before_build:
                     if not datasets_touched.get(dataset['name'], False):
                         # Found a dataset that was not touched, so remove it from the portal.
+                        ckan_site.action.package_delete(id=dataset['name'])
                         purge_ckan_dataset(dataset['name'], self._cfg['ckan_cfg'])
                         
                         # Track the groups that the purged dataset belongs to.
                         for group in dataset['groups']:
+                            logging.debug("Marking group %s for audit" % (group['name']))
                             groups_to_cleanup[group['name']] = True
                 # end-for dataset
 
+                """
+                # DISABLED GROUP DELETION as CKAN's group purging has an issue when there are revisions
+                # tied to the groups. Need to either fix CKAN or find another way.
                 # Go through all groups whose dataset were touched and see if they are still needed.
-                for group in groups_to_cleanup:
-                    group_info = ckan_site.action.group_show(id=group)
-                    if group_info and group_info['package_count'] == 0:
-                        ckan_site.action.group_purge(id=group)  # no dataset in that group anymore, purge!
+                if len(groups_to_cleanup) > 0:
+                    # New session
+                    for group in groups_to_cleanup.keys():
+                        group_info = ckan_site.action.group_show(id=group)
+                        if group_info and group_info['package_count'] == 0:
+                            # no dataset in that group anymore, delete and purge!
+                            ckan_site.action.group_delete(id=group) 
+                            logging.info("Purging group '%s' from portal" % (group))
+                            ckan_site.action.group_purge(id=group)
+                """
 
 
             except Exception as e:
