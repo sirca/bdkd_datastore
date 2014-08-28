@@ -102,6 +102,9 @@ function hoverValue(x_index, x_value, y_index, y_value, value) {
 
 
 function clearHeatMap() {
+    $('#heatmap_display').hide();
+    $('#heatmap_spinner').show();
+
     d3.select("svg#heatmap")
         .attr("width", 0)
         .attr("height", 0)
@@ -163,6 +166,8 @@ function drawHeatMap(dataset) {
             selectTimeSeries(d.x_index, d.y_index); 
         })
     ;
+    $('#heatmap_spinner').hide();
+    $('#heatmap_display').show();
 };
 
 
