@@ -10,10 +10,13 @@ import logging
 import urllib
 import dateutil.parser
 import pytz
+from lockfile import FileLock
+from lockfile import LockTimeout
 from argparse import RawTextHelpFormatter
 from bdkd import datastore
 import paste.script.command
 import ckan.lib.cli
+
 
 MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
@@ -314,11 +317,12 @@ class PortalBuilder:
         return visual_site
 
 
-    def build_portal(self, repo_name=None):
+    def _build_portal(self, repo_name=None):
         """ Executes the priming process for the portal for all repos configured.
         :param repo_name: if specified, then only the repo with the matching bucket name will be built.
         :raises: Exception if there is any failure.
         """
+
         # Validate config
         self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url'],)
         logging.debug("Building repository: %s" % (repo_name if repo_name else "ALL"))
@@ -387,6 +391,20 @@ class PortalBuilder:
                 repo_builder.release()
                 success = False
             
+
+    def build_portal(self, repo_name=None):
+        """ Same as _build_portal() but wraps around a lock so that only one
+        portal building can be done at a time.
+        """
+        # Prevent more than one portal building from taking place.
+        build_lock = FileLock("/tmp/portal_build.lock")
+        try:
+            build_lock.acquire(1)
+            self._build_portal(repo_name=repo_name)
+            build_lock.release()
+        except LockTimeout:
+            raise Exception("Unable to obtain build lock, probably another process is building the portal data.")
+
 
     def setup_organizations(self, repo_name=None):
         """ Check that the organizations in the configuration file exist
