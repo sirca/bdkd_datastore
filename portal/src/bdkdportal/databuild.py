@@ -59,13 +59,13 @@ class RepositoryBuilder:
         self._tmp_dir = None
 
 
-    def __init__(self, primer):
+    def __init__(self, data_builder):
         """
-        :param primer: The primer object that created this builder object.
-        :type  primer: Primer
+        :param data_builder: The portal builder object that created this builder object.
+        :type  data_builder: PortalBuilder
         """
         self._reset()
-        self._primer = primer
+        self._data_builder = data_builder
         self._dataset_audit = None
 
 
@@ -141,7 +141,7 @@ class RepositoryBuilder:
         """
         datatype = ds_resource.metadata.get('data_type', None)
         if datatype:
-            visual_site = self._primer.find_visual_site_for_datatype(datatype)
+            visual_site = self._data_builder.find_visual_site_for_datatype(datatype)
             if visual_site:
                 url = visual_site.format(urllib.quote_plus(self._repo_name), urllib.quote_plus(ds_resource.name))
                 logging.debug("Explore link for '%s' is '%s'" % (ds_resource.name, url))
@@ -165,10 +165,10 @@ class RepositoryBuilder:
 
 
     def build_portal_from_repo(self, **kwargs):
-        """ Prepare to prime a single datastore repository into a CKAN portal.
+        """ Prepare to build a single datastore repository into a CKAN portal.
         :param ds_host: the name of the datastore host
-        :param repo_name: the name of the repository to prime from the datastore host.
-        :param ckan_host: the CKAN host to prime the repository to.
+        :param repo_name: the name of the repository to build from the datastore host.
+        :param ckan_host: the CKAN host to build the repository to.
         :param org_name: the CKAN organization name (can be ID too) where the datasets will be stored under.
         :param api_key: the CKAN API key to use when priming (i.e. login account)
         :param ckan_cfg: the CKAN configuration file (for purging only)
@@ -209,10 +209,10 @@ class RepositoryBuilder:
                     self._dataset_audit[dataset_name] = True # Mark dataset is touched and audited
 
                     # Dataset already exists in the portal, check if it was modified in datastore since
-                    # last primed. Add TZ before comparing as CKAN stores it in UTC without TZ.
-                    last_primed_in_portal = dateutil.parser.parse(dataset['revision_timestamp']).replace(tzinfo=pytz.UTC)
+                    # last built. Add TZ before comparing as CKAN stores it in UTC without TZ.
+                    last_built_in_portal = dateutil.parser.parse(dataset['revision_timestamp']).replace(tzinfo=pytz.UTC)
                     last_mod_in_datastore = repo.get_resource_last_modified(ds_dataset_name)
-                    if last_mod_in_datastore <= last_primed_in_portal:
+                    if last_mod_in_datastore <= last_built_in_portal:
                         # Dataset has not changed, so mark to skip the update.
                         build_dataset_portal_data = False
                     else:
@@ -259,10 +259,10 @@ class RepositoryBuilder:
 
 
 """
-Primer is a class that encapsulates operations required to prime a data portal with
+PortalBuilder is a class that encapsulates operations required to build a data portal with
 information about research data and resources store in an object storage (such as S3).
 """
-class Primer:
+class PortalBuilder:
     def __init__(self):
         self._cfg = {}
         self._ckan_site = None
@@ -270,18 +270,18 @@ class Primer:
 
 
     def load_config(self, from_file=None, from_string=None):
-        """ Loads the primer configuration file either from a file or from a YAML string.
+        """ Loads the data_builder configuration file either from a file or from a YAML string.
         :raises: IOError if the config can't be loaded.
         """
         if from_file:
             logging.info("Using config from " + from_file)
             if not os.path.exists(from_file):
-                raise Exception("Error: primer config file %s not found." % (from_file))
+                raise Exception("Error: portal data builder config file %s not found." % (from_file))
             self._cfg = yaml.load(open(from_file))
         elif from_string:
             self._cfg = yaml.load(from_string)
         else:
-            raise Exception("Error: Unable to load primer config without any configuration")
+            raise Exception("Error: Unable to load portal data builder config without any configuration")
 
 
     def _check_cfg(self, cfg_dict, req_keys, name=None):
@@ -314,17 +314,17 @@ class Primer:
         return visual_site
 
 
-    def prime_portal(self, repo_name=None):
+    def build_portal(self, repo_name=None):
         """ Executes the priming process for the portal for all repos configured.
-        :param repo_name: if specified, then only the repo with the matching bucket name will be primed.
+        :param repo_name: if specified, then only the repo with the matching bucket name will be built.
         :raises: Exception if there is any failure.
         """
-        # Validate primer config
+        # Validate config
         self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url'],)
-        logging.debug("Priming repository: %s" % (repo_name if repo_name else "ALL"))
+        logging.debug("Building repository: %s" % (repo_name if repo_name else "ALL"))
 
         ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
-        datasets_before_prime = ckan_site.action.current_package_list_with_resources()
+        datasets_before_build = ckan_site.action.current_package_list_with_resources()
         datasets_touched = {}
         for repo in self._cfg['repos']:
             self._check_cfg(repo, ['bucket','ds_host','org_name',], name='the repo config')
@@ -354,7 +354,7 @@ class Primer:
         if repo_name is None:
             try:
                 groups_to_cleanup = {}
-                for dataset in datasets_before_prime:
+                for dataset in datasets_before_build:
                     if not datasets_touched.get(dataset['name'], False):
                         # Found a dataset that was not touched, so remove it from the portal.
                         purge_ckan_dataset(dataset['name'], self._cfg['ckan_cfg'])
@@ -382,7 +382,7 @@ class Primer:
         and if not create them.
         :param repo_name: Only setup the organization for that repo config.
         """
-        # Validate primer config
+        # Validate config
         self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_url'],)
         api_key = self._cfg['api_key']
 
@@ -410,16 +410,16 @@ class Primer:
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
-        description='BDKD Portal Primer V%s\nTo prime a BDKD data portal so that it is synchronized '
+        description='BDKD Portal Data Builder V%s\nTo build the data of a BDKD Portal so that it is synchronized '
                     'with the BDKD Data Repository in an object store.' % (__version__))
 
     parser.add_argument('command',
                         help='The command to execute, which can be:\n'
-                             ' prime - prime the portal data from the data storage\n'
+                             ' update - to update the portal using metadata from the datastore \n'
                              ' setup - setup the organizations in the config file\n'
     )
     parser.add_argument('-c', '--config', help='Configuration file')
-    parser.add_argument('-b', '--bucket-name', help='Select the bucket to prime (must be in the config)')
+    parser.add_argument('-b', '--bucket-name', help='Select the bucket to build from (must be in the config)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Run in verbose mode')
     parser.add_argument('--debug', action='store_true', help='Run in very verbose mode')
     if len(sys.argv)==1:
@@ -432,20 +432,20 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    cfg_filename = '/etc/bdkd/primer.conf'
+    cfg_filename = '/etc/bdkd/portal.cfg'
     if args.config:
         cfg_filename = args.config
 
-    primer = Primer()
+    portal_builder = PortalBuilder()
 
-    if args.command == 'prime':
-        primer.load_config(from_file=cfg_filename)
-        primer.prime_portal(repo_name=args.bucket_name)
+    if args.command == 'update':
+        portal_builder.load_config(from_file=cfg_filename)
+        portal_builder.build_portal(repo_name=args.bucket_name)
         sys.exit(0)
 
     elif args.command == 'setup':
-        primer.load_config(from_file=cfg_filename)
-        primer.setup_organizations(repo_name=args.bucket_name)
+        portal_builder.load_config(from_file=cfg_filename)
+        portal_builder.setup_organizations(repo_name=args.bucket_name)
         sys.exit(0)
 
     else:
