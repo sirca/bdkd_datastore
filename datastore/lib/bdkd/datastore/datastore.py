@@ -28,7 +28,7 @@ def checksum(local_path):
     if os.path.exists(local_path):
         md5 = hashlib.md5()
         with open(local_path,'rb') as f: 
-            for chunk in iter(lambda: f.read(8192), b''): 
+            for chunk in iter(lambda: f.read(1048576), b''): 
                 md5.update(chunk)
         result = md5.hexdigest()
     return result
