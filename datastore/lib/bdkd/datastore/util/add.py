@@ -46,7 +46,7 @@ def _add_options_parser():
             action=util_common.JsonDictionaryAction, 
             default=dict(),
             help="Meta-data for resource (JSON string)")
-    parser.add_argument('--force', action='store_true',
+    parser.add_argument('--force', action='store_true', default=False,
             help="Force overwriting any existing resource")
     return parser
 
@@ -124,10 +124,10 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
 def _save_resource(repository, resource, force=False):
     existing = repository.get(resource.name)
     if existing:
-        if resource_args.force:
+        if force:
             repository.delete(existing)
         else:
-            raise ValueError("Resource '{}' already exists (use '--force' to overwrite)"
+            raise ValueError("Resource '{0}' already exists (use '--force' to overwrite)"
                     .format(resource.name))
     repository.save(resource)
 
@@ -138,7 +138,7 @@ def add_util(argv=None):
     """
     resource_args = add_parser().parse_args(argv)
     resource = create_parsed_resource(resource_args, argv=argv)
-    _save_resource(resource_args.repository, resource)
+    _save_resource(resource_args.repository, resource, resource_args.force)
 
 
 def add_bdkd_util(argv=None):
@@ -146,4 +146,4 @@ def add_bdkd_util(argv=None):
     resource = create_parsed_resource(resource_args, 
             meta_parser=_bdkd_metadata_parser(), 
             argv=argv)
-    _save_resource(resource_args.repository, resource)
+    _save_resource(resource_args.repository, resource, resource_args.force)
