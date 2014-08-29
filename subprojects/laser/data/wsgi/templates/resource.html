@@ -47,7 +47,7 @@ $(document).ready(function() {
         <div id="map_header" class="sliding_header">Map</div>
         <div id="map_panel"  class="sliding_panel">
             <p><span id="heatmap_download"></span></p>
-            <table border="0">
+            <table id="heatmap_display" style="display:none" border="0">
                 <tr>
 					<td style="vertical-align:center;">{{ dataset.y_name }}</td>
                     <td><svg id="heatmap"></svg></td>
@@ -57,6 +57,7 @@ $(document).ready(function() {
 					<td style="text-align:center;">{{ dataset.x_name }}</td>
                 </tr>
             </table>
+	    <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
         </div>
 
         <div id="time_series_header" class="sliding_header">Time series</div>
