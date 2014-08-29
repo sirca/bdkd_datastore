@@ -55,6 +55,27 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         self._check_bucket_count('', 2)
 
 
+    def test_add_duplicate_resource(self):
+        """
+        Adding a resource of the same name (duplicate) should fail with a 
+        ValueError, unless the user provides the '--force' flag.
+        """
+        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+                self.filepath 
+                ]
+        add_utils.add_util(args_in)
+        self._check_bucket_count('', 2)
+        # Again: error (already exists)
+        with self.assertRaises(ValueError):
+            add_utils.add_util(args_in)
+        # Do it properly
+        args_in.append('--force')
+        try:
+            add_utils.add_util(args_in)
+        except ValueError:
+            self.fail("Flag '--force' should allow overwrite of resource.")
+
+
     def _check_bucket_count(self, pseudopath, expected):
         # Check that S3 repository has two keys in it
         key_count = 0
