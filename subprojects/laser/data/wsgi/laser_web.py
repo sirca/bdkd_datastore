@@ -121,10 +121,14 @@ def open_dataset(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if 'repository_name' in kwargs and 'dataset_name' in kwargs:
-            dataset = Dataset.open(kwargs['repository_name'], 
-                    kwargs['dataset_name'])
-            if not dataset:
-                abort(404)
+            try:
+                dataset = Dataset.open(kwargs['repository_name'], 
+                        kwargs['dataset_name'])
+                if not dataset:
+                    abort(404)
+            except ValueError:
+                return redirect('/static/unsupported.html')
+
             kwargs['dataset'] = dataset
             if 'map_name' in kwargs:
                 if not kwargs['map_name'] in dataset.get_map_names():
