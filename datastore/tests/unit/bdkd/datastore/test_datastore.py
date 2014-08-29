@@ -178,6 +178,19 @@ class ResourceTest(unittest.TestCase):
     def test_resource_new(self):
         self.assertTrue(self.resource)
 
+    def test_resource_validate_name(self):
+        self.assertFalse(bdkd.datastore.Resource.validate_name(None))
+        self.assertFalse(bdkd.datastore.Resource.validate_name(42))
+        self.assertFalse(bdkd.datastore.Resource.validate_name(''))
+        self.assertFalse(bdkd.datastore.Resource.validate_name('/a'))
+        self.assertFalse(bdkd.datastore.Resource.validate_name('a/'))
+        self.assertTrue(bdkd.datastore.Resource.validate_name('a'))
+        self.assertTrue(bdkd.datastore.Resource.validate_name('a/b'))
+
+    def test_resource_new_invalid_name(self):
+        with self.assertRaises(ValueError):
+            resource = bdkd.datastore.Resource.new('/a', [])
+
     def test_resource_load(self):
         resource = bdkd.datastore.Resource.load(os.path.join(FIXTURES, 'resource.json'))
         self.assertTrue(resource)
