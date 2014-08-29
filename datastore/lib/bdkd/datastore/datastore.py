@@ -597,10 +597,22 @@ class Resource(Asset):
                 return json.JSONEncoder.default(self, o)
 
 
+    @classmethod
+    def validate_name(cls, name):
+        if isinstance(name, basestring):
+            if ( len(name) and
+                    name[0] != '/' and
+                    name[-1] != '/' ):
+                return True
+        return False
+
     def __init__(self, name, files=None, **kwargs):
         """
         Constructor for a Resource given a name, file data and any meta-data.
         """
+        if name and not type(self).validate_name(name):
+            raise ValueError("Invalid resource name!")
+
         super(Resource, self).__init__()
 
         self.repository = None
