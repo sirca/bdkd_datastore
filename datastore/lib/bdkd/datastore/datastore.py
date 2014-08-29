@@ -521,7 +521,7 @@ class Repository(object):
         :returns: the last modified date/time in a long string format as per S3
         """
         key = self.get_resource_key(name, key_attr='last modified date')
-        return key.last_modified
+        return boto.utils.parse_ts(key.last_modified)
 
 class Asset(object):
     """

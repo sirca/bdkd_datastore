@@ -9,26 +9,29 @@ root_dir = os.path.dirname(__file__)
 if root_dir != "":
     os.chdir(root_dir)
 
-setup(name='bdkd-portal-primer',
+setup(name='bdkd-portal',
       version='0.1',
-      description='BDKD Data Portal Primer',
+      description='BDKD Portal Utilities ',
       long_description = open('README.rst').read(),
       author='Daniel Lau',
       author_email='daniel.lau@sirca.org.au',
       url='http://github.com/sirca/bdkd',
       entry_points = {
           'console_scripts' : [
-              'portal_primer = primer.primer:main',
-          ],
-      },
-      packages=['primer'],
+              'portal-data-builder = bdkdportal.databuild:main',
+              ]
+          },
+      package_dir={'':'src'},
       scripts=[
           'scripts/purge_portal_dataset',
           ],
       install_requires=[
+          "ckan",
           "ckanapi",
-          "requests",
           "PyYAML",
           "argparse",
           "bdkd-datastore",
+          "python-dateutil",
+          "python-daemon",
+          "pytz",
       ])
