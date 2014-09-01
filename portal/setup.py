@@ -22,6 +22,7 @@ setup(name='bdkd-portal',
               ]
           },
       package_dir={'':'src'},
+      packages=find_packages('src'),
       scripts=[
           'scripts/purge_portal_dataset',
           ],
