@@ -119,7 +119,7 @@ class RepositoryBuilder:
         :param ds_resource: the datastore resource to build the manifest file from
         :type  ds_resource: datastore.Resource
         """
-        manifest_filename = self._tmp_dir + MANIFEST_FILENAME
+        manifest_filename = self._tmp_dir + "/" + MANIFEST_FILENAME
         manifest_file = open(manifest_filename, 'w')
         for f in ds_resource.files:
             # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
@@ -192,7 +192,7 @@ class RepositoryBuilder:
         org_name = kwargs.get('org_name')
         ds_host = kwargs.get('ds_host')
 
-        logging.info('Priming portal data from bucket: %s' % (self._repo_name))
+        logging.info('Building portal data from bucket: %s' % (self._repo_name))
         repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
         repo_dataset_names = repo.list()
 
@@ -207,7 +207,7 @@ class RepositoryBuilder:
         datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
     
         for ds_dataset_name in repo_dataset_names:
-            logging.debug("Priming repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
+            logging.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
             dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
             build_dataset_portal_data = True
             # Look for the dataset in the portal.
@@ -351,9 +351,11 @@ class PortalBuilder:
 
 
             except Exception as e:
-                logging.error("Priming failed " + str(e))
+                logging.error("Portal data building failed " + str(e))
                 repo_builder.release()
                 raise
+
+            repo_builder.release()
 
         # Clean up leftover (i.e. datasets that were not touched are assume to be deleted from datastore)
         # This will only take place if the priming is for all repo, otherwise some dataset might not be 'touched'.
@@ -389,7 +391,7 @@ class PortalBuilder:
 
 
             except Exception as e:
-                logging.error("Priming failed " + str(e))
+                logging.error("Portal data building failed " + str(e))
                 repo_builder.release()
                 success = False
             
@@ -414,7 +416,14 @@ class PortalBuilder:
         nap_duration = int(self._cfg.get('cycle_nap_in_mins', 60)) * 60
         with daemon.DaemonContext():
             while True:
-                self.build_portal()
+                try:
+                    self.build_portal()
+                except Exception as e:
+                    logging.error("Portal data building has failed: " + str(e))
+                    # If there is a monitoring system, we will raise an alert here.
+                    # Otherwise drop back to sleep, hopefully next cycle the failure
+                    # would have recovered.
+                    # We don't want to re-raise here or the daemon will terminates.
                 time.sleep(nap_duration)
 
 
@@ -457,7 +466,7 @@ def main():
     parser.add_argument('command',
                         help='The command to execute, which can be:\n'
                              ' update - to update the portal using metadata from the datastore\n'
-                             ' daemon - to run the portal update in a daemonize process\n'
+                             ' daemon - to run the portal update as a daemon process\n'
                              ' setup - setup the organizations in the config file\n'
     )
     parser.add_argument('-c', '--config', help='Configuration file')

@@ -1,7 +1,9 @@
-ckan=2.2
+ckan==2.2
 ckanapi==3.2
 PyYAML==3.11
 argparse==1.2.1
 python-dateutil>=2.2
 pytz>=2014.4
 python-daemon>=1.6.1
+formencode
+filelock
