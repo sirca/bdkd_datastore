@@ -34,5 +34,7 @@ setup(name='bdkd-portal',
           "bdkd-datastore",
           "python-dateutil",
           "python-daemon",
-          "pytz",
+          "formencode", # this is actually needed by ckanapi 
+          "filelock",
+          "Jinja2"
       ])

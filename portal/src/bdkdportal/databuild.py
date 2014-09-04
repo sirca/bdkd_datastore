@@ -9,7 +9,6 @@ import yaml
 import logging
 import urllib
 import dateutil.parser
-import pytz
 from lockfile import FileLock
 from lockfile import LockTimeout
 from argparse import RawTextHelpFormatter
@@ -18,6 +17,7 @@ import paste.script.command
 import ckan.lib.cli
 import daemon
 import time
+import shutil
 
 
 MANIFEST_FILENAME = "manifest.txt"
@@ -53,6 +53,13 @@ def purge_ckan_dataset(ds_to_purge, ckan_ini):
     dataset_cmd.run(["purge", ds_to_purge, "-c", ckan_ini])
 
 
+def prepare_lock_file(filename):
+    """ Entry function to request a lock object. This function makes mocking easier
+    when testing.
+    """
+    return FileLock(filename)
+
+
 class RepositoryBuilder:
     """
     The RepositoryBuilder class is used to build/update all the portal information for a single
@@ -65,14 +72,17 @@ class RepositoryBuilder:
         self._tmp_dir = None
 
 
-    def __init__(self, data_builder):
+    def __init__(self, data_builder, portal_cfg):
         """
         :param data_builder: The portal builder object that created this builder object.
         :type  data_builder: PortalBuilder
+        :param portal_cfg:   The portal configuration
+        # :param repo_cfg:     The configuration for this repository.
         """
         self._reset()
-        self._data_builder = data_builder
         self._dataset_audit = None
+        self._data_builder = data_builder
+        self._portal_cfg = portal_cfg
 
 
     @staticmethod
@@ -91,7 +101,7 @@ class RepositoryBuilder:
         """ End the building process, cleaning up any temporary resources used.
         """
         if self._tmp_dir:
-            os.removedirs(self._tmp_dir)
+            shutil.rmtree(self._tmp_dir)
         self._reset()
 
 
@@ -140,6 +150,71 @@ class RepositoryBuilder:
             upload=open(manifest_filename))
 
 
+    def _create_download_file(self, dataset, ds_resource, repo_cfg):
+        """ Creates a "download page" CKAN resource that can be used to selectively
+        download a file from the datastore.
+        :param dataset: the name of the CKAN dataset to create the download resource under.
+        :type  dataset: CKAN dataset dictionary
+        :param ds_resource: the datastore resource to build the download file for
+        :type  ds_resource: datastore.Resource
+        """
+        url_format = repo_cfg.get('download_url_format', None)
+        if url_format is None:
+            logging.debug('No download_url_format configured so no download page generated')
+            return 
+        download_template = self._portal_cfg.get('download_template', None)
+        if download_template is None:
+            logging.debug('No download_template configured so no download page generated')
+            return
+        if not os.path.exists(download_template):
+            logging.warn("Download template '%s' is not readable or does not exist." % download_template)
+            return
+
+        logging.info("Creating download file for dataset %s" % (ds_resource.name))
+        from jinja2 import FileSystemLoader, Environment, PackageLoader
+        template_loader = FileSystemLoader(searchpath='/')
+        template_env = Environment(loader=template_loader)
+        template = template_env.get_template(download_template)
+        items = []
+        resource_name_len = len(ds_resource.name)
+        for f in ds_resource.files:
+            name = None
+            if f.location():
+                # If file_key is "files/resource_name/resource_file_name"
+                # resource_file_name's position starts after the '/' character that follows the
+                # resource_name substring.
+                file_key = f.location()
+                resource_name_idx = file_key.find(ds_resource.name)
+                if resource_name_idx >= 0:
+                    name = file_key[resource_name_idx + resource_name_len + 1:]
+                    file_url = url_format.format(datastore_host=repo_cfg['ds_host'],
+                                                 repository_name=repo_cfg['bucket'],
+	         resource_id=urllib.quote_plus(f.location()))
+            elif f.remote():
+                name = f.remote()
+                file_url = f.remote()
+            if name:
+                items.append({'name':name, 'url':file_url})
+            else:
+                # Unknown resource error.
+                logging.error("Error determining file location while generating download links for resource '%s'."
+                              % (ds_resource.name))
+        generated_page = template.render(
+                repository_name=ds_resource.name,
+                dataset_name=dataset.name,
+                items=items)
+        download_filename = self._tmp_dir + "/download.html"
+        download_file = open(download_filename, "w")
+        download_file.write(generated_page)
+        download_file.close()
+        self._ckan_site.action.resource_create(
+                package_id = dataset.name,
+                description = 'Provides individual links to download files',
+                name = 'download',
+                format = 'html',
+                upload = open(download_filename))
+
+
     def _create_visualization_resource(self, dataset_name, ds_resource):
         """ To create a visualization ckan resource for the datastore resource.
         :param dataset_name: the name of the CKAN dataset to put the visual link under
@@ -150,7 +225,8 @@ class RepositoryBuilder:
         if datatype:
             visual_site = self._data_builder.find_visual_site_for_datatype(datatype)
             if visual_site:
-                url = visual_site.format(urllib.quote_plus(self._repo_name), urllib.quote_plus(ds_resource.name))
+                url = visual_site.format(repository_name=urllib.quote_plus(self._repo_name),
+                                         resource_name=urllib.quote_plus(ds_resource.name))
                 logging.debug("Explore link for '%s' is '%s'" % (ds_resource.name, url))
                 self._ckan_site.action.resource_create(
                     package_id = dataset_name,
@@ -171,26 +247,24 @@ class RepositoryBuilder:
         self._dataset_audit = dataset_audit
 
 
-    def build_portal_from_repo(self, **kwargs):
+    def build_portal_from_repo(self, repo_cfg):
         """ Prepare to build a single datastore repository into a CKAN portal.
-        :param ds_host: the name of the datastore host
-        :param repo_name: the name of the repository to build from the datastore host.
-        :param ckan_host: the CKAN host to build the repository to.
-        :param org_name: the CKAN organization name (can be ID too) where the datasets will be stored under.
-        :param api_key: the CKAN API key to use when priming (i.e. login account)
-        :param ckan_cfg: the CKAN configuration file (for purging only)
+        :param repo_cfg: the repository configuration dict
         """
         self.release() # in case someone forgot to cleanup
-        for key in ['ds_host','repo_name','ckan_host','org_name', 'api_key', 'ckan_cfg']:
-            if kwargs.get(key) is None:
-                raise Exception("Cannot build a repository without param %s" % (key))
-        self._repo_name = kwargs.get('repo_name')
-        self._ckan_site = ckanapi.RemoteCKAN(kwargs.get('ckan_host'), apikey=kwargs.get('api_key'))
-        self._ckan_cfg = kwargs.get('ckan_cfg')
+        for key in ['api_key','ckan_url','ckan_cfg']:
+            if self._portal_cfg.get(key) is None:
+                raise Exception("Portal config missing key %s" % (key))
+        for key in ['ds_host','bucket','org_name']:
+            if repo_cfg.get(key) is None:
+                raise Exception("Repository config missing key %s" % (key))
+        self._repo_name = repo_cfg.get('bucket')
+        self._ckan_site = ckanapi.RemoteCKAN(self._portal_cfg.get('ckan_url'),
+                                             apikey=self._portal_cfg.get('api_key'))
+        self._ckan_cfg = self._portal_cfg.get('ckan_cfg')
         self._tmp_dir = tempfile.mkdtemp()
-
-        org_name = kwargs.get('org_name')
-        ds_host = kwargs.get('ds_host')
+        org_name = repo_cfg.get('org_name')
+        ds_host = repo_cfg.get('ds_host')
 
         logging.info('Building portal data from bucket: %s' % (self._repo_name))
         repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
@@ -255,8 +329,10 @@ class RepositoryBuilder:
 
                 # Build and upload the manifest file into this dataset.
                 self._create_ckan_dataset(dataset)
-                self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
                 self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
+                self._create_download_file(dataset=dataset, ds_resource=resource, repo_cfg=repo_cfg)
+                self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
+
             # else don't need to update the dataset as it hasn't changed.
         # end-for ds_dataset_name in repo_dataset_names
 
@@ -326,7 +402,7 @@ class PortalBuilder:
         """
 
         # Validate config
-        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url'],)
+        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url', 'download_template'],)
         logging.debug("Building repository: %s" % (repo_name if repo_name else "ALL"))
 
         ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
@@ -338,16 +414,10 @@ class PortalBuilder:
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
 
-            repo_builder = RepositoryBuilder(self)
+            repo_builder = RepositoryBuilder(data_builder=self, portal_cfg=self._cfg)
             repo_builder.set_dataset_audit(datasets_touched)
             try:
-                repo_builder.build_portal_from_repo(
-                    ds_host = repo['ds_host'],
-                    repo_name = repo['bucket'],
-                    org_name = repo['org_name'],
-                    api_key = self._cfg['api_key'],
-                    ckan_host = self._cfg['ckan_url'],
-                    ckan_cfg = self._cfg['ckan_cfg'])
+                repo_builder.build_portal_from_repo(repo_cfg=repo)
 
 
             except Exception as e:
@@ -401,13 +471,16 @@ class PortalBuilder:
         portal building can be done at a time.
         """
         # Prevent more than one portal building from taking place.
-        build_lock = FileLock("/tmp/portal_building")
+        build_lock = prepare_lock_file(self._cfg.get('build_lock_file', "/tmp/portal_building"))
         try:
             build_lock.acquire(1)
-            self._build_portal(repo_name=repo_name)
-            build_lock.release()
         except LockTimeout:
             raise Exception("Unable to obtain build lock, probably another process is building the portal data.")
+
+        try:
+            self._build_portal(repo_name=repo_name)
+        finally:
+            build_lock.release()
 
 
     def daemonize(self):

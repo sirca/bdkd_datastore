@@ -1,9 +1,63 @@
 import pytest
-from mock import Mock, patch, MagicMock, call
+from mock import Mock, patch, MagicMock, call, ANY
 from bdkdportal.databuild import PortalBuilder
 import yaml
 import datetime
-import pytz
+
+
+class PortalResourceMocker:
+    """ For patching all external resources used by a PortalBuilder object.
+    The PortalBuilder is a busy class that interactives with lots of
+    external resources such as CKAN, BDKD datastore, local files and jinja2
+    engine. As the tests require lots of repetitive mocking of the same
+    resources, this class is created to help reduce the amount of duplicated
+    code required for mocking the portal resources.
+
+    """
+    def __init__(self):
+        self._patches = {}
+
+    # A list of all the modules that can be patched.
+    PatchList = [
+        'jinja2.FileSystemLoader',
+        'jinja2.Environment',
+        'jinja2.PackageLoader',
+        'ckanapi.RemoteCKAN',
+        'bdkd.datastore.Repository',
+        'bdkdportal.databuild.prepare_lock_file',
+        'os.path.exists',
+        '__builtin__.open',
+    ]
+
+    def start_patching(self, exclude_modules=None):
+        self._patches = {}
+        for mod in PortalResourceMocker.PatchList:
+            if exclude_modules and mod in exclude_modules:
+                continue
+            p = patch(mod)
+            m = p.start()
+            self._patches[mod] = { 'patch':p, 'mock':m }
+
+    def get_patch(self, patch_name):
+        patch_data = self._patches.get(patch_name)
+        if patch_data:
+            return patch_data['patch']
+        return None
+
+    def get_mock(self, patch_name):
+        patch_data = self._patches.get(patch_name)
+        if patch_data:
+            return patch_data['mock']
+        return None
+
+    def stop_patching(self):
+        for mod in self._patches:
+            self._patches[mod]['patch'].stop()
+
+@pytest.fixture
+def mocked_resources():
+    return PortalResourceMocker()
+
 
 @pytest.fixture
 def good_cfg_string():
@@ -14,16 +68,18 @@ def good_cfg_string():
         api_key: test-key
         ckan_cfg: test_ckan_cfg_file
         ckan_url: test_ckan_url
+        download_template: test_template
         repos:
             - bucket: test_bucket
               org_name: test_org_name
               org_title: test_org_title
               ds_host: test_ds_host
+              download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
         visual-sites:
             - data_type: ocean data
-              url: http://ocean.site/{0}/{1}
+              url: http://ocean.site/{repository_name}/{resource_name}
             - data_type: rotation model
-              url: http://gplate.site?repo={0}&ds={1}
+              url: http://gplate.site/repo={repository_name}&ds={resource_name}
         """
 
 
@@ -135,29 +191,30 @@ class TestPortalBuilder:
         """ Test that priming fails if config is bad.
         """
         # Config not loaded should fail
-        with pytest.raises(Exception):
-            builder = PortalBuilder()
-            builder.build_portal()
+        with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+            with pytest.raises(Exception):
+                builder = PortalBuilder()
+                builder.build_portal()
 
-        # Missing key settings should fail
-        with pytest.raises(Exception):
-            builder = PortalBuilder()
-            builder.load_config(from_string="""
-                repos:
-                    - bucket: test_bucket
-                      org_name: test_org_name
-                      org_title: test_org_title
-                      ckan_url: test_ckan_url
-                      ds_host: test_ds_host
-                """)
-            builder.build_portal()
+            # Missing key settings should fail
+            with pytest.raises(Exception):
+                builder = PortalBuilder()
+                builder.load_config(from_string="""
+                    repos:
+                        - bucket: test_bucket
+                          org_name: test_org_name
+                          org_title: test_org_title
+                          ckan_url: test_ckan_url
+                          ds_host: test_ds_host
+                    """)
+                builder.build_portal()
 
-        with pytest.raises(Exception):
-            builder = PortalBuilder()
-            builder.load_config(from_string="""
-                api_key: test-key
-                """)
-            builder.build_portal()
+            with pytest.raises(Exception):
+                builder = PortalBuilder()
+                builder.load_config(from_string="""
+                    api_key: test-key
+                    """)
+                builder.build_portal()
 
 
     @patch('bdkd.datastore.Host')
@@ -170,7 +227,8 @@ class TestPortalBuilder:
             from mock import mock_open
             open_name = '%s.open' % '__builtin__'
             with patch(open_name, create=True):
-                good_builder.build_portal(repo_name='test_bucket')
+                with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+                    good_builder.build_portal(repo_name='test_bucket')
                 mock_ds_host.assert_called_once_with(host='test_ds_host') # connects to the right host
                 assert mock_repo.call_args[0][1] == 'test_bucket'         # connects to the right repo
                 mock_ckanapi.assert_any_call('test_ckan_url', apikey='test-key') # connects to the right CKAN
@@ -184,7 +242,8 @@ class TestPortalBuilder:
                 mock_open.return_value = MagicMock(spec=file)
                 mock_write = mock_open.return_value.write
                 # Execute the priming using the mocks.
-                good_builder.build_portal(repo_name='test_bucket')
+                with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+                    good_builder.build_portal(repo_name='test_bucket')
                 mock_write.assert_has_calls([
                     call('s3://test_bucket/groupA/groupAA/dataset1/file1\n'),
                     call('http://remotefile.internet/file2\n'),
@@ -200,8 +259,8 @@ class TestPortalBuilder:
         # 'http://ocean.site/{repo_name}/{dataset_name}
         mock_site = mock_ckanapi.return_value
         mock_repo.return_value = single_dataset_repo
-
-        good_builder.build_portal(repo_name='test_bucket')
+        with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+            good_builder.build_portal(repo_name='test_bucket')
 
         # Check that a visualization resource was created.
         mock_site.action.resource_create.assert_has_calls([
@@ -214,8 +273,32 @@ class TestPortalBuilder:
 
 
     def test_find_visual_site(self, good_builder):
-        assert good_builder.find_visual_site_for_datatype('ocean data') == 'http://ocean.site/{0}/{1}'
-        assert good_builder.find_visual_site_for_datatype('rotation model') == 'http://gplate.site?repo={0}&ds={1}'
+        assert good_builder.find_visual_site_for_datatype('ocean data') == 'http://ocean.site/{repository_name}/{resource_name}'
+        assert good_builder.find_visual_site_for_datatype('rotation model') == 'http://gplate.site/repo={repository_name}&ds={resource_name}'
+
+
+    def test_download(self, single_dataset_repo, good_builder, mocked_resources):
+        # The single dataset repo provides a single dataset of data type 'ocean data'.
+        # The class creates a 'download resource' in CKAN for files of that dataset.
+        mocked_resources.start_patching()
+        mocked_resources.get_mock('os.path.exists').return_value = True
+        mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
+        mock_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+
+        good_builder.build_portal(repo_name='test_bucket')
+
+        mocked_resources.stop_patching()
+
+        # Check that a download resource was created.
+        mock_site.action.resource_create.assert_has_calls(
+            [
+                call(package_id='test_bucket-groupa-groupaa-dataset1',
+                     description = ANY,
+                     name='download',
+                     format='html',
+                     upload=ANY)
+            ],
+            any_order=True)
 
 
     @patch('ckanapi.RemoteCKAN')
@@ -226,7 +309,8 @@ class TestPortalBuilder:
         mock_site = mock_ckanapi.return_value
         mock_repo.return_value = single_dataset_repo
 
-        good_builder.build_portal(repo_name='test_bucket')
+        with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+            good_builder.build_portal(repo_name='test_bucket')
         mock_site.action.package_create.assert_called_once_with(
             name = 'test_bucket-groupa-groupaa-dataset1',
             owner_org = 'test_org_name',
@@ -251,11 +335,12 @@ class TestPortalBuilder:
                 'groups' : [],
             }]
         single_dataset_repo.get_resource_last_modified = MagicMock(
-            side_effect=lambda r: datetime.datetime(2013, 11, 01, 0, 0, 0, tzinfo=pytz.UTC))
+            side_effect=lambda r: datetime.datetime(2013, 11, 01, 0, 0, 0))
         mock_repo.return_value = single_dataset_repo
 
         # Check that no new dataset creation took place.
-        good_builder.build_portal(repo_name='test_bucket')
+        with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+            good_builder.build_portal(repo_name='test_bucket')
         assert not mock_site.action.package_create.called, 'Package creation should not have been called'
 
      
@@ -272,12 +357,13 @@ class TestPortalBuilder:
                 'groups' : [],
             }]
         single_dataset_repo.get_resource_last_modified = MagicMock(
-            side_effect=lambda r: datetime.datetime(2014, 11, 01, 0, 0, 0, tzinfo=pytz.UTC))
+            side_effect=lambda r: datetime.datetime(2014, 11, 01, 0, 0, 0))
         mock_repo.return_value = single_dataset_repo
 
         # Check that the existing dataset was purged and a new dataset created.
         with patch('bdkdportal.databuild.purge_ckan_dataset') as mock_purge:
-            good_builder.build_portal()
+            with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+                 good_builder.build_portal()
 
             assert mock_site.action.package_create.called, 'Package should have been updated'
             mock_purge.assert_called_once_with('test_bucket-groupa-groupaa-dataset1','test_ckan_cfg_file')
@@ -305,7 +391,7 @@ class TestPortalBuilder:
             }]
         # Datastore is only going to return 1 dataset (i.e. single_dataset_repo)
         single_dataset_repo.get_resource_last_modified = MagicMock(
-            side_effect=lambda r: datetime.datetime(2013, 11, 01, 0, 0, 0, tzinfo=pytz.UTC))
+            side_effect=lambda r: datetime.datetime(2013, 11, 01, 0, 0, 0))
         mock_repo.return_value = single_dataset_repo
 
         # Mock CKAN to return 0 dataset associated to the group 'groupbb'
@@ -313,9 +399,11 @@ class TestPortalBuilder:
             side_effect=lambda id: {'package_count':{'groupbb':0}.get(id,1)})
 
         # Check that the obsolete dataset is purge.
-        good_builder.build_portal()
+        with patch('bdkdportal.databuild.prepare_lock_file', return_value=MagicMock()):
+            good_builder.build_portal()
         mock_purge.assert_called_once_with('test_bucket-groupa-groupbb-dataset2','test_ckan_cfg_file')
-        mock_site.action.group_purge.assert_called_once_with(id='groupbb')
+        # This was disabled at the library as purging of group in CKAN has an issue.
+        # mock_site.action.group_purge.assert_called_once_with(id='groupbb')
 
 
     @patch('ckan.lib.cli.DatasetCmd')
