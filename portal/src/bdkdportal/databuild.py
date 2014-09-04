@@ -24,7 +24,7 @@ MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.1'
+__version__ = '0.0.1'
 
 
 class Dataset:
@@ -200,8 +200,8 @@ class RepositoryBuilder:
                 logging.error("Error determining file location while generating download links for resource '%s'."
                               % (ds_resource.name))
         generated_page = template.render(
-                repository_name=ds_resource.name,
-                dataset_name=dataset.name,
+                repository_name=ds_resource.repository.name,
+                dataset_name=ds_resource.name,
                 items=items)
         download_filename = self._tmp_dir + "/download.html"
         download_file = open(download_filename, "w")
