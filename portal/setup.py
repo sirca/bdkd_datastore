@@ -10,7 +10,7 @@ if root_dir != "":
     os.chdir(root_dir)
 
 setup(name='bdkd-portal',
-      version='0.1',
+      version='0.0.1',
       description='BDKD Portal Utilities ',
       long_description = open('README.rst').read(),
       author='Daniel Lau',
@@ -34,5 +34,7 @@ setup(name='bdkd-portal',
           "bdkd-datastore",
           "python-dateutil",
           "python-daemon",
-          "pytz",
+          "formencode", # this is actually needed by ckanapi 
+          "filelock",
+          "Jinja2"
       ])
