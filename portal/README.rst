@@ -33,7 +33,6 @@ You can find a sample config file in data/portal.cfg
 
 The configuration file should contain the following entries:
 
-```
   api_key: xxx-xxx                                  ## the CKAN API key to use when building
   ckan_cfg: /etc/ckan/default/production.ini        ## the CKAN ini file
   ckan_url: http://localhost                        ## the CKAN API URL (usually localhost)
@@ -50,7 +49,6 @@ The configuration file should contain the following entries:
         org_title: Sirca BDKD Group
         ds_host: s3-ap-southeast-2.amazonaws.com
         download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
-```
 
 where
   "bucket" is the object storage (or S3 bucket name if you are in AWS).
