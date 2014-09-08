@@ -34,22 +34,22 @@ You can find a sample config file in data/portal.cfg
 The configuration file should contain the following entries:
 
 ```
-api_key: xxx-xxx                                  ## the CKAN API key to use when building
-ckan_cfg: /etc/ckan/default/production.ini        ## the CKAN ini file
-ckan_url: http://localhost                        ## the CKAN API URL (usually localhost)
-cycle_nap_in_mins: 1                              ## how long to nap before scanning again (in daemon mode)
-download_template: /etc/bdkd/portal/download.html ## template for the download page 
-build_lock_file: /tmp/portal_building             ## the lock file to use when managing exclusive usage
-visual-sites:                                     ## a list of websites that can help visualize the data
-    - data_type: xxxx                             ## the type of dataset that the website knows how to visualize
-      url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name} ## the format of the URL when creating a HTTP link
-
-repos:                                            ## a list of repositories to build portal data from.
-    - bucket: bdkd-sirca-public
-      org_name: sirca
-      org_title: Sirca BDKD Group
-      ds_host: s3-ap-southeast-2.amazonaws.com
-      download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
+  api_key: xxx-xxx                                  ## the CKAN API key to use when building
+  ckan_cfg: /etc/ckan/default/production.ini        ## the CKAN ini file
+  ckan_url: http://localhost                        ## the CKAN API URL (usually localhost)
+  cycle_nap_in_mins: 1                              ## how long to nap before scanning again (in daemon mode)
+  download_template: /etc/bdkd/portal/download.html ## template for the download page 
+  build_lock_file: /tmp/portal_building             ## the lock file to use when managing exclusive usage
+  visual-sites:                                     ## a list of websites that can help visualize the data
+      - data_type: xxxx                             ## the type of dataset that the website knows how to visualize
+        url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name} ## the format of the URL when creating a HTTP link
+  
+  repos:                                            ## a list of repositories to build portal data from.
+      - bucket: bdkd-sirca-public
+        org_name: sirca
+        org_title: Sirca BDKD Group
+        ds_host: s3-ap-southeast-2.amazonaws.com
+        download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
 ```
 
 where
