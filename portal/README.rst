@@ -33,24 +33,37 @@ You can find a sample config file in data/portal.cfg
 
 The configuration file should contain the following entries:
 
-  api_key: xxx-xxx                                  ## the CKAN API key to use when building
-  ckan_cfg: /etc/ckan/default/production.ini        ## the CKAN ini file
-  ckan_url: http://localhost                        ## the CKAN API URL (usually localhost)
-  cycle_nap_in_mins: 1                              ## how long to nap before scanning again (in daemon mode)
-  download_template: /etc/bdkd/portal/download.html ## template for the download page 
-  build_lock_file: /tmp/portal_building             ## the lock file to use when managing exclusive usage
-  visual-sites:                                     ## a list of websites that can help visualize the data
-      - data_type: xxxx                             ## the type of dataset that the website knows how to visualize
-        url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name} ## the format of the URL when creating a HTTP link
-  
-  repos:                                            ## a list of repositories to build portal data from.
+  api_key: xxx-xxx
+  ckan_cfg: /etc/ckan/default/production.ini
+  ckan_url: http://localhost                        
+  cycle_nap_in_mins: 1                              
+  download_template: /etc/bdkd/portal/download.html 
+  build_lock_file: /tmp/portal_building             
+  visual-sites:                                     
+      - data_type: xxxx                             
+        url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name}
+  repos:
       - bucket: bdkd-sirca-public
         org_name: sirca
         org_title: Sirca BDKD Group
         ds_host: s3-ap-southeast-2.amazonaws.com
         download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
 
-where
+where,
+  "api_key" is the CKAN API key to use when building
+  "ckan_cfg" is the CKAN ini file
+  "ckan_url" is the CKAN API URL (usually localhost)
+  "cycle_nap_in_mins" is how long to nap before scanning again (in daemon mode)
+  "download_template" is template for the download page 
+  "build_lock_file" is the lock file to use when managing exclusive usage
+  "visual-sites" is a list of websites that can help visualize the data
+  "repos" is a list of repositories to build portal data from.
+
+Under "visual-sites",
+  "data_type" is the type of dataset that the website knows how to visualize
+  "url" the format of the URL when creating a HTTP link
+
+Under "repos",
   "bucket" is the object storage (or S3 bucket name if you are in AWS).
   "org_name" is the unique organization name that data from this object storage will be owned by.
   "org_title" is the title of the organization if you use the primer to create/setup.
