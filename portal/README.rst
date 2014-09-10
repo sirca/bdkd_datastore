@@ -33,21 +33,21 @@ You can find a sample config file in data/portal.cfg
 
 The configuration file should contain the following entries:
 
-  api_key: xxx-xxx
-  ckan_cfg: /etc/ckan/default/production.ini
-  ckan_url: http://localhost                        
-  cycle_nap_in_mins: 1                              
-  download_template: /etc/bdkd/portal/download.html 
-  build_lock_file: /tmp/portal_building             
-  visual-sites:                                     
-      - data_type: xxxx                             
-        url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name}
-  repos:
-      - bucket: bdkd-sirca-public
-        org_name: sirca
-        org_title: Sirca BDKD Group
-        ds_host: s3-ap-southeast-2.amazonaws.com
-        download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
+`  api_key: xxx-xxx`
+`  ckan_cfg: /etc/ckan/default/production.ini`
+`  ckan_url: http://localhost`
+`  cycle_nap_in_mins: 1`
+`  download_template: /etc/bdkd/portal/download.html `
+`  build_lock_file: /tmp/portal_building`
+`  visual-sites:`
+`      - data_type: xxxx`
+`        url: http://xxx.xxx.xxx{repository_name}/datasets/{resource_name}`
+`  repos:`
+`      - bucket: bdkd-sirca-public`
+`        org_name: sirca`
+`        org_title: Sirca BDKD Group`
+`        ds_host: s3-ap-southeast-2.amazonaws.com`
+`        download_url_format: https://{datastore_host}/{repository_name}/{resource_id}`
 
 where,
   "api_key" is the CKAN API key to use when building
@@ -76,8 +76,10 @@ To manually update the portal data for all configured repositories:
 
 To update a single repository, use the '-b' switch:
 
-  `portal-data-builder -b bdkd-sirca-public update`                ### use /etc/bdkd/primer.cfg
-  `portal-data-builder -b bdkd-sirca-public -c portal.cfg update`  ### use alternate configuration
+  `portal-data-builder -b bdkd-sirca-public update`
+
+To use an alternative configuration
+  `portal-data-builder -b bdkd-sirca-public -c portal.cfg update`
 
 
 To run the portal in a daemonized mode:
