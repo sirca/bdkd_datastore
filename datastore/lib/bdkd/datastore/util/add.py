@@ -37,29 +37,34 @@ def _files_parser():
     return parser
 
 
-def _add_options_parser():
-    """
-    Parser for various options related to adding
-    """
+def _metadata_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--metadata', 
             action=util_common.JsonDictionaryAction, 
             default=dict(),
             help="Meta-data for resource (JSON string)")
+    return parser
+
+
+def _add_options_parser():
+    """
+    Parser for various options related to adding
+    """
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--force', action='store_true', default=False,
             help="Force overwriting any existing resource")
     return parser
 
 
-def _bdkd_metadata_parser():
+def _bdkd_metadata_parser(enforce=True):
     """
     Parser for BDKD-specific meta-data options.
     """
     parser = argparse.ArgumentParser(add_help=False)
     # Mandatory arguments
-    parser.add_argument('--description', required=True)
-    parser.add_argument('--author', required=True)
-    parser.add_argument('--author-email', required=True)
+    parser.add_argument('--description', required=enforce)
+    parser.add_argument('--author', required=enforce)
+    parser.add_argument('--author-email', required=enforce)
 
     # Optional arguments
     parser.add_argument('--data-type')
@@ -81,6 +86,7 @@ def add_parser():
             parents=[
                 util_common._repository_resource_parser(),
                 _files_parser(),
+                _metadata_parser(),
                 _add_options_parser(),
             ])
     return parser
@@ -95,6 +101,7 @@ def add_bdkd_parser():
             parents=[
                 util_common._repository_resource_parser(),
                 _files_parser(),
+                _metadata_parser(),
                 _add_options_parser(),
                 _bdkd_metadata_parser(),
             ])
