@@ -6,6 +6,22 @@ import yaml
 import datetime
 
 
+def check_calls_with(call_mock, param, value):
+    """ Given a mocked object, check if it was called with a given parameter and/or value.
+    :param call_mock: the mock object to check
+    :type  call_mock: mock.call
+    :param param    : check if it was called with this given 'param'
+    :type  param    : string
+    :param value    : check if it was called with this given value for the 'param'
+                      If the value is not important, call this with mock.ANY
+    """
+    for cm in call_mock.call_args_list:
+        if param in cm[1]:
+            if cm[1][param] == value:
+                return True
+    return False
+
+
 class PortalResourceMocker:
     """ For patching all external resources used by a PortalBuilder object.
     The PortalBuilder is a busy class that interactives with lots of
@@ -219,12 +235,33 @@ class TestPortalBuilder:
                 """)
             builder.build_portal()
 
+        # Missing repo key settings should fail too
+        with pytest.raises(Exception):
+            builder = PortalBuilder()
+            builder.load_config(from_string="""
+                    api_key: test-key
+                    ckan_cfg: test_ckan_cfg_file
+                    ckan_url: test_ckan_url
+                    download_template: test_template
+                    repos:
+                        - bucket: test_bucket
+                          org_title: test_org_title
+                          ds_host: test_ds_host
+                          download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
+                    """)
+            builder.build_portal()
+
         with pytest.raises(Exception):
             builder = PortalBuilder()
             builder.load_config(from_string="""
                 api_key: test-key
                 """)
             builder.build_portal()
+
+        with pytest.raises(Exception):
+            builder = PortalBuilder()
+            builder.load_config() # Need to specify where to load the config from
+
         mocked_resources.stop_patching()
 
 
@@ -236,8 +273,7 @@ class TestPortalBuilder:
         assert good_portal_builder.find_visual_site_for_datatype('unknown type') == None
 
 
-    @patch('bdkdportal.databuild.prepare_lock_file')
-    def test_build_portal_selective_repos(self, mock_lock, mocked_resources):
+    def test_build_portal_selective_repos(self, mocked_resources):
         """ Test that build_portal() can selectively choose which repos or all repos.
         """
         with patch('bdkdportal.databuild.RepositoryBuilder') as repo_builder_patcher:
@@ -290,6 +326,38 @@ class TestPortalBuilder:
                               'org_title': 'test_org_title2',
                               'ds_host': 'test_ds_host2',
                               'download_url_format': 'test_format2'})
+
+    def test_build_portal_repo_build_failed(self, mocked_resources, good_portal_builder):
+        """ Test that build_portal() can deal with repo building failures.
+        """
+        with patch('bdkdportal.databuild.RepositoryBuilder') as mock_RepositoryBuilder:
+            mock_RepositoryBuilder.return_value.build_portal_from_repo = MagicMock(side_effect=Exception("Test failure"))
+            mocked_resources.start_patching()
+            with pytest.raises(Exception):
+                good_portal_builder.build_portal()
+            mocked_resources.stop_patching()
+
+
+    def test_build_portal_cleanup_failure(self, mocked_resources, good_portal_builder):
+        """ Test that build_portal() can deal with dataset cleanup failures.
+        """
+        mocked_resources.start_patching()
+        # One way to fail the cleanup is to fail the dataset delete process.
+        mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+        mock_ckan_site.action.package_delete = MagicMock(side_effect=Exception("Delete failure"))
+        mock_ckan_site.action.current_package_list_with_resources.return_value = [
+            {
+                'name':'test_bucket-groupb-groupbb-dataset2',
+                'revision_timestamp' : '20131201T12:34:56',
+                'groups' : [{'name':'groupb'},{'name':'groupbb'}],
+            }]
+        with patch('logging.error') as mock_error_log:
+            good_portal_builder.build_portal()
+        mocked_resources.stop_patching()
+
+        # Clean up failures do not terminate the build, but it should at least log an error.
+        assert mock_error_log.called, "An error should have been logged if cleanup failed"
+
 
     def test_build_portal_purge_obsolete_dataset(self, single_dataset_repo, good_portal_cfg, good_portal_builder, mocked_resources):
         """ If the dataset exists in CKAN portal but no longer exist in datastore, the dataset should be purged.
@@ -458,6 +526,53 @@ class TestRepositoryBuilder:
                      format='html',
                      upload=ANY)],
                 any_order=True)
+
+
+    def test_build_portal_from_repo_bad_portal_config(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        """ Test that bad config throws error
+        """
+        bad_cfg = good_portal_cfg
+        del bad_cfg['api_key']
+        mocked_resources.start_patching()
+        repo_builder = RepositoryBuilder(MagicMock(), bad_cfg)
+        with pytest.raises(Exception):
+            repo_builder.build_portal_from_repo(bad_cfg['repos'][0])
+        mocked_resources.stop_patching()
+
+
+    def test_build_portal_from_repo_bad_repo_config(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        """ Test that bad config throws error
+        """
+        bad_cfg = good_portal_cfg
+        del bad_cfg['repos'][0]['org_name']
+        mocked_resources.start_patching()
+        repo_builder = RepositoryBuilder(MagicMock(), bad_cfg)
+        with pytest.raises(Exception):
+            repo_builder.build_portal_from_repo(bad_cfg['repos'][0])
+        mocked_resources.stop_patching()
+
+
+    def test_build_portal_from_repo_bad_resource_file(self, good_portal_cfg, good_portal_builder, mocked_resources):
+        """ Test that if the datastore has a bad resource file, the build will log an error instead of quietly failing.
+        """
+        mocked_resources.start_patching()
+        mock_repo = mocked_resources.get_mock('bdkd.datastore.Repository').return_value
+        mock_repo.name = 'test_bucket'
+        mock_repo.list.return_value = [ 'dataset1' ]
+        mock_repo.get.return_value.name = 'dataset1'
+        mock_repo.get.return_value.metadata = { 'author':'dan', 'description':'test desc' }
+        # Mock a bad file that is neither local nor remote.
+        bad_file = MagicMock()
+        bad_file.location.return_value = None
+        bad_file.remote.return_value = None
+        mock_repo.get.return_value.files = [ bad_file ]
+
+        repo_builder = RepositoryBuilder(good_portal_builder, good_portal_cfg)
+        repo_cfg = good_portal_cfg['repos'][0]
+        with patch('logging.error') as mock_error_log:
+            repo_builder.build_portal_from_repo(repo_cfg)
+        mocked_resources.stop_patching()
+        assert 'dataset1' in mock_error_log.call_args[0][0], "Expected error to be logged when resource is invalid"
 
 
     def test_build_portal_from_repo_visualization(self, good_portal_cfg, good_portal_builder, mocked_resources):
@@ -674,3 +789,58 @@ class TestRepositoryBuilder:
         assert len(dataset_audit) == 2, "Incorrect number of dataset detected during audit"
         assert 'test_bucket-groupa-groupaa-dataset1' in dataset_audit
         assert 'test_bucket-groupb-groupbb-dataset2' in dataset_audit
+
+
+    def test_build_portal_from_repo_no_download_if_not_configured1(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        """ Test that if the download configuration is not set, then no download link is created.
+        """
+        mocked_resources.start_patching()
+        mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
+        # Portal config has no 'download_template'
+        del good_portal_cfg['download_template']
+        repo_builder = RepositoryBuilder(MagicMock(), good_portal_cfg)
+        repo_builder.build_portal_from_repo(good_portal_cfg['repos'][0])
+        mocked_resources.stop_patching()
+        mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+        assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
+
+    def test_build_portal_from_repo_no_download_if_not_configured2(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        # Repository config has no 'download_url_format'
+        mocked_resources.start_patching()
+        mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
+        del good_portal_cfg['repos'][0]['download_url_format']
+        repo_builder = RepositoryBuilder(MagicMock(), good_portal_cfg)
+        repo_builder.build_portal_from_repo(good_portal_cfg['repos'][0])
+        mocked_resources.stop_patching()
+        mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+        assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
+
+    def test_build_portal_from_repo_no_download_if_not_configured3(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        # The download template file does not exist.
+        mocked_resources.start_patching()
+        mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
+        mock_exists = mocked_resources.get_mock('os.path.exists')
+        mock_exists.side_effect = lambda f: dict(test_template=False).get(f,True) # False if the file is 'test_template'
+        repo_builder = RepositoryBuilder(MagicMock(), good_portal_cfg)
+        repo_builder.build_portal_from_repo(good_portal_cfg['repos'][0])
+        mocked_resources.stop_patching()
+        mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+        assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
+
+
+class TestMain:
+
+    def test_prepare_lock_file(self):
+        """ Test that prepare_lock_file() claims what it does. Note that FileLock cannot be
+        mocked so this will be using a real lock file. Test is required for full coverage purposes.
+        """
+        from bdkdportal.databuild import prepare_lock_file
+        from lockfile import LockTimeout
+        lock_filename = '/tmp/__TEST_LOCK_FILE__'
+        build_lock1 = prepare_lock_file(lock_filename)
+        build_lock1.acquire(1)
+        assert build_lock1.is_locked(), "Lock file did not appear to work"
+        build_lock1.release()
+        assert not build_lock1.is_locked(), "Release lock file did not appear to work"
+
+
