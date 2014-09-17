@@ -24,7 +24,7 @@ MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
 class Dataset:
@@ -72,16 +72,15 @@ class RepositoryBuilder:
         self._tmp_dir = None
 
 
-    def __init__(self, data_builder, portal_cfg):
+    def __init__(self, portal_builder, portal_cfg):
         """
-        :param data_builder: The portal builder object that created this builder object.
-        :type  data_builder: PortalBuilder
+        :param portal_builder: The portal builder object that created this builder object.
+        :type  portal_builder: PortalBuilder
         :param portal_cfg:   The portal configuration
-        # :param repo_cfg:     The configuration for this repository.
         """
         self._reset()
         self._dataset_audit = None
-        self._data_builder = data_builder
+        self._portal_builder = portal_builder
         self._portal_cfg = portal_cfg
 
 
@@ -140,7 +139,8 @@ class RepositoryBuilder:
                 manifest_file.write(f.remote() + '\n')
             else:
                 # Unknown resource error.
-                raise Exception('Unable to determine file location in resource %s.' % (ds_resource.name))
+                logging.error('Unable to determine file location in resource %s.' % (ds_resource.name))
+
         manifest_file.close()
         logging.info("Creating manifest file for %s" % (ds_resource.name))
         self._ckan_site.action.resource_create(
@@ -223,7 +223,7 @@ class RepositoryBuilder:
         """
         datatype = ds_resource.metadata.get('data_type', None)
         if datatype:
-            visual_site = self._data_builder.find_visual_site_for_datatype(datatype)
+            visual_site = self._portal_builder.find_visual_site_for_datatype(datatype)
             if visual_site:
                 url = visual_site.format(repository_name=urllib.quote_plus(self._repo_name),
                                          resource_name=urllib.quote_plus(ds_resource.name))
@@ -266,77 +266,80 @@ class RepositoryBuilder:
         org_name = repo_cfg.get('org_name')
         ds_host = repo_cfg.get('ds_host')
 
-        logging.info('Building portal data from bucket: %s' % (self._repo_name))
-        repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
-        repo_dataset_names = repo.list()
+        try:
+            logging.info('Building portal data from bucket: %s' % (self._repo_name))
+            repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
+            repo_dataset_names = repo.list()
 
-        # Get a list of existing CKAN groups so repeated groups don't get recreated.
-        existing_groups = self._ckan_site.action.group_list()
-        groups_to_cleanup = {}
-        logging.debug("Existing groups:" + str(existing_groups))
+            # Get a list of existing CKAN groups so repeated groups don't get recreated.
+            existing_groups = self._ckan_site.action.group_list()
+            groups_to_cleanup = {}
+            logging.debug("Existing groups:" + str(existing_groups))
 
-        # Get a full list of all existing dataset in CKAN along side their meta data so that
-        # 1. deleted dataset can be tracked and removed
-        # 2. last mod time of the dataset can be compare to decide if that dataset needs to be rebuild.
-        datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
+            # Get a full list of all existing dataset in CKAN along side their meta data so that
+            # 1. deleted dataset can be tracked and removed
+            # 2. last mod time of the dataset can be compare to decide if that dataset needs to be rebuild.
+            datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
     
-        for ds_dataset_name in repo_dataset_names:
-            logging.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
-            dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
-            build_dataset_portal_data = True
-            # Look for the dataset in the portal.
-            for dataset in datasets_in_portal:
-                if dataset['name'] == dataset_name:
-                    self._dataset_audit[dataset_name] = True # Mark dataset is touched and audited
+            for ds_dataset_name in repo_dataset_names:
+                logging.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
+                dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
+                build_dataset_portal_data = True
+                # Look for the dataset in the portal.
+                for dataset in datasets_in_portal:
+                    if dataset['name'] == dataset_name:
+                        if self._dataset_audit is not None:
+                            self._dataset_audit[dataset_name] = True # Mark dataset is touched and audited
 
-                    # Dataset already exists in the portal, check if it was modified in datastore since
-                    # last built.
-                    last_built_in_portal = dateutil.parser.parse(dataset['revision_timestamp'])
-                    last_mod_in_datastore = repo.get_resource_last_modified(ds_dataset_name)
-                    if last_mod_in_datastore <= last_built_in_portal:
-                        # Dataset has not changed, so mark to skip the update.
-                        build_dataset_portal_data = False
-                    else:
-                        # Dataset has changed, need to remove the existing dataset from the portal,
-                        # and build up a list of 'groups' to possibly remove at the end of all these.
-                        self._purge_dataset_from_portal(dataset_name)
-                    break
-                # else continue to search for a matching dataset.
-                # If not found in existing dataset, then it will be added in as a new dataset.
+                        # Dataset already exists in the portal, check if it was modified in datastore since
+                        # last built.
+                        last_built_in_portal = dateutil.parser.parse(dataset['revision_timestamp'])
+                        last_mod_in_datastore = repo.get_resource_last_modified(ds_dataset_name)
+                        if last_mod_in_datastore <= last_built_in_portal:
+                            # Dataset has not changed, so mark to skip the update.
+                            build_dataset_portal_data = False
+                        else:
+                            # Dataset has changed, need to remove the existing dataset from the portal,
+                            # and build up a list of 'groups' to possibly remove at the end of all these.
+                            self._purge_dataset_from_portal(dataset_name)
+                        break
+                    # else continue to search for a matching dataset.
+                    # If not found in existing dataset, then it will be added in as a new dataset.
 
-            if build_dataset_portal_data:
-                resource = repo.get(ds_dataset_name)
-                pseudo_path = ds_dataset_name.split('/')
-                dataset = Dataset(
-                    name = dataset_name,
-                    title = pseudo_path[-1], # the last directory of the pseudo path is the title of the dataset
-                    owner_org = org_name,
-                    description = resource.metadata.get('description',''))
-                # Bring over other optional fields from the metadata.
-                for field in ['author','author_email','maintainer','maintainer_email','version']:
-                    setattr(dataset, field, resource.metadata.get(field, ""))
+                if build_dataset_portal_data:
+                    resource = repo.get(ds_dataset_name)
+                    pseudo_path = ds_dataset_name.split('/')
+                    dataset = Dataset(
+                        name = dataset_name,
+                        title = pseudo_path[-1], # the last directory of the pseudo path is the title of the dataset
+                        owner_org = org_name,
+                        description = resource.metadata.get('description',''))
+                    # Bring over other optional fields from the metadata.
+                    for field in ['author','author_email','maintainer','maintainer_email','version']:
+                        setattr(dataset, field, resource.metadata.get(field, ""))
 
-                # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
-                group_names = pseudo_path[0:-1]
-                dataset.groups = []
-                for group_name in group_names:
-                    group_ckan_name = RepositoryBuilder.to_ckan_usable_name(group_name)
-                    if group_ckan_name not in existing_groups:
-                        logging.info("Group %s not found, creating group..." % (group_ckan_name))
-                        self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)
-                        existing_groups.append(group_ckan_name)
-                    dataset.groups.append({'name':group_ckan_name})
+                    # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
+                    group_names = pseudo_path[0:-1]
+                    dataset.groups = []
+                    for group_name in group_names:
+                        group_ckan_name = RepositoryBuilder.to_ckan_usable_name(group_name)
+                        if group_ckan_name not in existing_groups:
+                            logging.info("Group %s not found, creating group..." % (group_ckan_name))
+                            self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)
+                            existing_groups.append(group_ckan_name)
+                        dataset.groups.append({'name':group_ckan_name})
 
-                # Build and upload the manifest file into this dataset.
-                self._create_ckan_dataset(dataset)
-                self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
-                self._create_download_file(dataset=dataset, ds_resource=resource, repo_cfg=repo_cfg)
-                self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
+                    # Build and upload the manifest file into this dataset.
+                    self._create_ckan_dataset(dataset)
+                    self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
+                    self._create_download_file(dataset=dataset, ds_resource=resource, repo_cfg=repo_cfg)
+                    self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
 
-            # else don't need to update the dataset as it hasn't changed.
-        # end-for ds_dataset_name in repo_dataset_names
+                # else don't need to update the dataset as it hasn't changed.
+            # end-for ds_dataset_name in repo_dataset_names
 
-        # For datasets that were in the portal before the 
+        finally:
+            self.release()
 
 
 """
@@ -351,7 +354,7 @@ class PortalBuilder:
 
 
     def load_config(self, from_file=None, from_string=None):
-        """ Loads the data_builder configuration file either from a file or from a YAML string.
+        """ Loads the portal builder configuration file either from a file or from a YAML string.
         :raises: IOError if the config can't be loaded.
         """
         if from_file:
@@ -359,8 +362,10 @@ class PortalBuilder:
             if not os.path.exists(from_file):
                 raise Exception("Error: portal data builder config file %s not found." % (from_file))
             self._cfg = yaml.load(open(from_file))
+
         elif from_string:
             self._cfg = yaml.load(from_string)
+
         else:
             raise Exception("Error: Unable to load portal data builder config without any configuration")
 
@@ -414,11 +419,10 @@ class PortalBuilder:
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
 
-            repo_builder = RepositoryBuilder(data_builder=self, portal_cfg=self._cfg)
+            repo_builder = RepositoryBuilder(portal_builder=self, portal_cfg=self._cfg)
             repo_builder.set_dataset_audit(datasets_touched)
             try:
                 repo_builder.build_portal_from_repo(repo_cfg=repo)
-
 
             except Exception as e:
                 logging.error("Portal data building failed " + str(e))
@@ -459,11 +463,8 @@ class PortalBuilder:
                             ckan_site.action.group_purge(id=group)
                 """
 
-
             except Exception as e:
                 logging.error("Portal data building failed " + str(e))
-                repo_builder.release()
-                success = False
             
 
     def build_portal(self, repo_name=None):
@@ -509,12 +510,10 @@ class PortalBuilder:
         self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_url'],)
         api_key = self._cfg['api_key']
 
-        action = False
         for repo in self._cfg['repos']:
             self._check_cfg(repo, ['bucket','org_name','org_title'], name='the repo config')
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
-            action = True
             # Prepare a CKAN connection for use.
             ckan_host = self._cfg['ckan_url']
             org_name = repo['org_name']
@@ -527,8 +526,6 @@ class PortalBuilder:
                                                 description=repo['org_title'])
             else:
                 logging.debug("Organization %s already exists, skipping setup" % (org_name))
-        if not action:
-            logging.warn("No organization was setup")
 
 
 def main():
