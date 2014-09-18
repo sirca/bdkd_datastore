@@ -19,7 +19,8 @@ setup(
         packages=['bdkd.laser'],
         data_files = datafiles,
         scripts=[
-                'bin/pack_dataset.py',            
+                'bin/pack_maps.py',            
+                'bin/pack_raw.py',            
                 ],
         entry_points = {
             'console_scripts': [
