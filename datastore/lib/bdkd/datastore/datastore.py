@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import boto.s3.connection
-import codecs
+import io
 import errno
 import hashlib
 import json
@@ -620,6 +620,8 @@ class Resource(Asset):
 
         self.repository = None
         self.name = name
+        if metadata and not isinstance(metadata, dict):
+            raise ValueError("Meta-data must be a dictionary")
         self.metadata = metadata or dict()
         self.files = files
 
@@ -729,7 +731,7 @@ class Resource(Asset):
         """
         if local_resource_filename and os.path.exists(local_resource_filename):
             resource_files = []
-            with codecs.open(local_resource_filename, encoding='utf-8') as fh:
+            with io.open(local_resource_filename, encoding='utf-8') as fh:
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
@@ -755,9 +757,9 @@ class Resource(Asset):
             os.remove(dest_path)
         else:
             mkdir_p(os.path.dirname(dest_path))
-        with codecs.open(dest_path, encoding='utf-8', mode='w') as fh:
+        with io.open(dest_path, encoding='utf-8', mode='w') as fh:
             logger.debug("Writing JSON serialised resource to %s", dest_path)
-            fh.write(self.to_json())
+            fh.write(unicode(self.to_json()))
         os.chmod(dest_path, mod)
         self.path = dest_path
     

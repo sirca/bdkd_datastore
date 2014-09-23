@@ -181,6 +181,15 @@ class ResourceTest(unittest.TestCase):
     def test_resource_new(self):
         self.assertTrue(self.resource)
 
+    def test_resource_metadata(self):
+        # Bad: metadata is not a dictionary
+        with self.assertRaises(ValueError):
+            resource = bdkd.datastore.Resource.new("a", [], 
+                    ['bad', 'metadata'])
+        # Good
+        resource = bdkd.datastore.Resource.new("a", [], dict(metadata='ok'))
+        self.assertTrue(resource)
+
     def test_resource_validate_name(self):
         self.assertFalse(bdkd.datastore.Resource.validate_name(None))
         self.assertFalse(bdkd.datastore.Resource.validate_name(42))
