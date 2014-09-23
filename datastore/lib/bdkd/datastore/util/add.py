@@ -124,7 +124,7 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
     metadata = dict((k, v) for k, v in metadata.items() if v != None)
     resource = bdkd.datastore.Resource.new(resource_args.resource_name, 
             resource_args.filenames,
-            **metadata)
+            metadata)
     return resource
 
 

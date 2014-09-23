@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import boto.s3.connection
+import io
 import errno
 import hashlib
 import json
@@ -207,7 +208,7 @@ class Repository(object):
                     os.remove(dest_path)
             else:
                 mkdir_p(os.path.dirname(dest_path))
-            with open(dest_path, 'w') as fh:
+            with open(dest_path, 'wb') as fh:
                 logger.debug("Retrieving repository data to %s", dest_path)
                 key.get_contents_to_file(fh)
             return True
@@ -260,7 +261,7 @@ class Repository(object):
         if os.path.exists(local_path):
             os.remove(local_path)
         mkdir_p(os.path.dirname(local_path))
-        with open(local_path, 'w') as fh:
+        with open(local_path, 'wb') as fh:
             shutil.copyfileobj(remote, fh)
         remote.close()
         os.chmod(local_path, mod)
@@ -586,7 +587,9 @@ class Resource(Asset):
     class ResourceJSONEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, Resource):
-                resource = dict(name=o.name, **o.metadata)
+                resource = dict(name=o.name)
+                if o.metadata:
+                    resource['metadata'] = o.metadata
                 file_data = []
                 if o.files:
                     for resource_file in o.files:
@@ -606,7 +609,7 @@ class Resource(Asset):
                 return True
         return False
 
-    def __init__(self, name, files=None, **kwargs):
+    def __init__(self, name, files=None, metadata=None):
         """
         Constructor for a Resource given a name, file data and any meta-data.
         """
@@ -617,7 +620,9 @@ class Resource(Asset):
 
         self.repository = None
         self.name = name
-        self.metadata = kwargs
+        if metadata and not isinstance(metadata, dict):
+            raise ValueError("Meta-data must be a dictionary")
+        self.metadata = metadata or dict()
         self.files = files
 
     @classmethod
@@ -660,7 +665,7 @@ class Resource(Asset):
         return files_data
 
     @classmethod
-    def new(cls, name, files_data=None, **kwargs):
+    def new(cls, name, files_data=None, metadata=None):
         """
         A convenience factory method that creates a new, unsaved Resource of 
         the given name, using file information and metadata.
@@ -701,10 +706,10 @@ class Resource(Asset):
                             meta['content-length'] = os.stat(path).st_size
                     else:
                         raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
-                resource_file = ResourceFile(path, **meta)
+                resource_file = ResourceFile(path, resource=None, metadata=meta)
                 resource_file.is_edit = True
                 resource_files.append(resource_file)
-        resource = cls(name, resource_files, **kwargs)
+        resource = cls(name, files=resource_files, metadata=metadata)
         for resource_file in resource_files:
             resource_file.resource = resource
         resource.is_edit = True
@@ -726,14 +731,14 @@ class Resource(Asset):
         """
         if local_resource_filename and os.path.exists(local_resource_filename):
             resource_files = []
-            with open(local_resource_filename) as fh:
+            with io.open(local_resource_filename, encoding='utf-8') as fh:
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
-                resource_files.append(ResourceFile(None, self, **file_data))
+                resource_files.append(ResourceFile(None, resource=self, metadata=file_data))
             self.name = data.pop('name', None)
             self.path = local_resource_filename
-            self.metadata = data
+            self.metadata = data.get('metadata', dict())
             self.files = resource_files
 
     def to_json(self, **kwargs):
@@ -741,7 +746,8 @@ class Resource(Asset):
         Create a JSON string representation of the Resource: its files and 
         meta-data.
         """
-        return Resource.ResourceJSONEncoder(**kwargs).encode(self)
+        return Resource.ResourceJSONEncoder(ensure_ascii=False, 
+                **kwargs).encode(self)
 
     def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
         """
@@ -751,9 +757,9 @@ class Resource(Asset):
             os.remove(dest_path)
         else:
             mkdir_p(os.path.dirname(dest_path))
-        with open(dest_path, 'w') as fh:
+        with io.open(dest_path, encoding='utf-8', mode='w') as fh:
             logger.debug("Writing JSON serialised resource to %s", dest_path)
-            fh.write(self.to_json())
+            fh.write(unicode(self.to_json()))
         os.chmod(dest_path, mod)
         self.path = dest_path
     
@@ -812,14 +818,14 @@ class ResourceFile(Asset):
     Note that a ResourceFile may point to a repository object ("location") or 
     some other file stored on the Internet ("remote").
     """
-    def __init__(self, path, resource=None, **kwargs):
+    def __init__(self, path, resource=None, metadata=None):
         """
         Constructor for a Resource file given a local filesystem path, the 
         Resource that owns the ResourceFile, and any other meta-data.
         """
         super(ResourceFile, self).__init__()
 
-        self.metadata = kwargs
+        self.metadata = metadata
         self.resource = resource
         self.path = path
 

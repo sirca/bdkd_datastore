@@ -1,3 +1,5 @@
+# coding=utf-8
+import codecs
 import unittest
 import os, shutil, re
 
@@ -156,7 +158,8 @@ class ResourceTest(unittest.TestCase):
     def fixture(cls):
         return bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Seton',
                 os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
-                'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'))
+                'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'),
+                metadata=dict(citation=u'M. Seton, R.D. Müller, S. Zahirovic, C. Gaina, T.H. Torsvik, G. Shephard, A. Talsma, M. Gurnis, M. Turner, S. Maus, M. Chandler, Global continental and ocean basin reconstructions since 200 Ma, Earth-Science Reviews, Volume 113, Issues 3-4, July 2012, Pages 212-270, ISSN 0012-8252, 10.1016/j.earscirev.2012.03.002. (http://www.sciencedirect.com/science/article/pii/S0012825212000311)'))
 
     @classmethod
     def _resource_sans_modified(cls, filename):
@@ -165,10 +168,10 @@ class ResourceTest(unittest.TestCase):
         the test is run.  For the purposes of comparing actual versus expected, 
         the content of this field needs to be ignored.
         """
-        with open(filename, 'r') as fh:
+        with codecs.open(filename, encoding='utf-8') as fh:
             content = fh.read()
         return re.sub(r'"last-modified": "[^"]*"', 
-            r'"last-modified": ""', content)
+            r'"last-modified": ""', content.strip())
         
     def test_resource_init(self):
         resource = bdkd.datastore.Resource('test-resource', [])
@@ -177,6 +180,15 @@ class ResourceTest(unittest.TestCase):
 
     def test_resource_new(self):
         self.assertTrue(self.resource)
+
+    def test_resource_metadata(self):
+        # Bad: metadata is not a dictionary
+        with self.assertRaises(ValueError):
+            resource = bdkd.datastore.Resource.new("a", [], 
+                    ['bad', 'metadata'])
+        # Good
+        resource = bdkd.datastore.Resource.new("a", [], dict(metadata='ok'))
+        self.assertTrue(resource)
 
     def test_resource_validate_name(self):
         self.assertFalse(bdkd.datastore.Resource.validate_name(None))
