@@ -731,7 +731,7 @@ class Resource(Asset):
         """
         if local_resource_filename and os.path.exists(local_resource_filename):
             resource_files = []
-            with io.open(local_resource_filename, encoding='utf-8') as fh:
+            with io.open(local_resource_filename, encoding='UTF-8') as fh:
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
@@ -747,7 +747,7 @@ class Resource(Asset):
         meta-data.
         """
         return Resource.ResourceJSONEncoder(ensure_ascii=False, 
-                **kwargs).encode(self)
+                encoding='UTF-8', **kwargs).encode(self)
 
     def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
         """
@@ -757,7 +757,7 @@ class Resource(Asset):
             os.remove(dest_path)
         else:
             mkdir_p(os.path.dirname(dest_path))
-        with io.open(dest_path, encoding='utf-8', mode='w') as fh:
+        with io.open(dest_path, encoding='UTF-8', mode='w') as fh:
             logger.debug("Writing JSON serialised resource to %s", dest_path)
             fh.write(unicode(self.to_json()))
         os.chmod(dest_path, mod)

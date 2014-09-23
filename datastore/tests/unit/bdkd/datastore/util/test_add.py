@@ -1,3 +1,4 @@
+# coding=utf-8
 import unittest
 
 import os
@@ -54,13 +55,13 @@ class AddUtilitiesTest(unittest.TestCase):
         parser = add_utils.add_bdkd_parser()
         args_in = [ 'test-repository', 'my_resource', 
                 '--description', 'Description of resource',
-                '--author', 'fred', 
+                '--author', u'Dietmar Müller', 
                 '--author-email', 'fred@here', 
                 self.filepath ]
         args = parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.description, 'Description of resource')
-        self.assertEquals(args.author, 'fred')
+        self.assertEquals(args.author, u'Dietmar Müller')
         self.assertEquals(args.author_email, 'fred@here')
 
 
