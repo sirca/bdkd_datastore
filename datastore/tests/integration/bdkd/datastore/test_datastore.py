@@ -1,3 +1,4 @@
+# coding=utf-8
 import unittest
 import bdkd.datastore
 import glob, os, shutil
@@ -213,7 +214,7 @@ class RepositoryTest(unittest.TestCase):
         path = os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
                 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz')
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Seton',
-                path)
+                path, metadata=dict(citation=u'M. Seton, R.D. Müller, S. Zahirovic, C. Gaina, T.H. Torsvik, G. Shephard, A. Talsma, M. Gurnis, M. Turner, S. Maus, M. Chandler, Global continental and ocean basin reconstructions since 200 Ma, Earth-Science Reviews, Volume 113, Issues 3-4, July 2012, Pages 212-270, ISSN 0012-8252, 10.1016/j.earscirev.2012.03.002. (http://www.sciencedirect.com/science/article/pii/S0012825212000311)'))
         return resource
 
     def _create_multi_file_fixture(self):
@@ -237,7 +238,7 @@ class RepositoryTest(unittest.TestCase):
             else:
                 files.append(file_meta)
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Shapefile/Seton',
-                files, unified=True)
+                files, metadata=dict(unified=True))
         return resource
 
 if __name__ == '__main__':
