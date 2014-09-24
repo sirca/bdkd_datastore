@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import bdkd.datastore
 import optparse
+import sys
 
 def main():
     usage = "usage: %prog [options] 'repository' 'resource name'"
@@ -23,6 +25,11 @@ def main():
     resource = repository.get(resource_name)
     if resource:
         repository.delete(resource)
+    else:
+        print("Resource '{0}' in '{1}' does not exist"
+                .format(resource_name, repository_name),
+                file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
