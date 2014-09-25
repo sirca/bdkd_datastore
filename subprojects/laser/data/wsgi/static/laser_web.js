@@ -1,3 +1,6 @@
+BDKD.MAP_SCALE=1;
+BDKD.MAP_X_AXIS_OFFSET=30;
+BDKD.MAP_Y_AXIS_OFFSET=60;
 BDKD.TIME_SERIES_LEFT_OFFSET_PX = 81;
 BDKD.TIME_SERIES_WIDTH_PX = 495;
 BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX + 
@@ -144,23 +147,27 @@ function drawHeatMap(dataset) {
     };
 
     heatmap
-        .attr("width", (max_x + 1) * 3)
-        .attr("height", (max_y + 1) * 3)
+        .attr("width", (max_x + 1) * BDKD.MAP_SCALE + BDKD.MAP_Y_AXIS_OFFSET)
+        .attr("height", (max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_X_AXIS_OFFSET)
         .selectAll("rect")
         .data(dataset)    
         .enter().append("rect")
-        .attr("x", function(d) { return d.x_index * 3; })
-        .attr("y", function(d) { return d.y_index * 3; })
-        .attr("width", 3)
-        .attr("height", 3)
+        .attr("x", function(d) { return d.x_index * BDKD.MAP_SCALE + BDKD.MAP_Y_AXIS_OFFSET; })
+        .attr("y", function(d) { return d.y_index * BDKD.MAP_SCALE; })
+        .attr("width", BDKD.MAP_SCALE)
+        .attr("height", BDKD.MAP_SCALE)
         .attr("fill", function(d) {
             return "hsl(" + 
                 ((d.value - min_value) / (max_value - min_value) * 360)
             .toString() + ",100%, 50%)"; 
         })
         .on("mouseover", function(d) { 
+            tooltip.style("visibility", "visible");
             hoverValue(d.x_index, d.x_variable, d.y_index, d.y_variable, 
                 d.value); 
+        })
+        .on("mouseout", function(d) {
+            tooltip.style("visibility", "hidden");
         })
         .on("click", function(d) { 
             selectTimeSeries(d.x_index, d.y_index); 
