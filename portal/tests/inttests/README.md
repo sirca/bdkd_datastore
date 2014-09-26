@@ -9,6 +9,8 @@ The portal integration tests carries out end to end tests using:
 
 The integration tests requires the following python packages to be installed:
 - pytest
+- requests
+- psutil
 
 To run the integration test, from the ./bdkd/portal/tests/inttests directory
 (which should be the current directory), type: `pytest`

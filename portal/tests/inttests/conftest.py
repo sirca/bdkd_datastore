@@ -4,29 +4,30 @@ import time
 from subprocess import call
 from bdkd import datastore
 import ckanapi
+import psutil
 
 default_test_bucket = "bdkd-qa-bucket"
 
 class SampleData:
     
-    def __init__(self, dataset_name, dataset_files = [], auto_delete=True, description=None):
+    def __init__(self, dataset_name, dataset_files = [], auto_delete=True, meta_data=None):
         self._repo = None
         self._auto_delete = auto_delete
         self.dataset_name = dataset_name
         self._dataset_files = dataset_files
         self._repo_name = default_test_bucket
-        self._desc = description
+        self._meta_data = meta_data
 
-    def _get_dataset_name(self):
+    def get_dataset_name(self):
         return self.dataset_name
 
-    def _get_repo_name(self):
+    def get_repo_name(self):
         return self._repo_name
 
     def get_dataset_id(self):
         return '{0}-{1}'.format(
-            self._get_repo_name(), 
-            self._get_dataset_name())
+            self.get_repo_name(),
+            self.get_dataset_name())
         
     def data_repo(self):
         if not self._repo:
@@ -40,11 +41,7 @@ class SampleData:
         dataset = datastore.Resource.new(
             self.dataset_name,
             self._dataset_files,
-            {
-                'description': self._desc,
-                'author': 'test author',
-                'author_email': 'test@test.email',
-            })
+            self._meta_data)
         repo = self.data_repo()
         repo.save(dataset, overwrite=True)
 
@@ -70,9 +67,9 @@ class SampleData:
             # Wait until it is there or if the time has exceeded.
             tm_start = time.time()
             while not self.dataset_name in repo.list():
-                time.sleep(1)
                 if (time.time() - tm_start) > 5:
                     raise Exception("Timeout waiting for the test dataset to appear in the datastore")
+                time.sleep(1)
             self._prepared = True
 
 
@@ -80,7 +77,7 @@ class Portal_Builder_Runner:
     """ For starting/stopping a portal builder during test.
     """
     def __init__(self):
-        self._cfg_filename = '/etc/bdkd/portal.cfg'
+        self._cfg_filename = 'test_data/portal.cfg'
         self._cfg = None
 
     def use_config(self, cfg_filename):
@@ -92,17 +89,35 @@ class Portal_Builder_Runner:
         """
         call(["portal-data-builder", "-c", self._cfg_filename, "update"])
 
+    def daemon_running(self):
+        """ check if the portal builder is running and return it as a process,
+        otherwise returns None
+        """
+        for proc in psutil.process_iter():
+            if proc.name() == 'portal-data-bui':
+                return proc
+        return None
+
     def start_daemon(self):
         """ Starts the portal data builder as a daemon process.
         """
-        # TODO
-    pass
+        proc = self.daemon_running()
+        if not proc:
+            call(["portal-data-builder", "-c", self._cfg_filename, "daemon"])
+            # wait a bit
+            tm_start = time.time()
+            while self.daemon_running() == None:
+                if (time.time() - tm_start) > 5:
+                    raise Exception("Timeout waiting for the portal builder daemon to start")
+                time.sleep(1)
+
 
     def stop_daemon(self):
         """ Stop the portal data builder daemon process.
         """
-        # TODO
-    pass
+        proc = self.daemon_running()
+        if proc:
+            proc.kill()
 
     def get_portal_config(self):
         if not self._cfg:
@@ -127,15 +142,44 @@ def ckan_site(portal_builder):
 @pytest.fixture(scope='session')
 def sample_data1():
     return SampleData(dataset_name='sample_dataset1',
-                      description='laser in ocean',
                       dataset_files=['test_data/sample_dataset/sample001.csv',
-                                     'test_data/sample_dataset/sample002.txt'])
+                                     'test_data/sample_dataset/sample002.txt'],
+                      meta_data={
+                          'description': 'laser in ocean',
+                          'author': 'test author',
+                          'author_email': 'test@test.email'})
 
 
 @pytest.fixture(scope='session')
 def sample_data2():
     return SampleData(dataset_name='sample_dataset2',
-                      description='laser in space',
                       dataset_files=['test_data/sample_dataset/sample001.csv',
-                                     'test_data/sample_dataset/sample002.txt'])
+                                     'test_data/sample_dataset/sample002.txt'],
+                      meta_data={
+                          'description': 'laser in space',
+                          'author': 'test author',
+                          'author_email': 'test@test.email'})
 
+
+# short live - only for test
+@pytest.fixture()
+def short_sample_data():
+    return SampleData(dataset_name='shortlive_dataset',
+                      dataset_files=['test_data/sample_dataset/sample001.csv',
+                                     'test_data/sample_dataset/sample002.txt'],
+                      meta_data={
+                          'description': 'short live dataset',
+                          'author': 'test author',
+                          'author_email': 'test@test.email'})
+
+
+@pytest.fixture(scope='session')
+def visual_data1():
+    return SampleData(dataset_name='visual_dataset1',
+                      dataset_files=['test_data/sample_dataset/sample001.csv',
+                                     'test_data/sample_dataset/sample002.txt'],
+                      meta_data={
+                          'description': 'visual data test',
+                          'data_type': 'qa data',
+                          'author': 'test author',
+                          'author_email': 'test@test.email'})
