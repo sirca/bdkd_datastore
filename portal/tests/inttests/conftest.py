@@ -77,7 +77,7 @@ class Portal_Builder_Runner:
     """ For starting/stopping a portal builder during test.
     """
     def __init__(self):
-        self._cfg_filename = 'test_data/portal.cfg'
+        self._cfg_filename = '/etc/bdkd/portal.cfg'
         self._cfg = None
 
     def use_config(self, cfg_filename):
