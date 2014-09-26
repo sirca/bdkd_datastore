@@ -810,6 +810,26 @@ class Resource(Asset):
                 match = resource_file
         return match
 
+    def save(self):
+        """
+        Helper method that saves the resource back to the repository that
+        it was loaded from. Can only save if the resource was loaded from a
+        repository, otherwise it throws.
+        """
+        if not self.repository:
+            raise ValueError("Cannot save a resource that is not loaded from a repository")
+        # Always overwrite the existing one since it was loaded from the repository anyway.
+        self.repository.save(self, overwrite=True)
+
+    def set_edit(self):
+        """
+        Helper method to set the resource into edit mode. Can only be used if the
+        resource was loaded from a repository.
+        """
+        if not self.repository:
+            raise ValueError("Cannot edit a resource that is not loaded from a repository")
+        self.repository.edit_resource(self)
+
 class ResourceFile(Asset):
     """
     A file component of a Resource, including any file-specific meta-data 
