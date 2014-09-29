@@ -104,7 +104,8 @@ class Portal_Builder_Runner:
         proc = self.daemon_running()
         if not proc:
             call(["portal-data-builder", "-c", self._cfg_filename, "daemon"])
-            # wait a bit
+            # Need a bit of sleep here to allow the daemon to be ready.
+            time.sleep(2)
             tm_start = time.time()
             while self.daemon_running() == None:
                 if (time.time() - tm_start) > 5:
