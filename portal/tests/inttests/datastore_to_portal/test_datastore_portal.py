@@ -27,7 +27,9 @@ def test_add_dataset(portal_builder, ckan_site, sample_data1):
     portal_builder.run_update() # Build portal
     ds = get_dataset_from_ckan(ckan_site, sample_data1.get_dataset_id())
     assert ds['author'] == 'test author'
-    # FIXME - email not set. assert ds['author_email'] == 'test@test.email'
+    assert ds['author_email'] == 'test@test.email'
+    assert ds['maintainer'] == 'test maintain'
+    assert ds['maintainer_email'] == 'testmain@test.email'
     assert ds['notes'] == 'laser in ocean'
     assert ds['num_resources'] == 2
     assert ds['organization']['title'] == 'BDKD QA System'

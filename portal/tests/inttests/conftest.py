@@ -148,7 +148,9 @@ def sample_data1():
                       meta_data={
                           'description': 'laser in ocean',
                           'author': 'test author',
-                          'author_email': 'test@test.email'})
+                          'author_email': 'test@test.email',
+                          'maintainer': 'test maintain',
+                          'maintainer_email': 'testmain@test.email'})
 
 
 @pytest.fixture(scope='session')
