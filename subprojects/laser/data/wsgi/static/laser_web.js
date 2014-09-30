@@ -1,6 +1,8 @@
 BDKD.MAP_SCALE=1;
-BDKD.MAP_X_AXIS_OFFSET=30;
-BDKD.MAP_Y_AXIS_OFFSET=60;
+BDKD.MAP_X_AXIS_OFFSET=64;
+BDKD.MAP_Y_AXIS_OFFSET=80;
+BDKD.MAP_BORDER=24;
+
 BDKD.TIME_SERIES_LEFT_OFFSET_PX = 81;
 BDKD.TIME_SERIES_WIDTH_PX = 495;
 BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX + 
@@ -118,11 +120,66 @@ function clearHeatMap() {
 };
 
 
-function drawHeatMap(dataset) {
-    heatmap = d3.select("svg#heatmap");
+function drawHeatMapAxes(heatmap, map_data) {
+
+    // Axes scales: domain based on indexes because the variables are 
+    // non-linear
+    var xAxisScale = d3.scale.linear()
+        .domain([0, map_data.max_x])
+        .range([0, map_data.max_x * BDKD.MAP_SCALE]);
+
+    var yAxisScale = d3.scale.linear()
+        .domain([0, map_data.max_y])
+        .range([0, map_data.max_y * BDKD.MAP_SCALE]);
+    //Create the Axes
+    var xAxis = d3.svg.axis()
+        .scale(xAxisScale)
+        .orient('bottom')
+        .tickFormat(function(d, i) {
+            // Look up variable based on x index d
+            return map_data.data[d][map_data.max_y].x_variable;
+        });
+    var yAxis = d3.svg.axis()
+        .scale(yAxisScale)
+        .orient('left')
+        .tickFormat(function(d, i) {
+            // Look up variable based on y index d
+            return map_data.data[0][d].y_variable;
+        });
+    // Append X axis
+    heatmap
+        .append("g")
+        .call(xAxis)
+        .attr("class", "x axis")
+        .attr("transform", "translate(" + BDKD.MAP_Y_AXIS_OFFSET + ", " + 
+                ((map_data.max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_BORDER) 
+                + ")")
+        .attr("width", (map_data.max_x + 1) * BDKD.MAP_SCALE)
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("dx", "-.5em")
+        .attr("dy", "-.5em")
+        .attr("transform", function(d) {
+            return "rotate(-90)"
+        })
+    ;
+    // Append Y axis
+    heatmap
+        .append("g")
+        .call(yAxis)
+        .attr("class", "y axis")
+        .attr("transform", "translate(" + BDKD.MAP_Y_AXIS_OFFSET + ", " + 
+                BDKD.MAP_BORDER + ")")
+        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE)
+        .selectAll("text")
+    ;
+};
+
+
+function drawHeatMap(map_data) {
 
     /* Ensure tooltip exists */
-    tooltip = d3.select("div#tooltip");
+    var tooltip = d3.select("div#tooltip");
     if ( tooltip.empty() ) {
         tooltip = d3.select("body").append("div")   
             .attr("id", "tooltip")
@@ -130,52 +187,99 @@ function drawHeatMap(dataset) {
             .style("opacity", 0);
     }
 
-    min_value = max_value = max_x = max_y = null;
-    for ( i = 0; i < dataset.length; i++ ) {
-        if ( min_value == null || dataset[i].value < min_value ) {
-            min_value = dataset[i].value;
-        }
-        if ( max_value == null || dataset[i].value > max_value ) {
-            max_value = dataset[i].value;
-        }
-        if ( max_x == null || dataset[i].x_index > max_x ) {
-            max_x = dataset[i].x_index;
-        }
-        if ( max_y == null || dataset[i].y_index > max_y ) {
-            max_y = dataset[i].y_index;
-        }
-    };
+    BDKD.heatmap = d3.select("svg#heatmap");
+    BDKD.heatmap
+        .attr("width", (map_data.max_x + 1) * BDKD.MAP_SCALE + 
+                BDKD.MAP_Y_AXIS_OFFSET + BDKD.MAP_BORDER)
+        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE + 
+                BDKD.MAP_X_AXIS_OFFSET + BDKD.MAP_BORDER)
+        ;
 
-    heatmap
-        .attr("width", (max_x + 1) * BDKD.MAP_SCALE + BDKD.MAP_Y_AXIS_OFFSET)
-        .attr("height", (max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_X_AXIS_OFFSET)
-        .selectAll("rect")
-        .data(dataset)    
-        .enter().append("rect")
-        .attr("x", function(d) { return d.x_index * BDKD.MAP_SCALE + BDKD.MAP_Y_AXIS_OFFSET; })
-        .attr("y", function(d) { return d.y_index * BDKD.MAP_SCALE; })
+    // Add a vertical group for each X
+    BDKD.heatmap.x_columns = BDKD.heatmap.selectAll('g')
+        .data(map_data.data)
+        .enter()
+        .append("g")
+        .attr("transform", function(d, i) {
+            return "translate(" + (i * BDKD.MAP_SCALE + BDKD.MAP_Y_AXIS_OFFSET) + 
+            "," + BDKD.MAP_BORDER + ")";
+        })
         .attr("width", BDKD.MAP_SCALE)
-        .attr("height", BDKD.MAP_SCALE)
-        .attr("fill", function(d) {
-            return "hsl(" + 
-                ((d.value - min_value) / (max_value - min_value) * 360)
-            .toString() + ",100%, 50%)"; 
-        })
-        .on("mouseover", function(d) { 
-            tooltip.style("visibility", "visible");
-            hoverValue(d.x_index, d.x_variable, d.y_index, d.y_variable, 
-                d.value); 
-        })
-        .on("mouseout", function(d) {
-            tooltip.style("visibility", "hidden");
-        })
-        .on("click", function(d) { 
-            selectTimeSeries(d.x_index, d.y_index); 
-        })
+        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE)
+        ;
+
+    // Add rectangles for each Y
+    BDKD.heatmap.x_columns.selectAll('rect')
+        .data( function(d) { return d; })
+        .enter()
+        .append('rect')
+            .attr("y", function(d, i) { return i * BDKD.MAP_SCALE; })
+            .attr("width", BDKD.MAP_SCALE)
+            .attr("height", BDKD.MAP_SCALE)
+            .attr("fill", function(d) {
+                return "hsl(" + 
+                    ((d.value - map_data.min_value) / 
+                     (map_data.max_value - map_data.min_value) * 360)
+                .toString() + ",100%, 50%)"; 
+            })
+            .on("mouseover", function(d) { 
+                tooltip.style("visibility", "visible");
+                hoverValue(d.x_index, d.x_variable, d.y_index, d.y_variable, 
+                    d.value); 
+            })
+            .on("mouseout", function(d) {
+                tooltip.style("visibility", "hidden");
+            })
+            .on("click", function(d) { 
+                selectTimeSeries(d.x_index, d.y_index); 
+            })
     ;
+    // Draw axes on the heatmap
+    drawHeatMapAxes(BDKD.heatmap, map_data);
+
+    // Ready to show
     $('#heatmap_spinner').hide();
     $('#heatmap_display').show();
 };
+
+
+function getMapData(raw_map_data) {
+
+    var data = [];  // Alternative packing of data as 2D array
+    min_value = max_value = min_x = max_x = min_y = max_y = null;
+    for ( i = 0; i < raw_map_data.length; i++ ) {
+        var item = raw_map_data[i];
+        if ( min_value == null || item.value < min_value ) {
+            min_value = item.value;
+        }
+        if ( max_value == null || item.value > max_value ) {
+            max_value = item.value;
+        }
+        if ( min_x == null || item.x_index < min_x ) {
+            min_x = item.x_index;
+        }
+        if ( max_x == null || item.x_index > max_x ) {
+            max_x = item.x_index;
+        }
+        if ( min_y == null || item.y_index < min_y ) {
+            min_y = item.y_index;
+        }
+        if ( max_y == null || item.y_index > max_y ) {
+            max_y = item.y_index;
+        };
+        data[item.x_index] = (data[item.x_index] || []);
+        data[item.x_index][item.y_index] = item;
+    };
+    return {min_value : min_value,
+        max_value : max_value,
+        min_x : min_x,
+        max_x : max_x,
+        min_y : min_y,
+        max_y : max_y,
+        data : data
+    };
+};
+
 
 
 function onChangeMap() {
@@ -183,8 +287,9 @@ function onChangeMap() {
     $.ajax({url: mapDataUrl($('#map').val()),
             context: document.body,
             success: function(data) {
-                dataset = JSON.parse(data);
-                drawHeatMap(dataset);
+                raw_map_data = JSON.parse(data);
+                map_data = getMapData(raw_map_data);
+                drawHeatMap(map_data);
             }
     });
 };
