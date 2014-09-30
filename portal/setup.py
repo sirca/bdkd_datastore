@@ -10,7 +10,7 @@ if root_dir != "":
     os.chdir(root_dir)
 
 setup(name='bdkd-portal',
-      version='0.0.2',
+      version='0.0.3',
       description='BDKD Portal Utilities ',
       long_description = open('README.rst').read(),
       author='Daniel Lau',
