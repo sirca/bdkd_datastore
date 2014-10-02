@@ -6,14 +6,17 @@ Utility to pack laser data maps into a HDF5 file.
 
 import argparse
 import h5py
+import numpy as np
 import os
 import re
 
-def add_map(map_file, filename, meta=None):
+def add_map(map_file, filename, meta=None, flip=True):
     map_name = os.path.splitext(os.path.basename(filename))[0]
     raw_data = []
     for line in open(filename):
         raw_data.append([ float(val) for val in line.strip().split(',') ])
+    if flip:
+        raw_data = np.rot90(np.fliplr(np.array(raw_data)))
     dataset = map_file.create_dataset(map_name, data=raw_data, 
             chunks=(len(raw_data), len(raw_data[0])), compression=9)
     if meta:
@@ -24,11 +27,11 @@ def add_map(map_file, filename, meta=None):
     map_file.attrs['y_size'] = len(raw_data[0])
 
 
-def pack_maps(map_filename, filenames):
+def pack_maps(map_filename, filenames, flip=True):
     maps = h5py.File(map_filename, 'w')
 
     for (key, val) in filenames.iteritems():
-        add_map(maps, key, val)
+        add_map(maps, key, val, flip)
     maps.close()
 
 
@@ -40,6 +43,8 @@ def pack_maps_parser():
             help='Name of the file containing the Y variables')
     parser.add_argument('--out', default='maps.hdf5',
             help='Out filename')
+    parser.add_argument('--flip', type=bool, default=True,
+            help='Flip the map files')
     parser.add_argument('paths', nargs='+',
             help='Map file name(s)')
     return parser
@@ -77,5 +82,5 @@ if __name__ == '__main__':
     else:
         raise ValueError("Y variables file '{0}' doesn't exist!".format(args.y_map))
 
-    pack_maps(args.out, filenames)
+    pack_maps(args.out, filenames, args.flip)
     exit(0)
