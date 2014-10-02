@@ -34,7 +34,7 @@ def get_variables(maps_filename):
 
 def get_raw_files(file_glob):
     filenames = glob.glob(file_glob)
-    timeseries_pattern = re.compile(r'FB_(\d+)_INJ_(\d+).csv')
+    timeseries_pattern = re.compile(r'FB_(\d+)_INJ_(\d+)\..*')
     raw_files = {}
 
     x_max = -1
