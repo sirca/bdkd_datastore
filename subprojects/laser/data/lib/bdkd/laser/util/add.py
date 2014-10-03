@@ -38,6 +38,7 @@ def add_laser_parser():
             parents=[
                 util_common._repository_resource_parser(),
                 util_add._files_parser(),
+                util_add._metadata_parser(),
                 util_add._add_options_parser(),
                 util_add._bdkd_metadata_parser(),
                 _laser_metadata_parser(),
