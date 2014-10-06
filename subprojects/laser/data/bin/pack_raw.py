@@ -107,7 +107,7 @@ def pack_raw_parser():
             help='Pattern to find raw file name(s)')
     parser.add_argument('--xynames', type=bool, default=False,
             help='Files contain X index followed by Y in their names '
-            '(default is Y followed by X, e.g. "FB_001_INJ_002.csv")')
+            '(default is False -- Y followed by X, e.g. "FB_001_INJ_002.csv")')
     parser.add_argument('--shard-size', type=int, default=9,
             help='(S x S) grid of timeseries')
     return parser
