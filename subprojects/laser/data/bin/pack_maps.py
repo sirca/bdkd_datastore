@@ -49,11 +49,12 @@ def pack_maps_parser():
     parser.add_argument('--out', default='maps.hdf5',
             help='Out filename')
     parser.add_argument('--fliplr', type=bool, default=True,
-            help='Flip the map files horizontally')
+            help='Flip the map files horizontally (default: True)')
     parser.add_argument('--flipud', type=bool, default=False,
-            help='Flip the map files vertically')
+            help='Flip the map files vertically (default: False)')
     parser.add_argument('--rot90', type=int, default=1,
-            help='Rotate the map files')
+            help='Rotate the map files clockwise in 90 deg increments '
+            '(default: one rotation)')
     parser.add_argument('paths', nargs='+',
             help='Map file name(s)')
     return parser
