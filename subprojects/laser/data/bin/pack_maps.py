@@ -6,14 +6,22 @@ Utility to pack laser data maps into a HDF5 file.
 
 import argparse
 import h5py
+import numpy as np
 import os
 import re
 
-def add_map(map_file, filename, meta=None):
+def add_map(map_file, filename, meta=None, fliplr=True, flipud=False, rotations=1):
     map_name = os.path.splitext(os.path.basename(filename))[0]
     raw_data = []
     for line in open(filename):
         raw_data.append([ float(val) for val in line.strip().split(',') ])
+    raw_data = np.array(raw_data)
+    if fliplr:
+        raw_data = np.fliplr(raw_data)
+    if flipud:
+        raw_data = np.flipud(raw_data)
+    if rotations > 0:
+        raw_data = np.rot90(raw_data, k=rotations)
     dataset = map_file.create_dataset(map_name, data=raw_data, 
             chunks=(len(raw_data), len(raw_data[0])), compression=9)
     if meta:
@@ -24,11 +32,11 @@ def add_map(map_file, filename, meta=None):
     map_file.attrs['y_size'] = len(raw_data[0])
 
 
-def pack_maps(map_filename, filenames):
+def pack_maps(map_filename, filenames, fliplr, flipud, rotations):
     maps = h5py.File(map_filename, 'w')
 
     for (key, val) in filenames.iteritems():
-        add_map(maps, key, val)
+        add_map(maps, key, val, fliplr, flipud, rotations)
     maps.close()
 
 
@@ -40,6 +48,13 @@ def pack_maps_parser():
             help='Name of the file containing the Y variables')
     parser.add_argument('--out', default='maps.hdf5',
             help='Out filename')
+    parser.add_argument('--fliplr', type=bool, default=True,
+            help='Flip the map files horizontally (default: True)')
+    parser.add_argument('--flipud', type=bool, default=False,
+            help='Flip the map files vertically (default: False)')
+    parser.add_argument('--rot90', type=int, default=1,
+            help='Rotate the map files clockwise in 90 deg increments '
+            '(default: one rotation)')
     parser.add_argument('paths', nargs='+',
             help='Map file name(s)')
     return parser
@@ -77,5 +92,5 @@ if __name__ == '__main__':
     else:
         raise ValueError("Y variables file '{0}' doesn't exist!".format(args.y_map))
 
-    pack_maps(args.out, filenames)
+    pack_maps(args.out, filenames, args.fliplr, args.flipud, args.rot90)
     exit(0)
