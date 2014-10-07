@@ -58,6 +58,18 @@ $(document).ready(function() {
                 </tr>
             </table>
         <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
+        <p><form onsubmit="onSelectTimeSeries(); return false">
+            <label for="map_x_selection">{{ dataset.x_name }}</label>
+            <select id="map_x_selection"
+                onchange="updateTimeSeriesOptions(); return false">
+            </select>
+            <label for="map_y_selection">{{ dataset.y_name }}</label>
+            <select id="map_y_selection"
+                onchange="updateTimeSeriesOptions(); return false">
+            </select>
+            <input type="submit" value="Show"/>
+        </form></p>
+
         </div>
 
         <div id="time_series_header" class="sliding_header">Time series</div>
