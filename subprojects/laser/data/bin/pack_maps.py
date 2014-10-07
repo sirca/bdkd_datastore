@@ -10,7 +10,7 @@ import numpy as np
 import os
 import re
 
-def add_map(map_file, filename, meta=None, fliplr=True, flipud=False, rot90=1):
+def add_map(map_file, filename, meta=None, fliplr=True, flipud=False, rotations=1):
     map_name = os.path.splitext(os.path.basename(filename))[0]
     raw_data = []
     for line in open(filename):
@@ -20,8 +20,8 @@ def add_map(map_file, filename, meta=None, fliplr=True, flipud=False, rot90=1):
         raw_data = np.fliplr(raw_data)
     if flipud:
         raw_data = np.flipud(raw_data)
-    for n in range(0, rot90):
-        raw_data = np.rot90(raw_data)
+    if rotations > 0:
+        raw_data = np.rot90(raw_data, k=rotations)
     dataset = map_file.create_dataset(map_name, data=raw_data, 
             chunks=(len(raw_data), len(raw_data[0])), compression=9)
     if meta:
@@ -32,11 +32,11 @@ def add_map(map_file, filename, meta=None, fliplr=True, flipud=False, rot90=1):
     map_file.attrs['y_size'] = len(raw_data[0])
 
 
-def pack_maps(map_filename, filenames, fliplr, flipud, rot90):
+def pack_maps(map_filename, filenames, fliplr, flipud, rotations):
     maps = h5py.File(map_filename, 'w')
 
     for (key, val) in filenames.iteritems():
-        add_map(maps, key, val, fliplr, flipud, rot90)
+        add_map(maps, key, val, fliplr, flipud, rotations)
     maps.close()
 
 
