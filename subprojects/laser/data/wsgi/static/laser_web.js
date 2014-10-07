@@ -9,6 +9,8 @@ BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX +
         BDKD.TIME_SERIES_WIDTH_PX);
 BDKD.TIME_SERIES_HEIGHT_PX = 480;
 
+BDKD.ZOOM_SIZE = 15;
+BDKD.ZOOM_SCALE = 10;
 
 function datasetUrl() {
     /**
@@ -89,20 +91,108 @@ function selectTimeSeries(x, y) {
     BDKD.selection.to_time = (BDKD.dataset.z_size * BDKD.dataset.z_interval_base
             -1);
     onChangeTimeSeries();
-}
+};
+
+
+function getHeatmapSelection(x_index, y_index) {
+    var x_size = BDKD.heatmap.x_columns[0].length;
+    var y_size = BDKD.heatmap.x_columns[0][0].__data__.length;
+    var offset = Math.floor(BDKD.ZOOM_SIZE / 2);
+    var x_left = (x_index - offset) < 0 ? 0 : (x_index - offset);
+    var x_right = x_left + BDKD.ZOOM_SIZE;
+    if ( x_right > x_size ) {
+        x_right = x_size;
+        x_left = x_size - BDKD.ZOOM_SIZE;
+    }
+    var y_top = (y_index - offset) < 0 ? 0 : (y_index - offset);
+    var y_bottom = y_top + BDKD.ZOOM_SIZE;
+    if ( y_bottom > y_size ) {
+        y_bottom = y_size;
+        y_top = y_size - BDKD.ZOOM_SIZE;
+    }
+    var heatmap_data = [];
+    for ( x = x_left; x < x_right; x++ ) {
+        col_data = BDKD.heatmap.x_columns[0][x].__data__;
+        col = [];
+        for ( y = y_top; y < y_bottom; y++ ) {
+            col.push(col_data[y]);
+        }
+        heatmap_data.push(col);
+    }
+    BDKD.heatmap_data = heatmap_data;
+    return heatmap_data;
+};
+
+
+function updateHeatmapZoom(x_index, y_index) {
+    var heatmap_data = getHeatmapSelection(x_index, y_index);
+    var zoom = d3.select("svg#heatmap_zoom");
+
+    zoom
+        .attr("width", BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE)
+        .attr("height", BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE)
+        ;
+
+    // Add a vertical group for each X
+    zoom.x_columns = zoom.selectAll('g')
+        .data(heatmap_data)
+        .enter()
+        .append("g")
+        .attr("transform", function(d, i) {
+            return "translate(" + (i * BDKD.ZOOM_SCALE) + 
+            "," + 0 + ")";
+        })
+        .attr("width", BDKD.ZOOM_SCALE)
+        .attr("height", BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE)
+        ;
+
+    // Add rectangles for each Y
+    zoom.x_columns.selectAll('rect')
+        .data( function(d) { return d; })
+        .enter()
+        .append('rect')
+            .attr("y", function(d, i) { return i * BDKD.ZOOM_SCALE; })
+            .attr("width", BDKD.ZOOM_SCALE -1)
+            .attr("height", BDKD.ZOOM_SCALE -1)
+            .attr("fill", function(d) {
+                return "hsl(" + 
+                    ((d.value - BDKD.map_data.min_value) / 
+                     (BDKD.map_data.max_value - BDKD.map_data.min_value) * 360)
+                .toString() + ",100%, 50%)"; 
+            })
+            .attr("class", function(d) {
+                // CSS styling for selected & surrounding pixels
+                if ( d.x_index == x_index && d.y_index == y_index ) {
+                    return "zoom_selected";
+                }
+                else {
+                    return "zoom";
+                }
+            })
+    ;
+};
 
 
 function hoverValue(x_index, x_value, y_index, y_value, value) {
-    tooltip = d3.select("div#tooltip");
+    var tooltip = d3.select("div#tooltip");
+    tooltip
+        .attr("width", BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE)
+        .attr("height", BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE + 24)
+        ;
+    
     tooltip.transition()
         .duration(200)      
-        .style("opacity", .9);      
+        .style("opacity", 1.0);
     tooltip.html(
+            "<svg id='heatmap_zoom'></svg>" +
+            "<div>" +
             "X[" + x_index + "]: " + x_value + "<br/>" + 
             "Y[" + y_index + "]: " + y_value + "<br/>" + 
-            "Value: " + value)  
-        .style("left", (d3.event.pageX) + "px")     
-        .style("top", (d3.event.pageY - 42) + "px");    
+            "Value: " + value +
+            "</div>")  
+        .style("left", (d3.event.pageX + BDKD.ZOOM_SIZE) + "px")     
+        .style("top", (d3.event.pageY - (BDKD.ZOOM_SIZE * BDKD.ZOOM_SCALE / 2)) + "px");
+    updateHeatmapZoom(x_index, y_index);
 };
 
 
@@ -120,41 +210,41 @@ function clearHeatMap() {
 };
 
 
-function drawHeatMapAxes(heatmap, map_data) {
+function drawHeatMapAxes(heatmap) {
 
     // Axes scales: domain based on indexes because the variables are 
     // non-linear
     var xAxisScale = d3.scale.linear()
-        .domain([0, map_data.max_x])
-        .range([0, map_data.max_x * BDKD.MAP_SCALE]);
+        .domain([0, BDKD.map_data.max_x])
+        .range([0, BDKD.map_data.max_x * BDKD.MAP_SCALE]);
 
     var yAxisScale = d3.scale.linear()
-        .domain([0, map_data.max_y])
-        .range([0, map_data.max_y * BDKD.MAP_SCALE]);
+        .domain([0, BDKD.map_data.max_y])
+        .range([0, BDKD.map_data.max_y * BDKD.MAP_SCALE]);
     //Create the Axes
     var xAxis = d3.svg.axis()
         .scale(xAxisScale)
         .orient('bottom')
         .tickFormat(function(d, i) {
             // Look up variable based on x index d
-            return map_data.data[d][map_data.max_y].x_variable;
+            return BDKD.map_data.data[d][BDKD.map_data.max_y].x_variable;
         });
     var yAxis = d3.svg.axis()
         .scale(yAxisScale)
         .orient('left')
         .tickFormat(function(d, i) {
             // Look up variable based on y index d
-            return map_data.data[0][d].y_variable;
+            return BDKD.map_data.data[0][d].y_variable;
         });
     // Append X axis
     heatmap
         .append("g")
         .call(xAxis)
         .attr("class", "x axis")
-        .attr("transform", "translate(" + BDKD.MAP_Y_AXIS_OFFSET + ", " + 
-                ((map_data.max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_BORDER) 
+        .attr("transform", "translate(" + (BDKD.MAP_Y_AXIS_OFFSET -1) + ", " + 
+                ((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_BORDER) 
                 + ")")
-        .attr("width", (map_data.max_x + 1) * BDKD.MAP_SCALE)
+        .attr("width", (BDKD.map_data.max_x + 1) * BDKD.MAP_SCALE)
         .selectAll("text")
         .style("text-anchor", "end")
         .attr("dx", "-.5em")
@@ -168,9 +258,9 @@ function drawHeatMapAxes(heatmap, map_data) {
         .append("g")
         .call(yAxis)
         .attr("class", "y axis")
-        .attr("transform", "translate(" + BDKD.MAP_Y_AXIS_OFFSET + ", " + 
-                BDKD.MAP_BORDER + ")")
-        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE)
+        .attr("transform", "translate(" + (BDKD.MAP_Y_AXIS_OFFSET -1) + ", " + 
+                (BDKD.MAP_BORDER) + ")")
+        .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)
         .selectAll("text")
     ;
 };
@@ -189,15 +279,15 @@ function drawHeatMap(map_data) {
 
     BDKD.heatmap = d3.select("svg#heatmap");
     BDKD.heatmap
-        .attr("width", (map_data.max_x + 1) * BDKD.MAP_SCALE + 
+        .attr("width", (BDKD.map_data.max_x + 1) * BDKD.MAP_SCALE + 
                 BDKD.MAP_Y_AXIS_OFFSET + BDKD.MAP_BORDER)
-        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE + 
+        .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE + 
                 BDKD.MAP_X_AXIS_OFFSET + BDKD.MAP_BORDER)
         ;
 
     // Add a vertical group for each X
     BDKD.heatmap.x_columns = BDKD.heatmap.selectAll('g')
-        .data(map_data.data)
+        .data(BDKD.map_data.data)
         .enter()
         .append("g")
         .attr("transform", function(d, i) {
@@ -205,7 +295,7 @@ function drawHeatMap(map_data) {
             "," + BDKD.MAP_BORDER + ")";
         })
         .attr("width", BDKD.MAP_SCALE)
-        .attr("height", (map_data.max_y + 1) * BDKD.MAP_SCALE)
+        .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)
         ;
 
     // Add rectangles for each Y
@@ -217,9 +307,9 @@ function drawHeatMap(map_data) {
             .attr("width", BDKD.MAP_SCALE)
             .attr("height", BDKD.MAP_SCALE)
             .attr("fill", function(d) {
-                return "hsl(" + 
-                    ((d.value - map_data.min_value) / 
-                     (map_data.max_value - map_data.min_value) * 360)
+                return "hsl(" +
+                    ((d.value - BDKD.map_data.min_value) / 
+                     (BDKD.map_data.max_value - BDKD.map_data.min_value) * 360)
                 .toString() + ",100%, 50%)"; 
             })
             .on("mouseover", function(d) { 
@@ -235,7 +325,7 @@ function drawHeatMap(map_data) {
             })
     ;
     // Draw axes on the heatmap
-    drawHeatMapAxes(BDKD.heatmap, map_data);
+    drawHeatMapAxes(BDKD.heatmap, BDKD.map_data);
 
     // Ready to show
     $('#heatmap_spinner').hide();
@@ -270,6 +360,13 @@ function getMapData(raw_map_data) {
         data[item.x_index] = (data[item.x_index] || []);
         data[item.x_index][item.y_index] = item;
     };
+    // Assign colours to each item
+    for ( var x=0; x < max_x; x++ ) {
+        for ( var y=0; y < max_y; y++ ) {
+            data[x][y].colour = ((data[x][y].value - min_value) / 
+                     (max_value - min_value) * 360);
+        }
+    }
     return {min_value : min_value,
         max_value : max_value,
         min_x : min_x,
@@ -288,8 +385,8 @@ function onChangeMap() {
             context: document.body,
             success: function(data) {
                 raw_map_data = JSON.parse(data);
-                map_data = getMapData(raw_map_data);
-                drawHeatMap(map_data);
+                BDKD.map_data = getMapData(raw_map_data);
+                drawHeatMap();
             }
     });
 };
