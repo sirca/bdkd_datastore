@@ -5,6 +5,7 @@ import os, errno
 import csv, json, StringIO
 from multiprocessing import Process
 from functools import wraps
+import urllib
 
 import matplotlib
 matplotlib.use('Agg')
@@ -122,6 +123,8 @@ def open_dataset(f):
     def wrapper(*args, **kwargs):
         if 'repository_name' in kwargs and 'dataset_name' in kwargs:
             try:
+                kwargs['dataset_name'] = urllib.unquote_plus(
+                        kwargs['dataset_name'])
                 dataset = Dataset.open(kwargs['repository_name'], 
                         kwargs['dataset_name'])
                 if not dataset:

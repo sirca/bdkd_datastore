@@ -119,17 +119,16 @@ def good_portal_builder(good_cfg_string):
 
 def mock_getmeta(key, default=None):
     mock_meta = {
-        'author':'dan',
-        'author_email':'dan',
-        'maintainer':'dan',
-        'maintainer_email':'dan',
+        'author':'test author',
+        'author_email':'test_author@test.email',
+        'maintainer':'test maintainer',
+        'maintainer_email':'test_maintainer@test.email',
         'version':'1.0',
         'description':'test desc',
         'data_type':'ocean data',
-    }
-    if key in mock_meta.keys():
-        return mock_meta[key]
-    return default
+        }
+
+    return mock_meta.get(key, default)
 
 
 @pytest.fixture
@@ -137,7 +136,7 @@ def mock_getmeta(key, default=None):
 def single_dataset_repo(mock_ds_host):
     """ Returns a mock datastore repository that gives the caller:
     - repository called 'test_bucket'
-    - some meta data about the dataset, as per mock_getmeta()
+    - some meta data about the dataset, as per mock_metadata()
     - a single dataset in that repository called 'groupA/groupAA/dataset1'
     - the dataset has 2 resources:
       - a local file called 'groupA/groupAA/dataset1/files1'
@@ -456,8 +455,7 @@ class TestPortalBuilder:
         portal_builder.setup_organizations()
         mocked_resources.stop_patching()
 
-        assert (mock_ckan.action.organization_create.call_count == 0,
-               "setup_organizations() should not create organization if it already exists")
+        assert mock_ckan.action.organization_create.call_count == 0, "setup_organizations() should not create organization if it already exists"
 
 
     def test_no_concurrent_build(self, good_portal_builder, mocked_resources):
@@ -560,7 +558,7 @@ class TestRepositoryBuilder:
         mock_repo.name = 'test_bucket'
         mock_repo.list.return_value = [ 'dataset1' ]
         mock_repo.get.return_value.name = 'dataset1'
-        mock_repo.get.return_value.metadata = { 'author':'dan', 'description':'test desc' }
+        mock_repo.get.return_value.metadata = { 'author':'test author', 'description':'test desc' }
         # Mock a bad file that is neither local nor remote.
         bad_file = MagicMock()
         bad_file.location.return_value = None
@@ -584,7 +582,7 @@ class TestRepositoryBuilder:
         mock_repo.list.return_value = [ 'dataset1' ]
         mock_repo.get.return_value.name = 'dataset1'
         mock_repo.get.return_value.metadata = {
-            'author':'dan',
+            'author':'test author',
             'description':'test desc',
             'data_type':'ocean data' }
 
@@ -612,7 +610,7 @@ class TestRepositoryBuilder:
         mock_repo.list.return_value = [ 'dataset1' ]
         mock_repo.get.return_value.name = 'dataset1'
         mock_repo.get.return_value.metadata = {
-            'author':'dan',
+            'author':'test author',
             'description':'test desc' }
 
         repo_builder = RepositoryBuilder(good_portal_builder, good_portal_cfg)
@@ -635,7 +633,7 @@ class TestRepositoryBuilder:
         mock_repo.list.return_value = [ 'dataset1' ]
         mock_repo.get.return_value.name = 'dataset1'
         mock_repo.get.return_value.metadata = {
-            'author':'dan',
+            'author':'test author',
             'data_type':'unknown type',
             'description':'test desc' }
 
@@ -658,7 +656,7 @@ class TestRepositoryBuilder:
         mock_repo.list.return_value = [ 'dataset1' ]
         mock_repo.get.return_value.name = 'dataset1'
         mock_repo.get.return_value.metadata = {
-            'author':'dan',
+            'author':'test author',
             'description':'test desc',
             'data_type':'ocean data' }
 
@@ -711,13 +709,16 @@ class TestRepositoryBuilder:
         mocked_resources.stop_patching()
 
         mock_ckan_site.action.package_create.assert_called_once_with(
-                name = 'test_bucket-groupa-groupaa-dataset1',
-                owner_org = 'test_org_name',
-                title = 'dataset1',
-                version = '1.0',
-                notes = 'test desc',
-                author = 'dan',
-                groups = [{'name': 'groupa'}, {'name': 'groupaa'}])
+            name = 'test_bucket-groupa-groupaa-dataset1',
+            owner_org = 'test_org_name',
+            title = 'dataset1',
+            version = '1.0',
+            notes = 'test desc',
+            author = 'test author',
+            author_email='test_author@test.email',
+            maintainer='test maintainer',
+            maintainer_email='test_maintainer@test.email',
+            groups = [{'name': 'groupa'}, {'name': 'groupaa'}])
 
 
     def test_build_portal_from_repo_no_update_if_still_fresh(self, single_dataset_repo, good_portal_cfg, mocked_resources):

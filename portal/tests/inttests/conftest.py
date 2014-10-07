@@ -104,7 +104,8 @@ class Portal_Builder_Runner:
         proc = self.daemon_running()
         if not proc:
             call(["portal-data-builder", "-c", self._cfg_filename, "daemon"])
-            # wait a bit
+            # Need a bit of sleep here to allow the daemon to be ready.
+            time.sleep(2)
             tm_start = time.time()
             while self.daemon_running() == None:
                 if (time.time() - tm_start) > 5:
@@ -147,7 +148,9 @@ def sample_data1():
                       meta_data={
                           'description': 'laser in ocean',
                           'author': 'test author',
-                          'author_email': 'test@test.email'})
+                          'author_email': 'test@test.email',
+                          'maintainer': 'test maintain',
+                          'maintainer_email': 'testmain@test.email'})
 
 
 @pytest.fixture(scope='session')

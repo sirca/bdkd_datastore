@@ -1,4 +1,4 @@
-#!//usr/bin/env python
+#!/usr/bin/env python
 import sys
 import os
 import argparse
@@ -117,6 +117,9 @@ class RepositoryBuilder:
             title = dataset.title,
             version = dataset.version,
             author = dataset.author,
+            author_email = dataset.author_email,
+            maintainer = dataset.maintainer,
+            maintainer_email = dataset.maintainer_email,
             notes = dataset.description,
             groups = dataset.groups)
         return ckan_ds
