@@ -1,7 +1,7 @@
 # coding=utf-8
 import codecs
 import unittest
-from mock import patch
+from mock import MagicMock
 import os, shutil, re
 
 # Load a custom configuration for unit testing
@@ -128,14 +128,12 @@ class RepositoryTest(unittest.TestCase):
         # ValueError
         self.assertRaises(ValueError, self.resource.set_edit)
 
-    @patch('bdkd.datastore.Repository')
-    def test_edit_from_resource(self, MockRepository):
-        mock_repo = MockRepository()
-        self.resource.repository = mock_repo;
+    def test_edit_from_resource(self):
+        self.resource.repository = MagicMock();
         # Calling set_edit() on a resource should call its repository's 
         # edit_resource() method
         self.resource.set_edit()
-        mock_repo.edit_resource.assert_called_with(self.resource)
+        self.resource.repository.edit_resource.assert_called_with(self.resource)
 
     def test_save_from_resource_no_repo(self):
         self.resource.repository = None;
@@ -143,14 +141,13 @@ class RepositoryTest(unittest.TestCase):
         # ValueError
         self.assertRaises(ValueError, self.resource.save)
 
-    @patch('bdkd.datastore.Repository')
-    def test_save_from_resource(self, MockRepository):
-        mock_repo = MockRepository()
-        self.resource.repository = mock_repo;
+    def test_save_from_resource(self):
+        self.resource.repository = MagicMock();
         # Calling save() on a resource should call its repository's save() 
         # method with overwrite=True
         self.resource.save()
-        mock_repo.save.assert_called_with(self.resource, overwrite=True)
+        self.resource.repository.save.assert_called_with(self.resource, 
+                overwrite=True)
 
     def test_edit_resource(self):
         # This is the default starting state of a Resource (i.e. unsaved)
