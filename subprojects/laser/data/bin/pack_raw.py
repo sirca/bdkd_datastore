@@ -32,9 +32,9 @@ def get_variables(maps_filename):
     return (x_variables, y_variables)
 
 
-def get_raw_files(file_glob):
+def get_raw_files(file_glob, xynames=False):
     filenames = glob.glob(file_glob)
-    timeseries_pattern = re.compile(r'FB_(\d+)_INJ_(\d+).csv')
+    timeseries_pattern = re.compile(r'(\d+)[^\d]+(\d+)')
     raw_files = {}
 
     x_max = -1
@@ -42,8 +42,8 @@ def get_raw_files(file_glob):
     for filename in filenames:
         match = timeseries_pattern.search(filename)
         if match:
-            x = int(match.group(2))
-            y = int(match.group(1))
+            x = int(match.group(1 if xynames else 2))
+            y = int(match.group(2 if xynames else 1))
             raw_files[(x,y)] = filename
             if x > x_max:
                 x_max = x
@@ -105,6 +105,9 @@ def pack_raw_parser():
     # Typically too many files for command-line: we need a glob pattern
     parser.add_argument('--pattern', required=True,
             help='Pattern to find raw file name(s)')
+    parser.add_argument('--xynames', type=bool, default=False,
+            help='Files contain X index followed by Y in their names '
+            '(default is False -- Y followed by X, e.g. "FB_001_INJ_002.csv")')
     parser.add_argument('--shard-size', type=int, default=9,
             help='(S x S) grid of timeseries')
     return parser
@@ -114,7 +117,7 @@ def main(argv=None):
     parser = pack_raw_parser()
     args = parser.parse_args(argv)
     (x_variables, y_variables) = get_variables(args.maps)
-    (x_max, y_max, raw_files) = get_raw_files(args.pattern)
+    (x_max, y_max, raw_files) = get_raw_files(args.pattern, args.xynames)
     pack_raw(x_variables, y_variables, x_max, y_max, raw_files, 
             args.shard_size)
     
