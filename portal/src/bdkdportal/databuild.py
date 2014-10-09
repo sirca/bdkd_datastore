@@ -24,7 +24,7 @@ MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 
 class Dataset:
@@ -48,7 +48,7 @@ def purge_ckan_dataset(ds_to_purge, ckan_ini):
     :param ds_to_purge: the unique name of the dataset to purge.
     :param ckan_ini: the CKAN ini file to use when purgin via python paste
     """
-    logging.info("Purging dataset '%s' from portal" % (ds_to_purge))
+    logging.getLogger(__name__).info("Purging dataset '%s' from portal" % (ds_to_purge))
     dataset_cmd = ckan.lib.cli.DatasetCmd("purger")
     dataset_cmd.run(["purge", ds_to_purge, "-c", ckan_ini])
 
@@ -72,7 +72,7 @@ class RepositoryBuilder:
         self._tmp_dir = None
 
 
-    def __init__(self, portal_builder, portal_cfg):
+    def __init__(self, portal_builder, portal_cfg, logger=None):
         """
         :param portal_builder: The portal builder object that created this builder object.
         :type  portal_builder: PortalBuilder
@@ -82,6 +82,7 @@ class RepositoryBuilder:
         self._dataset_audit = None
         self._portal_builder = portal_builder
         self._portal_cfg = portal_cfg
+        self.logger = logger or logging.getLogger(__name__)
 
 
     @staticmethod
@@ -110,7 +111,7 @@ class RepositoryBuilder:
         :type  dataset: Dataset
         :return: the CKAN dataset object created.
         """
-        logging.info("Creating CKAN dataset '%s'" % (dataset.name))
+        self.logger.info("Creating CKAN dataset '%s'" % (dataset.name))
         ckan_ds = self._ckan_site.action.package_create(
             name = dataset.name,
             owner_org = dataset.owner_org,
@@ -142,10 +143,10 @@ class RepositoryBuilder:
                 manifest_file.write(f.remote() + '\n')
             else:
                 # Unknown resource error.
-                logging.error('Unable to determine file location in resource %s.' % (ds_resource.name))
+                self.logger.error('Unable to determine file location in resource %s.' % (ds_resource.name))
 
         manifest_file.close()
-        logging.info("Creating manifest file for %s" % (ds_resource.name))
+        self.logger.info("Creating manifest file for %s" % (ds_resource.name))
         self._ckan_site.action.resource_create(
             package_id = dataset_name,
             description = 'Manifest for resource ' + ds_resource.name,
@@ -163,17 +164,17 @@ class RepositoryBuilder:
         """
         url_format = repo_cfg.get('download_url_format', None)
         if url_format is None:
-            logging.debug('No download_url_format configured so no download page generated')
+            self.logger.debug('No download_url_format configured so no download page generated')
             return 
         download_template = self._portal_cfg.get('download_template', None)
         if download_template is None:
-            logging.debug('No download_template configured so no download page generated')
+            self.logger.debug('No download_template configured so no download page generated')
             return
         if not os.path.exists(download_template):
-            logging.warn("Download template '%s' is not readable or does not exist." % download_template)
+            self.logger.warn("Download template '%s' is not readable or does not exist." % download_template)
             return
 
-        logging.info("Creating download file for dataset %s" % (ds_resource.name))
+        self.logger.info("Creating download file for dataset %s" % (ds_resource.name))
         from jinja2 import FileSystemLoader, Environment, PackageLoader
         template_loader = FileSystemLoader(searchpath='/')
         template_env = Environment(loader=template_loader)
@@ -192,7 +193,7 @@ class RepositoryBuilder:
                     name = file_key[resource_name_idx + resource_name_len + 1:]
                     file_url = url_format.format(datastore_host=repo_cfg['ds_host'],
                                                  repository_name=repo_cfg['bucket'],
-	         resource_id=urllib.quote_plus(f.location()))
+                                                 resource_id=urllib.quote_plus(f.location()))
             elif f.remote():
                 name = f.remote()
                 file_url = f.remote()
@@ -200,8 +201,8 @@ class RepositoryBuilder:
                 items.append({'name':name, 'url':file_url})
             else:
                 # Unknown resource error.
-                logging.error("Error determining file location while generating download links for resource '%s'."
-                              % (ds_resource.name))
+                self.logger.error("Error determining file location while generating download links for resource '%s'."
+                                  % (ds_resource.name))
         generated_page = template.render(
                 repository_name=ds_resource.repository.name,
                 dataset_name=ds_resource.name,
@@ -230,10 +231,10 @@ class RepositoryBuilder:
             if visual_site:
                 url = visual_site.format(repository_name=urllib.quote_plus(self._repo_name),
                                          resource_name=urllib.quote_plus(ds_resource.name))
-                logging.debug("Explore link for '%s' is '%s'" % (ds_resource.name, url))
+                self.logger.info("Created explore link for '%s' is '%s'" % (ds_resource.name, url))
                 self._ckan_site.action.resource_create(
                     package_id = dataset_name,
-                    description = 'Explore the dataset',
+                    description = 'Explore/visualise the dataset',
                     url = url, format = 'html', name = 'explore')
 
 
@@ -270,14 +271,14 @@ class RepositoryBuilder:
         ds_host = repo_cfg.get('ds_host')
 
         try:
-            logging.info('Building portal data from bucket: %s' % (self._repo_name))
+            self.logger.debug('Building portal data from bucket: %s' % (self._repo_name))
             repo = datastore.Repository(datastore.Host(host=ds_host), self._repo_name)
             repo_dataset_names = repo.list()
 
             # Get a list of existing CKAN groups so repeated groups don't get recreated.
             existing_groups = self._ckan_site.action.group_list()
             groups_to_cleanup = {}
-            logging.debug("Existing groups:" + str(existing_groups))
+            self.logger.debug("Existing groups:" + str(existing_groups))
 
             # Get a full list of all existing dataset in CKAN along side their meta data so that
             # 1. deleted dataset can be tracked and removed
@@ -285,7 +286,7 @@ class RepositoryBuilder:
             datasets_in_portal = self._ckan_site.action.current_package_list_with_resources()
     
             for ds_dataset_name in repo_dataset_names:
-                logging.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
+                self.logger.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
                 dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
                 build_dataset_portal_data = True
                 # Look for the dataset in the portal.
@@ -327,7 +328,7 @@ class RepositoryBuilder:
                     for group_name in group_names:
                         group_ckan_name = RepositoryBuilder.to_ckan_usable_name(group_name)
                         if group_ckan_name not in existing_groups:
-                            logging.info("Group %s not found, creating group..." % (group_ckan_name))
+                            self.logger.info("Group %s not found, creating group..." % (group_ckan_name))
                             self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)
                             existing_groups.append(group_ckan_name)
                         dataset.groups.append({'name':group_ckan_name})
@@ -350,9 +351,10 @@ PortalBuilder is a class that encapsulates operations required to build a data p
 information about research data and resources store in an object storage (such as S3).
 """
 class PortalBuilder:
-    def __init__(self):
+    def __init__(self, logger=None):
         self._cfg = {}
         self._ckan_site = None
+        self.logger = logger or logging.getLogger(__name__)
         pass
 
 
@@ -361,7 +363,7 @@ class PortalBuilder:
         :raises: IOError if the config can't be loaded.
         """
         if from_file:
-            logging.info("Using config from " + from_file)
+            self.logger.info("Using config from " + from_file)
             if not os.path.exists(from_file):
                 raise Exception("Error: portal data builder config file %s not found." % (from_file))
             self._cfg = yaml.load(open(from_file))
@@ -386,7 +388,7 @@ class PortalBuilder:
                     sect = " from '%s'" % (name)
                 raise Exception("Error: missing mandatory configuration token '%s'%s" % (item, sect))
             else:
-               logging.info("config:%s = %s" % (item, cfg_dict[item]))
+               self.logger.debug("config:%s = %s" % (item, cfg_dict[item]))
 
 
     def find_visual_site_for_datatype(self, datatype):
@@ -406,12 +408,13 @@ class PortalBuilder:
     def _build_portal(self, repo_name=None):
         """ Executes the priming process for the portal for all repos configured.
         :param repo_name: if specified, then only the repo with the matching bucket name will be built.
-        :raises: Exception if there is any failure.
+        :raises: Exception if there is any critical failure.
+        :returns: True if build was completely successful, False if there was a non-critical failure
         """
 
         # Validate config
         self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url', 'download_template'],)
-        logging.debug("Building repository: %s" % (repo_name if repo_name else "ALL"))
+        self.logger.info("Building portal: %s" % (repo_name if repo_name else "ALL"))
 
         ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
         datasets_before_build = ckan_site.action.current_package_list_with_resources()
@@ -428,7 +431,7 @@ class PortalBuilder:
                 repo_builder.build_portal_from_repo(repo_cfg=repo)
 
             except Exception as e:
-                logging.error("Portal data building failed " + str(e))
+                self.logger.error("Portal data building failed " + str(e))
                 repo_builder.release()
                 raise
 
@@ -436,6 +439,7 @@ class PortalBuilder:
 
         # Clean up leftover (i.e. datasets that were not touched are assume to be deleted from datastore)
         # This will only take place if the priming is for all repo, otherwise some dataset might not be 'touched'.
+        no_failure = True
         if repo_name is None:
             try:
                 groups_to_cleanup = {}
@@ -447,7 +451,7 @@ class PortalBuilder:
                         
                         # Track the groups that the purged dataset belongs to.
                         for group in dataset['groups']:
-                            logging.debug("Marking group %s for audit" % (group['name']))
+                            self.logger.debug("Marking group %s for audit" % (group['name']))
                             groups_to_cleanup[group['name']] = True
                 # end-for dataset
 
@@ -462,46 +466,45 @@ class PortalBuilder:
                         if group_info and group_info['package_count'] == 0:
                             # no dataset in that group anymore, delete and purge!
                             ckan_site.action.group_delete(id=group) 
-                            logging.info("Purging group '%s' from portal" % (group))
+                            self.logger.info("Purging group '%s' from portal" % (group))
                             ckan_site.action.group_purge(id=group)
                 """
 
             except Exception as e:
-                logging.error("Portal data building failed " + str(e))
+                self.logger.error("Portal data building failed " + str(e))
+                no_failure = False
+
+        return no_failure
             
 
     def build_portal(self, repo_name=None):
         """ Same as _build_portal() but wraps around a lock so that only one
         portal building can be done at a time.
+        :raises: Exception if there is any critical failure.
+        :returns: True if build was completely successful, False if there was a non-critical failure
         """
         # Prevent more than one portal building from taking place.
         build_lock = prepare_lock_file(self._cfg.get('build_lock_file', "/tmp/portal_building"))
         try:
+            self.logger.debug("Attempt to acquire build lock")
             build_lock.acquire(1)
         except LockTimeout:
+            self.logger.warn("Unable to acquire build lock")
             raise Exception("Unable to obtain build lock, probably another process is building the portal data.")
 
+        no_failure = False
         try:
-            self._build_portal(repo_name=repo_name)
+            no_failure = self._build_portal(repo_name=repo_name)
         finally:
             build_lock.release()
+            self.logger.debug("Build lock released")
+
+        return no_failure
 
 
-    def daemonize(self):
-        """ Daemonize the portal build process.
-        """
-        nap_duration = int(self._cfg.get('cycle_nap_in_mins', 60)) * 60
-        with daemon.DaemonContext():
-            while True:
-                try:
-                    self.build_portal()
-                except Exception as e:
-                    logging.error("Portal data building has failed: " + str(e))
-                    # If there is a monitoring system, we will raise an alert here.
-                    # Otherwise drop back to sleep, hopefully next cycle the failure
-                    # would have recovered.
-                    # We don't want to re-raise here or the daemon will terminates.
-                time.sleep(nap_duration)
+    def get_nap_duration(self):
+        """ Return the configured cycle nap duration in seconds """
+        return self._cfg.get('cycle_nap_in_mins', 60) * 60
 
 
     def setup_organizations(self, repo_name=None):
@@ -523,15 +526,37 @@ class PortalBuilder:
             site = ckanapi.RemoteCKAN(ckan_host, apikey=api_key)
             orgs = site.action.organization_list()
             if org_name not in orgs:
-                logging.debug("Organization %s does not exist yet, creating one..." % (org_name))
+                self.logger.info("Organization %s does not exist yet, creating one..." % (org_name))
                 site.action.organization_create(name=org_name,
                                                 title=repo['org_title'],
                                                 description=repo['org_title'])
             else:
-                logging.debug("Organization %s already exists, skipping setup" % (org_name))
+                self.logger.info("Organization %s already exists, skipping setup" % (org_name))
 
 
-def main():
+def _prepare_logging(args):
+    """ Prepare logging mode based on args passed in during launch. """
+    if args.log_ini:
+        logging.config.fileConfig(args.log_ini)
+    elif args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif args.verbose:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.WARN)
+
+
+_running = True
+def is_running():
+    # Can be mocked during unit test
+    global _running
+    return _running  
+
+def stop_running():
+    global _running
+    _running = False
+
+def main(cmd_args):
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
         description='BDKD Portal Data Builder V%s\nTo build the data of a BDKD Portal so that it is synchronized '
                     'with the BDKD Data Repository in an object store.' % (__version__))
@@ -544,41 +569,51 @@ def main():
     )
     parser.add_argument('-c', '--config', help='Configuration file')
     parser.add_argument('-b', '--bucket-name', help='Select the bucket to build from (must be in the config)')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Run in verbose mode')
-    parser.add_argument('--debug', action='store_true', help='Run in very verbose mode')
-    if len(sys.argv)==1:
+    parser.add_argument('-l', '--log-ini', help='Specify a logging ini file')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Run in verbose mode (INFO)')
+    parser.add_argument('--debug', action='store_true', help='Run in very verbose mode (DEBUG)')
+    if len(cmd_args)<=1:
         parser.print_help()
         sys.exit(1)
-    args = parser.parse_args()
+    args = parser.parse_args(args=cmd_args[1:])
 
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO)
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-
-    cfg_filename = '/etc/bdkd/portal.cfg'
-    if args.config:
-        cfg_filename = args.config
-
-    portal_builder = PortalBuilder()
-
-    if args.command == 'update':
-        portal_builder.load_config(from_file=cfg_filename)
-        portal_builder.build_portal(repo_name=args.bucket_name)
-
-    elif args.command == 'daemon':
-        portal_builder.load_config(from_file=cfg_filename)
-        portal_builder.daemonize()
-
-    elif args.command == 'setup':
-        portal_builder.load_config(from_file=cfg_filename)
-        portal_builder.setup_organizations(repo_name=args.bucket_name)
-
-    else:
+    if args.command not in ['update','daemon','setup']:
         sys.exit('Unknown command %s' % (args.command))
 
-    sys.exit(0)
+    if not args.config:
+        sys.exit('Please specify the configuration file to use')
+
+    if args.command == 'update':
+        _prepare_logging(args)
+        portal_builder = PortalBuilder()
+        portal_builder.load_config(from_file=args.config)
+        portal_builder.build_portal(repo_name=args.bucket_name)
+
+    elif args.command == 'setup':
+        _prepare_logging(args)
+        portal_builder = PortalBuilder()
+        portal_builder.load_config(from_file=args.config)
+        portal_builder.setup_organizations(repo_name=args.bucket_name)
+
+    elif args.command == 'daemon':
+        # run builder in daemonize mode (note: setup logging after daemonized)
+        with daemon.DaemonContext():
+            _prepare_logging(args)
+            portal_builder = PortalBuilder()
+            portal_builder.load_config(from_file=args.config)
+            nap_duration = portal_builder.get_nap_duration()
+            while is_running():
+                try:
+                    portal_builder.build_portal()
+                except Exception as e:
+                    logging.getLogger(__name__).error("Portal data building has failed: " + str(e))
+                    # If there is a monitoring system, we will raise an alert here.
+                    # Otherwise drop back to sleep, hopefully next cycle the failure
+                    # would have recovered.
+                    # We don't want to re-raise here or the daemon will terminates.
+                time.sleep(nap_duration)
+
+    return 0
 
 if __name__=='__main__':
-    logging.basicConfig(level=logging.WARN)
-    main()
+    main(sys.argv)

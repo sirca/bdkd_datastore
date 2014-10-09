@@ -45,6 +45,7 @@ class PortalResourceMocker:
         'bdkd.datastore.Host',
         'bdkdportal.databuild.prepare_lock_file',
         'bdkdportal.databuild.purge_ckan_dataset',
+        'logging.getLogger',
         'os.path.exists',
         '__builtin__.open',
     ]
@@ -86,22 +87,23 @@ def good_cfg_string():
     Keep updating this string as more config is added.
     """
     return """
-        api_key: test-key
-        ckan_cfg: test_ckan_cfg_file
-        ckan_url: test_ckan_url
-        download_template: test_template
-        repos:
-            - bucket: test_bucket
-              org_name: test_org_name
-              org_title: test_org_title
-              ds_host: test_ds_host
-              download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
-        visual-sites:
-            - data_type: ocean data
-              url: http://ocean.site/{repository_name}/{resource_name}
-            - data_type: rotation model
-              url: http://gplate.site/repo={repository_name}&ds={resource_name}
-        """
+api_key: test-key
+ckan_cfg: test_ckan_cfg_file
+ckan_url: test_ckan_url
+download_template: test_template
+repos:
+    - bucket: test_bucket
+      org_name: test_org_name
+      org_title: test_org_title
+      ds_host: test_ds_host
+      download_url_format: https://{datastore_host}/{repository_name}/{resource_id}
+visual-sites:
+    - data_type: ocean data
+      url: http://ocean.site/{repository_name}/{resource_name}
+    - data_type: rotation model
+      url: http://gplate.site/repo={repository_name}&ds={resource_name}
+           """
+
 
 @pytest.fixture
 def good_portal_cfg(good_cfg_string):
@@ -112,7 +114,7 @@ def good_portal_cfg(good_cfg_string):
 @pytest.fixture
 def good_portal_builder(good_cfg_string):
     # Provide a portal builder that has a good configuration.
-    builder = PortalBuilder()
+    builder = PortalBuilder(logger=MagicMock())
     builder.load_config(from_string=good_cfg_string)
     return builder
 
@@ -170,7 +172,7 @@ class TestPortalBuilder:
     def test_load_config_ok(self, mock_os_path_exists, good_cfg_string):
         """ Test the loading of a good configuration file.
         """
-        portal_builder_from_file = PortalBuilder()
+        portal_builder_from_file = PortalBuilder(logger=MagicMock())
         cfg_from_yaml = yaml.load(good_cfg_string) # For intercepting the loading
         with patch('yaml.load') as mock_yaml_load:
             mock_yaml_load.return_value = cfg_from_yaml
@@ -180,7 +182,7 @@ class TestPortalBuilder:
                 portal_builder_from_file.load_config(from_file='cfgfile_to_load')
                 mock_open.assert_called_once_with('cfgfile_to_load')
 
-        portal_builder_from_string = PortalBuilder()
+        portal_builder_from_string = PortalBuilder(logger=MagicMock())
         portal_builder_from_string.load_config(from_string=good_cfg_string)
 
         # Check that loading config from string and from a file should produce the same config.
@@ -200,7 +202,7 @@ class TestPortalBuilder:
     def test_load_config_file_failures(self):
         """ Test when the builder throws if loading config file fails
         """
-        builder = PortalBuilder()
+        builder = PortalBuilder(logger=MagicMock())
         # If config file is missing or not openable, it should raise an exception.
         with patch('os.path.exists', return_value=False):
             with pytest.raises(Exception):
@@ -212,18 +214,29 @@ class TestPortalBuilder:
                     builder.load_config("open_fail_cfg")
 
 
+    def test_nap_config(self, good_cfg_string):
+        builder = PortalBuilder(logger=MagicMock())
+        builder.load_config(from_string=good_cfg_string)
+        # if not specifed, there will be a default (which is every hour)
+        assert builder.get_nap_duration() == 3600
+        cfg_with_nap = "cycle_nap_in_mins: 5" + good_cfg_string
+        builder.load_config(from_string=cfg_with_nap)
+        # if specified, it will be returned in seconds
+        assert builder.get_nap_duration() == 300
+
+
     def test_data_build_with_bad_config(self, mocked_resources):
         """ Test that priming fails if config is bad.
         """
         # Config not loaded should fail
         mocked_resources.start_patching()
         with pytest.raises(Exception):
-            builder = PortalBuilder()
+            builder = PortalBuilder(logger=MagicMock())
             builder.build_portal()
 
         # Missing key settings should fail
         with pytest.raises(Exception):
-            builder = PortalBuilder()
+            builder = PortalBuilder(logger=MagicMock())
             builder.load_config(from_string="""
                 repos:
                     - bucket: test_bucket
@@ -236,7 +249,7 @@ class TestPortalBuilder:
 
         # Missing repo key settings should fail too
         with pytest.raises(Exception):
-            builder = PortalBuilder()
+            builder = PortalBuilder(logger=MagicMock())
             builder.load_config(from_string="""
                     api_key: test-key
                     ckan_cfg: test_ckan_cfg_file
@@ -251,14 +264,14 @@ class TestPortalBuilder:
             builder.build_portal()
 
         with pytest.raises(Exception):
-            builder = PortalBuilder()
+            builder = PortalBuilder(logger=MagicMock())
             builder.load_config(from_string="""
                 api_key: test-key
                 """)
             builder.build_portal()
 
         with pytest.raises(Exception):
-            builder = PortalBuilder()
+            builder = PortalBuilder(logger=MagicMock())
             builder.load_config() # Need to specify where to load the config from
 
         mocked_resources.stop_patching()
@@ -277,7 +290,7 @@ class TestPortalBuilder:
         """
         with patch('bdkdportal.databuild.RepositoryBuilder') as repo_builder_patcher:
             mocked_resources.start_patching()
-            portal_builder = PortalBuilder()
+            portal_builder = PortalBuilder(logger=MagicMock())
             portal_builder.load_config(from_string="""
                     api_key: test-key
                     ckan_cfg: test_ckan_cfg_file
@@ -350,12 +363,11 @@ class TestPortalBuilder:
                 'revision_timestamp' : '20131201T12:34:56',
                 'groups' : [{'name':'groupb'},{'name':'groupbb'}],
             }]
-        with patch('logging.error') as mock_error_log:
-            good_portal_builder.build_portal()
+        success = good_portal_builder.build_portal()
         mocked_resources.stop_patching()
 
-        # Clean up failures do not terminate the build, but it should at least log an error.
-        assert mock_error_log.called, "An error should have been logged if cleanup failed"
+        # Clean up failures do not terminate the build, but it should at least log some kind of error.
+        assert success == False, "An error should have been noted if cleanup failed"
 
 
     def test_build_portal_purge_obsolete_dataset(self, single_dataset_repo, good_portal_cfg, good_portal_builder, mocked_resources):
@@ -411,7 +423,7 @@ class TestPortalBuilder:
         """ Test that setup organizations creates CKAN organization from repo config
         """
         mocked_resources.start_patching()
-        portal_builder = PortalBuilder()
+        portal_builder = PortalBuilder(logger=MagicMock())
         portal_builder.load_config(from_string="""
                 api_key: test-key
                 ckan_url: test_ckan_url
@@ -436,12 +448,22 @@ class TestPortalBuilder:
                      title='test_org_title2',
                      description='test_org_title2')])
 
+        # Now only after a particular repo
+        mocked_resources.start_patching()
+        portal_builder.setup_organizations(repo_name='test_bucket2')
+        mocked_resources.stop_patching()
+        mock_ckan = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+        assert mock_ckan.action.organization_create.call_count == 1, "setup_organizations() should only be called once"
+        mock_ckan.action.organization_create.assert_has_calls([
+                call(name='test_org_name2',
+                     title='test_org_title2',
+                     description='test_org_title2')])
 
     def test_setup_organizations_no_duplication(self, mocked_resources):
         """ Test that setup organizations does not create a CKAN organization if it already exists
         """
         mocked_resources.start_patching()
-        portal_builder = PortalBuilder()
+        portal_builder = PortalBuilder(logger=MagicMock())
         portal_builder.load_config(from_string="""
                 api_key: test-key
                 ckan_url: test_ckan_url
@@ -511,7 +533,7 @@ class TestRepositoryBuilder:
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
                      package_id='test_bucket-groupa-groupaa-dataset1',
-                     description='Explore the dataset',
+                     description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
                 any_order=True)
@@ -567,10 +589,11 @@ class TestRepositoryBuilder:
 
         repo_builder = RepositoryBuilder(good_portal_builder, good_portal_cfg)
         repo_cfg = good_portal_cfg['repos'][0]
-        with patch('logging.error') as mock_error_log:
-            repo_builder.build_portal_from_repo(repo_cfg)
+        repo_builder.build_portal_from_repo(repo_cfg)
         mocked_resources.stop_patching()
-        assert 'dataset1' in mock_error_log.call_args[0][0], "Expected error to be logged when resource is invalid"
+        mock_logger = mocked_resources.get_mock('logging.getLogger')
+        assert ('dataset1' in mock_logger.return_value.error.call_args[0][0],
+                "Expected error to be logged when resource is invalid")
 
 
     def test_build_portal_from_repo_visualization(self, good_portal_cfg, good_portal_builder, mocked_resources):
@@ -595,7 +618,7 @@ class TestRepositoryBuilder:
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
                      package_id='test_bucket-dataset1',
-                     description='Explore the dataset',
+                     description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
                 any_order=True)
@@ -669,7 +692,7 @@ class TestRepositoryBuilder:
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
                      package_id='test_bucket-dataset1',
-                     description='Explore the dataset',
+                     description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
                 any_order=True)
@@ -692,7 +715,7 @@ class TestRepositoryBuilder:
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url='http://ocean.site/test_bucket/groupA%2FgroupAA%2Fdataset1',
                      package_id='test_bucket-groupa-groupaa-dataset1',
-                     description='Explore the dataset',
+                     description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
                 any_order=True)
@@ -829,11 +852,14 @@ class TestRepositoryBuilder:
         assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
 
 
+from bdkdportal.databuild import main as call_main
+import argparse
+
 class TestMain:
 
     def test_prepare_lock_file(self):
         """ Test that prepare_lock_file() claims what it does. Note that FileLock cannot be
-        mocked so this will be using a real lock file. Test is required for full coverage purposes.
+        mocked so this will be using a real lock file.
         """
         from bdkdportal.databuild import prepare_lock_file
         from lockfile import LockTimeout
@@ -845,3 +871,112 @@ class TestMain:
         assert not build_lock1.is_locked(), "Release lock file did not appear to work"
 
 
+    def test_main_no_arg_prints_help(self):
+        """ Test that mainline prints help if no arg was provided. """
+        with pytest.raises(SystemExit) as e:
+            with patch.object(argparse.ArgumentParser, 'print_help') as mock_help:
+                call_main(['prog'])
+        assert mock_help.called, "Help was expected but wasn't there"
+
+
+    def test_main_run_unknown_command(self):
+        with pytest.raises(SystemExit) as e:
+            call_main(['prog','unknown'])
+
+
+    def test_main_run_update_no_config(self):
+        with pytest.raises(SystemExit) as e:
+            call_main(['prog','update'])
+
+
+    @patch('logging.config')
+    @patch('bdkdportal.databuild.PortalBuilder')
+    def test_main_run_update_with_logging(self, mock_PortalBuilder, mock_logging_config):
+        import logging
+        mock_portal_builder = mock_PortalBuilder.return_value
+
+        # Test various logging levels
+        with patch('logging.basicConfig') as mock_basicConfig:
+            call_main(['prog', '-c', 'my_config', 'update'])
+            mock_basicConfig.assert_called_once_with(level=logging.WARN)
+
+        with patch('logging.basicConfig') as mock_basicConfig:
+            call_main(['prog', '-c', 'my_config', 'update', '--verbose'])
+            mock_basicConfig.assert_called_once_with(level=logging.INFO)
+
+        with patch('logging.basicConfig') as mock_basicConfig:
+            call_main(['prog', '-c', 'my_config', 'update', '--debug'])
+            mock_basicConfig.assert_called_once_with(level=logging.DEBUG)
+
+        with patch('logging.config.fileConfig') as mock_fileConfig:
+            call_main(['prog', '-c', 'my_config', 'update', '--log-ini', 'test_log.ini'])
+            mock_fileConfig.assert_called_once_with('test_log.ini')
+
+
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    def test_main_run_update(self, mock_basicConfig, mock_PortalBuilder):
+        mock_portal_builder = mock_PortalBuilder.return_value
+
+        call_main(['prog', '-c','my_config','update'])
+
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        mock_portal_builder.build_portal.assert_called_once_with(repo_name=None)
+
+
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    def test_main_run_setup(self, mock_basicConfig, mock_PortalBuilder):
+        mock_portal_builder = mock_PortalBuilder.return_value
+
+        call_main(['prog', '-c','my_config','setup'])
+
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        mock_portal_builder.setup_organizations.assert_called_once_with(repo_name=None)
+
+
+    @patch('time.sleep')
+    @patch('daemon.DaemonContext')
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    @patch('logging.getLogger')
+    def test_main_run_daemon(self, mock_getLogger, mock_basicConfig, mock_PortalBuilder, mock_DaemonContext, mock_sleep):
+        mock_portal_builder = mock_PortalBuilder.return_value
+        mock_portal_builder.get_nap_duration.return_value = 123
+        with patch('bdkdportal.databuild.is_running', side_effect=[True, True, False]):
+            # Side effect: 1st and 2nd cycles do the build, but 3rd cycle will terminates.
+            call_main(['prog', '-c','my_config','daemon'])
+
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        # Called twice because it was setup to do 2 cycles then terminates.
+        mock_portal_builder.build_portal.assert_has_calls([call(), call()])
+        mock_sleep.assert_called_with(123)
+
+        # When running in daemon mode, by default is_running() is always True until it has been stopped.
+        import bdkdportal.databuild
+        assert bdkdportal.databuild.is_running(), "Default builder state should be 'running'"
+        bdkdportal.databuild.stop_running()
+        assert not bdkdportal.databuild.is_running(), "Builder state should have changed to 'stopped'"
+
+        # Now that the mode is set to stop, executing in daemon mode should not trigger a 'build'
+        count_before = mock_portal_builder.build_portal.call_count
+        call_main(['prog', '-c','my_config','daemon'])
+        assert mock_portal_builder.build_portal.call_count == count_before, "Should not build after it has been stopped"
+
+
+    @patch('time.sleep')
+    @patch('daemon.DaemonContext')
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    @patch('logging.getLogger')
+    def test_main_run_daemon_with_failure(self, mock_getLogger, mock_basicConfig, mock_PortalBuilder,
+                                          mock_DaemonContext, mock_sleep):
+        mock_portal_builder = mock_PortalBuilder.return_value
+        mock_portal_builder.get_nap_duration.return_value = 1
+        mock_portal_builder.build_portal.side_effect = Exception("Simulated build failure")
+        with patch('bdkdportal.databuild.is_running', side_effect=[True, True, False]):
+            call_main(['prog', '-c','my_config','daemon'])
+
+        # Test that 2 build attempts even though the build threw errors.
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        mock_portal_builder.build_portal.call_count == 2
