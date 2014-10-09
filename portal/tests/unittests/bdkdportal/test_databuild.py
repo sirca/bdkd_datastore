@@ -852,7 +852,7 @@ class TestRepositoryBuilder:
         assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
 
 
-from bdkdportal.databuild import main as call_main
+from bdkdportal.databuild import portal_data_builder_entry as call_main
 import argparse
 
 class TestMain:

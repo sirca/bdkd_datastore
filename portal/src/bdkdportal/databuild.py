@@ -556,7 +556,7 @@ def stop_running():
     global _running
     _running = False
 
-def main(cmd_args):
+def portal_data_builder_entry(cmd_args):
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
         description='BDKD Portal Data Builder V%s\nTo build the data of a BDKD Portal so that it is synchronized '
                     'with the BDKD Data Repository in an object store.' % (__version__))
@@ -615,5 +615,8 @@ def main(cmd_args):
 
     return 0
 
+def main():
+    portal_data_builder_entry(sys.argv)
+
 if __name__=='__main__':
-    main(sys.argv)
+    main()
