@@ -61,31 +61,31 @@ $(document).ready(function() {
         <p><form onsubmit="onSelectTimeSeries(); return false">
             <table>
                 <tr>
-                    <td><strong>
-                            <label for="map_y">{{ dataset.y_name }} Index</label>
-                        </strong>
-                    </td>
+                    <td style="text-align:right">Index</td>
                     <td><input type="text" id="map_y" name="map_y" size="4"
                         value="0" onblur="updateMapInputs()"/>
                         <span id="map_y_range"></span>
                     </td>
                 </tr>
                 <tr>
-                    <td/>
+                    <td style="text-align:right"><strong>
+                            <label for="map_y">{{ dataset.y_name }}</label>
+                        </strong>
+                    </td>
                     <td><span id="y_variable"></span></td>
                 </tr>
                 <tr>
-                    <td><strong>
-                            <label for="map_x">{{ dataset.x_name }} Index</label>
-                        </strong>
-                    </td>
+                    <td style="text-align:right">Index</td>
                     <td><input type="text" id="map_x" name="map_x" size="4"
                         value="0" onblur="updateMapInputs()"/>
                         <span id="map_x_range"></span>
                     </td>
                 </tr>
                 <tr>
-                    <td/>
+                    <td style="text-align:right"><strong>
+                            <label for="map_x">{{ dataset.x_name }}</label>
+                        </strong>
+                    </td>
                     <td><span id="x_variable"></span></td>
                 </tr>
                 <tr>
