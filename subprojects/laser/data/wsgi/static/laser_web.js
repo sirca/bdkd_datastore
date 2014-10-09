@@ -108,18 +108,70 @@ function updateTimeSeriesOptions() {
 };
 
 
+function isPositiveInteger(n) {
+    return n >>> 0 == parseFloat(n);
+};
+
+
+function getFieldIntValue(selector, description, min_val, max_val, default_val) {
+    var field_element = $(selector);
+    var field_str = field_element.val()
+    var field_val = -1;
+    var success = false;
+    if ( isPositiveInteger(field_str) ) {
+        field_val = Number(field_str);
+        if ( field_val < min_val || field_val > max_val ) {
+            alert(description + " value out of range");
+        }
+        else {
+            success = true;
+        }
+    }
+    else {
+        alert(description + " is not an integer");
+    }
+    if ( ! success ) {
+        field_val = default_val;
+        field_element.val(field_val.toString());
+    }
+    return field_val;
+};
+
+
+function getMapXIndex() {
+    return getFieldIntValue('#map_x', BDKD.dataset.x_name, 
+            BDKD.map_data.min_x, 
+            BDKD.map_data.max_x, 
+            BDKD.map_data.min_x);
+};
+
+
+function setMapXIndex(x_index) {
+    $('#map_x').val(x_index.toString());
+    updateMapInputs();
+};
+
+
+function getMapYIndex() {
+    return getFieldIntValue('#map_y', BDKD.dataset.y_name, 
+            BDKD.map_data.min_y, 
+            BDKD.map_data.max_y, 
+            BDKD.map_data.min_y);
+};
+
+
+function setMapYIndex(y_index) {
+    $('#map_y').val(y_index.toString());
+    updateMapInputs();
+};
+
+
 function onSelectTimeSeries() {
-
-    var x_index = $("select#map_x_selection")[0].selectedIndex;
-    var y_index = $("select#map_y_selection")[0].selectedIndex;
-
-    selectTimeSeries(x_index, y_index);
+    selectTimeSeries(getMapXIndex(), getMapYIndex());
 };
 
 
 function selectTimeSeries(x, y) {
-    $("select#map_x_selection")[0].selectedIndex = x;
-    $("select#map_y_selection")[0].selectedIndex = y;
     BDKD.selection.x_index = x;
     BDKD.selection.y_index = y;
     BDKD.selection.from_time = 0;
@@ -128,6 +180,18 @@ function selectTimeSeries(x, y) {
     onChangeTimeSeries();
 };
 
+
+function updateMapInputs() {
+    var x_index = getMapXIndex();
+    var y_index = getMapYIndex();
+    var xy_data = BDKD.map_data.data[x_index][y_index];
+    $('#map_x_range').html("(" + BDKD.map_data.min_x.toString() + " .. " +
+            BDKD.map_data.max_x.toString() + ")");
+    $('#map_y_range').html("(" + BDKD.map_data.min_y.toString() + " .. " +
+            BDKD.map_data.max_y.toString() + ")");
+    $('#x_variable').html(xy_data.x_variable.toString());
+    $('#y_variable').html(xy_data.y_variable.toString());
+}
 
 function getHeatmapSelection(x_index, y_index) {
     var x_size = BDKD.heatmap.x_columns[0].length;
@@ -356,12 +420,14 @@ function drawHeatMap(map_data) {
                 tooltip.style("visibility", "hidden");
             })
             .on("click", function(d) { 
+                setMapXIndex(d.x_index);
+                setMapYIndex(d.y_index);
                 selectTimeSeries(d.x_index, d.y_index); 
             })
     ;
     // Draw axes on the heatmap
     drawHeatMapAxes(BDKD.heatmap, BDKD.map_data);
-    updateTimeSeriesOptions();
+    updateMapInputs();
 
     // Ready to show
     $('#heatmap_spinner').hide();
@@ -434,12 +500,6 @@ function onChangeTimeSeries() {
      *
      * The from/to times are reset to the defaults (0 - 999999).
      */
-    /*
-    BDKD.injection = $('#map_injection').val();
-    BDKD.feedback = $('#map_feedback').val();
-    BDKD.from_time = 0;
-    BDKD.to_time = 999999;
-    */
     $('#time_series_panel').slideDown();
     updateTimeSeries();
     $('#phase_panel').slideDown();

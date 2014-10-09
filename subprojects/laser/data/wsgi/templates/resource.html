@@ -59,15 +59,40 @@ $(document).ready(function() {
             </table>
         <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
         <p><form onsubmit="onSelectTimeSeries(); return false">
-            <label for="map_x_selection">{{ dataset.x_name }}</label>
-            <select id="map_x_selection"
-                onchange="updateTimeSeriesOptions(); return false">
-            </select>
-            <label for="map_y_selection">{{ dataset.y_name }}</label>
-            <select id="map_y_selection"
-                onchange="updateTimeSeriesOptions(); return false">
-            </select>
-            <input type="submit" value="Show"/>
+            <table>
+                <tr>
+                    <td><strong>
+                            <label for="map_y">{{ dataset.y_name }} Index</label>
+                        </strong>
+                    </td>
+                    <td><input type="text" id="map_y" name="map_y" size="4"
+                        value="0" onblur="updateMapInputs()"/>
+                        <span id="map_y_range"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td><span id="y_variable"></span></td>
+                </tr>
+                <tr>
+                    <td><strong>
+                            <label for="map_x">{{ dataset.x_name }} Index</label>
+                        </strong>
+                    </td>
+                    <td><input type="text" id="map_x" name="map_x" size="4"
+                        value="0" onblur="updateMapInputs()"/>
+                        <span id="map_x_range"></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td><span id="x_variable"></span></td>
+                </tr>
+                <tr>
+                    <td/>
+                    <td><input type="submit" value="Generate Plots"/></td>
+                </tr>
+            </table>
         </form></p>
 
         </div>
