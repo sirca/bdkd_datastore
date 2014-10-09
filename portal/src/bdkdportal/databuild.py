@@ -24,7 +24,7 @@ MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 
 class Dataset:
