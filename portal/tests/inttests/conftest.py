@@ -77,7 +77,8 @@ class Portal_Builder_Runner:
     """ For starting/stopping a portal builder during test.
     """
     def __init__(self):
-        self._cfg_filename = '/etc/bdkd/portal.cfg'
+        self._cfg_filename = '/etc/bdkd/portal/builder.cfg'
+        self._log_ini = '/etc/bdkd/portal/logging.ini'
         self._cfg = None
 
     def use_config(self, cfg_filename):
@@ -103,7 +104,7 @@ class Portal_Builder_Runner:
         """
         proc = self.daemon_running()
         if not proc:
-            call(["portal-data-builder", "-c", self._cfg_filename, "daemon"])
+            call(["portal-data-builder", "-c", self._cfg_filename, "-l", self._log_ini, "daemon"])
             # Need a bit of sleep here to allow the daemon to be ready.
             time.sleep(2)
             tm_start = time.time()
