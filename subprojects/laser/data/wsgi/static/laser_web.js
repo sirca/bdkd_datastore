@@ -83,30 +83,6 @@ function onChangeDataset() {
     updateReadme();
 };
 
-function updateTimeSeriesOptions() {
-    var x_index = $("#map_x_selection")[0].selectedIndex;
-    if ( x_index < 0 ) { x_index = 0; }
-    var y_index = $("#map_y_selection")[0].selectedIndex;
-    if ( y_index < 0 ) { y_index = 0; }
-
-    var x_options = '';
-    for ( var x = 0; x < BDKD.map_data.data.length; x++ ) {
-        var datum = BDKD.map_data.data[x][y_index];
-        x_options += '<option' + (x == x_index ? ' selected="selected">' : '>');
-        x_options += datum.x_index + ': ' + datum.x_variable;
-        x_options += '</option>';
-    }
-    var y_options = '';
-    $('#map_x_selection').html(x_options);
-    for ( var y = 0; y < BDKD.map_data.data[0].length; y++ ) {
-        var datum = BDKD.map_data.data[x_index][y];
-        y_options += '<option' + (y == y_index ? ' selected="selected">' : '>');
-        y_options += datum.y_index + ': ' + datum.y_variable;
-        y_options += '</option>';
-    }
-    $('#map_y_selection').html(y_options);
-};
-
 
 function isPositiveInteger(n) {
     return n >>> 0 == parseFloat(n);
