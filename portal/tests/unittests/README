@@ -1,0 +1,5 @@
+To run unit test, make sure you have installed the required packages as per the requirements-test.txt file.
+Activate your virtual environment that has all the required packages installed.
+Run py.test with coverage using the command:
+$ pip install -r requirements-test.txt
+$ py.test tests/unittests/ --cov-report xml --cov bdkdportal
