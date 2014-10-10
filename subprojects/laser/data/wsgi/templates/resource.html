@@ -47,16 +47,9 @@ $(document).ready(function() {
         <div id="map_header" class="sliding_header">Map</div>
         <div id="map_panel"  class="sliding_panel">
             <p><span id="heatmap_download"></span></p>
-            <table id="heatmap_display" style="display:none" border="0">
-                <tr>
-                    <td style="vertical-align:center;">{{ dataset.y_name }}</td>
-                    <td><svg id="heatmap"></svg></td>
-                </tr>
-                <tr>
-                    <td/>
-                    <td style="text-align:center;">{{ dataset.x_name }}</td>
-                </tr>
-            </table>
+            <div id="heatmap_display" style="display:none">
+                <svg id="heatmap"></svg>
+            </div>
         <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
         <p><form onsubmit="onSelectTimeSeries(); return false">
             <table>

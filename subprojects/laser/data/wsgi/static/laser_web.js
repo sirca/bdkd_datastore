@@ -1,6 +1,8 @@
 BDKD.MAP_SCALE=1;
-BDKD.MAP_X_AXIS_OFFSET=64;
-BDKD.MAP_Y_AXIS_OFFSET=80;
+BDKD.MAP_X_AXIS_OFFSET=104;
+BDKD.MAP_X_AXIS_LABEL=84;
+BDKD.MAP_Y_AXIS_OFFSET=124;
+BDKD.MAP_Y_AXIS_LABEL=24;
 BDKD.MAP_BORDER=24;
 
 BDKD.TIME_SERIES_LEFT_OFFSET_PX = 81;
@@ -327,7 +329,17 @@ function drawHeatMapAxes(heatmap) {
         .attr("transform", function(d) {
             return "rotate(-90)"
         })
-    ;
+        ;
+    // X axis label
+    heatmap
+        .append("text")
+        .attr("x", ((BDKD.map_data.max_x + 1) / 2 * BDKD.MAP_SCALE) +
+                BDKD.MAP_Y_AXIS_OFFSET)
+        .attr("y", ((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE +
+                    BDKD.MAP_BORDER + BDKD.MAP_X_AXIS_LABEL))
+        .style("text-anchor", "middle")
+        .text(BDKD.dataset.x_name)
+        ;
     // Append Y axis
     heatmap
         .append("g")
@@ -337,7 +349,17 @@ function drawHeatMapAxes(heatmap) {
                 (BDKD.MAP_BORDER) + ")")
         .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)
         .selectAll("text")
-    ;
+        ;
+    // Y axis label
+    heatmap
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -(((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)/2 +
+                    BDKD.MAP_BORDER))
+        .attr("y", BDKD.MAP_Y_AXIS_LABEL)
+        .style("text-anchor", "middle")
+        .text(BDKD.dataset.y_name)
+        ;
 };
 
 
