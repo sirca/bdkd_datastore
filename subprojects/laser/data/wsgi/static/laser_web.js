@@ -4,12 +4,18 @@ BDKD.MAP_X_AXIS_LABEL=84;
 BDKD.MAP_Y_AXIS_OFFSET=124;
 BDKD.MAP_Y_AXIS_LABEL=24;
 BDKD.MAP_BORDER=24;
-
+/*
 BDKD.TIME_SERIES_LEFT_OFFSET_PX = 81;
 BDKD.TIME_SERIES_WIDTH_PX = 495;
 BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX + 
         BDKD.TIME_SERIES_WIDTH_PX);
 BDKD.TIME_SERIES_HEIGHT_PX = 480;
+*/
+BDKD.TIME_SERIES_LEFT_OFFSET_PX = 61;
+BDKD.TIME_SERIES_WIDTH_PX = 371;
+BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX + 
+        BDKD.TIME_SERIES_WIDTH_PX);
+BDKD.TIME_SERIES_HEIGHT_PX = 360;
 
 BDKD.ZOOM_SIZE = 15;
 BDKD.ZOOM_SCALE = 10;
@@ -498,6 +504,7 @@ function onChangeTimeSeries() {
      *
      * The from/to times are reset to the defaults (0 - 999999).
      */
+    $('#timeseries_container').css('display', 'block');
     $('#time_series_panel').slideDown();
     updateTimeSeries();
     $('#phase_panel').slideDown();
@@ -541,7 +548,7 @@ function onChangePhaseDelay() {
 
 function updateTimeSeries() {
     $('#time_series_plot').replaceWith(
-            "<img id='time_series_plot' width=640 height=480 src='" + 
+            "<img id='time_series_plot' width=480 height=360 src='" + 
             timeSeriesPlotUrl() + "' />");
     if ( BDKD.ias ) 
         BDKD.ias.setOptions({ hide: true });
@@ -553,7 +560,7 @@ function updateTimeSeries() {
     $('#from_time').val(BDKD.selection.from_time);
     $('#to_time').val(BDKD.selection.to_time);
     $('#time_series_download').html('Data: <a href="' + timeSeriesDataUrl() + 
-            '">' + timeSeriesDataUrl() + '</a>');
+            '">download</a>');
 };
 
 
@@ -573,15 +580,15 @@ function updatePhaseDiagram() {
     var phase_delay = parseInt($('#phase_delay').val());
     var plot_src = phasePlotUrl(phase_delay);
     $('#phase_plot').replaceWith(
-            "<img id='phase_plot' width=640 height=480 src='" +
+            "<img id='phase_plot' width=480 height=360 src='" +
             phasePlotUrl(phase_delay) + "' />");
 };
 
 
 function updateFFTDiagram() {
     $('#fft_download').html(
-            'Data: <a href="' + fftDataUrl() + '">' + fftDataUrl() + '</a>'); 
-    $('#fft_plot').replaceWith("<img id='fft_plot' width=640 height=480 src='" +
+            'Data: <a href="' + fftDataUrl() + '">download</a>'); 
+    $('#fft_plot').replaceWith("<img id='fft_plot' width=480 height=360 src='" +
             fftPlotUrl() + "' />");
 };
 

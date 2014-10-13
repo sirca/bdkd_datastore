@@ -34,132 +34,139 @@ $(document).ready(function() {
     </head>
     <body>
         <h1>Experiment results</h1>
-        <p>
-            <label id="label_map" for="map">Map:</label>
-            <select id="map" onchange="onChangeMap()"></select>
-        </p>
+        <div id="plots_container" style="overflow:auto">
+            <div id="heatmap_container" style="float:left">
+                <div id="map_header" class="sliding_header">Map</div>
+                <div id="map_panel"  class="sliding_panel">
+                    <p>
+                        <label id="label_map" for="map">Map:</label>
+                        <select id="map" onchange="onChangeMap()"></select>
+                    </p>
 
+                    <p><span id="heatmap_download"></span></p>
+                    <div id="heatmap_display" style="display:none">
+                        <svg id="heatmap"></svg>
+                    </div>
+                <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
+                <p><form onsubmit="onSelectTimeSeries(); return false">
+                    <table>
+                        <tr>
+                            <td style="text-align:right">Index</td>
+                            <td><input type="text" id="map_y" name="map_y" size="4"
+                                value="0" onblur="updateMapInputs()"/>
+                                <span id="map_y_range"></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:right"><strong>
+                                    <label for="map_y">{{ dataset.y_name }}</label>
+                                </strong>
+                            </td>
+                            <td><span id="y_variable"></span></td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:right">Index</td>
+                            <td><input type="text" id="map_x" name="map_x" size="4"
+                                value="0" onblur="updateMapInputs()"/>
+                                <span id="map_x_range"></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align:right"><strong>
+                                    <label for="map_x">{{ dataset.x_name }}</label>
+                                </strong>
+                            </td>
+                            <td><span id="x_variable"></span></td>
+                        </tr>
+                        <tr>
+                            <td/>
+                            <td><input type="submit" value="Generate Plots"/></td>
+                        </tr>
+                    </table>
+                </form></p>
+
+                </div>
+
+            </div>
+            <div id="timeseries_container" style="float:left; border-left: 2px solid lightgrey; display:none">
+                <div id="time_series_header" class="sliding_header">Time series</div>
+                <div id="time_series_panel"  class="sliding_panel">
+                    <table border="0">
+                        <tr>
+                            <td>
+                                <svg height="360" width="36">
+                                    <text x="-180" y="20" transform="rotate(-90)"
+                                        style="text-anchor: middle">Signal Amplitude (V)
+                                    </text>
+                                </svg>
+                            </td>
+                            <td><span id="time_series_plot"></span></td>
+                        </tr>
+                        <tr>
+                            <td/>
+                        <td style="text-align:center;">Time (ps)</td>
+                        </tr>
+                    </table>
+                    <p><form onsubmit="onZoomTimeSeries(); return false;">
+                            From: <input id="from_time" type="text" size="6"/> 
+                            To: <input id="to_time" type="text" size="6"/>
+                            <input type="submit" value="Zoom"/>
+                            <span> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
+                            |<span id="time_series_download"></span></span>
+                        </form>
+                    </p>
+                </div>
+
+                <div id="phase_header" class="sliding_header">Phase diagram</div>
+                <div id="phase_panel"  class="sliding_panel">
+                    <table border="0">
+                        <tr>
+                            <td>
+                                <svg height="360" width="36">
+                                    <text x="-180" y="20" transform="rotate(-90)"
+                                        style="text-anchor: middle">Y(t)
+                                    </text>
+                                </svg>
+                            </td>
+                            <td><span id="phase_plot"></span></td>
+                        </tr>
+                        <tr>
+                            <td/>
+                            <td style="text-align:center;">Y(t+delay)</td>
+                        </tr>
+                    </table>
+                    <p><form onsubmit="onChangePhaseDelay(); return false;">
+                        Delay: <input id="phase_delay" type="text" value="1" size="3"/>
+                        <input type="submit" value="Show"/>
+                    </form></p>
+                </div>
+
+                <div id="fft_header" class="sliding_header">FFT</div>
+                <div id="fft_panel"  class="sliding_panel">
+                    <p><span id="fft_download"></span></p>
+                    <table border="0">
+                        <tr>
+                            <td>
+                                <svg height="360" width="36">
+                                    <text x="-180" y="20" transform="rotate(-90)"
+                                        style="text-anchor: middle">Frequency (Hz)
+                                    </text>
+                                </svg>
+                            </td>
+                            <td><span id="fft_plot"></span></td>
+                        </tr>
+                        <tr>
+                            <td/>
+                        <td style="text-align:center;">Power (dBm)</td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
         <div id="readme_header" class="sliding_header">README</div>
         <div id="readme_panel"  class="sliding_panel">
-            <p><pre id="readme"></pre></p>
-        </div>
-
-        <div id="map_header" class="sliding_header">Map</div>
-        <div id="map_panel"  class="sliding_panel">
-            <p><span id="heatmap_download"></span></p>
-            <div id="heatmap_display" style="display:none">
-                <svg id="heatmap"></svg>
-            </div>
-        <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
-        <p><form onsubmit="onSelectTimeSeries(); return false">
-            <table>
-                <tr>
-                    <td style="text-align:right">Index</td>
-                    <td><input type="text" id="map_y" name="map_y" size="4"
-                        value="0" onblur="updateMapInputs()"/>
-                        <span id="map_y_range"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="text-align:right"><strong>
-                            <label for="map_y">{{ dataset.y_name }}</label>
-                        </strong>
-                    </td>
-                    <td><span id="y_variable"></span></td>
-                </tr>
-                <tr>
-                    <td style="text-align:right">Index</td>
-                    <td><input type="text" id="map_x" name="map_x" size="4"
-                        value="0" onblur="updateMapInputs()"/>
-                        <span id="map_x_range"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="text-align:right"><strong>
-                            <label for="map_x">{{ dataset.x_name }}</label>
-                        </strong>
-                    </td>
-                    <td><span id="x_variable"></span></td>
-                </tr>
-                <tr>
-                    <td/>
-                    <td><input type="submit" value="Generate Plots"/></td>
-                </tr>
-            </table>
-        </form></p>
-
-        </div>
-
-        <div id="time_series_header" class="sliding_header">Time series</div>
-        <div id="time_series_panel"  class="sliding_panel">
-            <p><span id="time_series_download"></span></p>
-            <table border="0">
-                <tr>
-                    <td>
-                        <svg height="400" width="36">
-                            <text x="-200" y="20" transform="rotate(-90)"
-                                style="text-anchor: middle">Signal Amplitude (V)
-                            </text>
-                        </svg>
-                    </td>
-                    <td><span id="time_series_plot"></span></td>
-                </tr>
-                <tr>
-                    <td/>
-                <td style="text-align:center;">Time (ps)</td>
-                </tr>
-            </table>
-            <p><form onsubmit="onZoomTimeSeries(); return false;">
-                    From: <input id="from_time" type="text" size="6"/> 
-                    To: <input id="to_time" type="text" size="6"/>
-                    <input type="submit" value="Zoom"/>
-                </form> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
-            </p>
-        </div>
-
-        <div id="phase_header" class="sliding_header">Phase diagram</div>
-        <div id="phase_panel"  class="sliding_panel">
-            <table border="0">
-                <tr>
-                    <td>
-                        <svg height="400" width="36">
-                            <text x="-200" y="20" transform="rotate(-90)"
-                                style="text-anchor: middle">Y(t)
-                            </text>
-                        </svg>
-                    </td>
-                    <td><span id="phase_plot"></span></td>
-                </tr>
-                <tr>
-                    <td/>
-                    <td style="text-align:center;">Y(t+delay)</td>
-                </tr>
-            </table>
-            <p><form onsubmit="onChangePhaseDelay(); return false;">
-                Delay: <input id="phase_delay" type="text" value="1" size="3"/>
-                <input type="submit" value="Show"/>
-            </form></p>
-        </div>
-
-        <div id="fft_header" class="sliding_header">FFT</div>
-        <div id="fft_panel"  class="sliding_panel">
-            <p><span id="fft_download"></span></p>
-            <table border="0">
-                <tr>
-                    <td>
-                        <svg height="400" width="36">
-                            <text x="-200" y="20" transform="rotate(-90)"
-                                style="text-anchor: middle">Frequency (Hz)
-                            </text>
-                        </svg>
-                    </td>
-                    <td><span id="fft_plot"></span></td>
-                </tr>
-                <tr>
-                    <td/>
-                <td style="text-align:center;">Power (dBm)</td>
-                </tr>
-            </table>
+            <p><pre id="readme" style="font-size: small"></pre></p>
         </div>
 
         <div id="documentation_header" class="sliding_header">Documentation</div>
@@ -189,7 +196,6 @@ $(document).ready(function() {
             $('#readme_header').click(function () {
                 $('#readme_panel').slideToggle();
                 });
-            $('#readme_panel').css('display', 'none');
 
             $('#map_header').click(function () {
                 $('#map_panel').slideToggle();
