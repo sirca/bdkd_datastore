@@ -505,12 +505,10 @@ function onChangeTimeSeries() {
      * The from/to times are reset to the defaults (0 - 999999).
      */
     $('#time_series_container').css('display', 'block');
-    $('#other_plots_container').css('display', 'block');
-    $('#time_series_panel').slideDown();
+    $('#phase_container').css('display', 'block');
+    $('#fft_container').css('display', 'block');
     updateTimeSeries();
-    $('#phase_panel').slideDown();
     updatePhaseDiagram();
-    $('#fft_panel').slideDown();
     updateFFTDiagram();
 };
 

@@ -34,10 +34,13 @@ $(document).ready(function() {
     </head>
     <body>
     <h1 style="font-size:large">{{ dataset_name }}</h1>
-        <div id="plots_container" style="overflow:auto">
+
+    <table>
+        <tr>
+            <td style="vertical-align:top">
             <div id="heatmap_container" style="float:left">
-                <div id="map_header" class="sliding_header">Map</div>
-                <div id="map_panel"  class="sliding_panel" style="overflow:auto">
+                <div id="map_header" class="plot_header">Map</div>
+                <div id="map_panel"  class="plot_panel" style="overflow:auto">
                     <div id="map_plot_panel" style="float:left">
                         <div id="heatmap_display" style="display:none">
                             <svg id="heatmap"></svg>
@@ -92,10 +95,13 @@ $(document).ready(function() {
 
                     </div>
                 </div>
-
+            </div>
+            </td>
+            
+            <td style="vertical-align:top">
                 <div id="time_series_container" style="display:none">
-                    <div id="time_series_header" class="sliding_header">Time series</div>
-                    <div id="time_series_panel"  class="sliding_panel">
+                    <div id="time_series_header" class="plot_header">Time series</div>
+                    <div id="time_series_panel"  class="plot_panel">
                         <table border="0">
                             <tr>
                                 <td>
@@ -123,12 +129,14 @@ $(document).ready(function() {
                         <p><span id="time_series_download"></span></p>
                     </div>
                 </div>
+            </td>
 
-            </div>
-
-            <div id="other_plots_container" style="float:left; border-left: 2px solid lightgrey; display:none">
-                <div id="phase_header" class="sliding_header">Phase diagram</div>
-                <div id="phase_panel"  class="sliding_panel">
+        </tr>
+        <tr>
+            <td style="vertical-align:top">
+                <div id="phase_container" style="display:none">
+                <div id="phase_header" class="plot_header">Phase diagram</div>
+                <div id="phase_panel"  class="plot_panel">
                     <table border="0">
                         <tr>
                             <td>
@@ -150,9 +158,13 @@ $(document).ready(function() {
                         <input type="submit" value="Show"/>
                     </form></p>
                 </div>
-
-                <div id="fft_header" class="sliding_header">FFT</div>
-                <div id="fft_panel"  class="sliding_panel">
+                </div>
+            </td>
+ 
+            <td style="vertical-align:top">
+                <div id="fft_container" style="display:none">
+                <div id="fft_header" class="plot_header">FFT</div>
+                <div id="fft_panel"  class="plot_panel">
                     <table border="0">
                         <tr>
                             <td>
@@ -171,16 +183,17 @@ $(document).ready(function() {
                     </table>
                     <p><span id="fft_download"></span></p>
                 </div>
-
-            </div>
-        </div>
-        <div id="readme_header" class="sliding_header">README</div>
-        <div id="readme_panel"  class="sliding_panel">
+                </div>
+            </td>
+        </tr>
+    </table>
+        <div id="readme_header" class="plot_header">README</div>
+        <div id="readme_panel"  class="plot_panel">
             <p><pre id="readme" style="font-size: small"></pre></p>
         </div>
 
-        <div id="documentation_header" class="sliding_header">Documentation</div>
-        <div id="documentation_panel"  class="sliding_panel">
+        <div id="documentation_header" class="plot_header">Documentation</div>
+        <div id="documentation_panel"  class="plot_panel">
             <p><a href="/static/doc/api.html">API documentation</a></p>
         </div>
 
@@ -202,33 +215,5 @@ $(document).ready(function() {
             <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SIEF_logo.png" alt="SIEF"/>
         </p>
 
-        <script type="text/javascript">
-            $('#readme_header').click(function () {
-                $('#readme_panel').slideToggle();
-                });
-
-            $('#map_header').click(function () {
-                $('#map_panel').slideToggle();
-                });
-
-            $('#time_series_header').click(function () {
-                $('#time_series_panel').slideToggle();
-                });
-            $('#time_series_panel').css('display', 'none');
-
-            $('#phase_header').click(function () {
-                $('#phase_panel').slideToggle();
-                });
-            $('#phase_panel').css('display', 'none');
-
-            $('#fft_header').click(function () {
-                $('#fft_panel').slideToggle();
-                });
-            $('#fft_panel').css('display', 'none');
-
-            $('#documentation_header').click(function () {
-                $('#documentation_panel').slideToggle();
-            });
-        </script>
     </body>
 <html>
