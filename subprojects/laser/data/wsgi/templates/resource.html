@@ -38,7 +38,7 @@ $(document).ready(function() {
     <table>
         <tr>
             <td style="vertical-align:top">
-            <div id="heatmap_container" style="float:left">
+            <div id="heatmap_container" style="font-size:small; float:left">
                 <div id="map_header" class="plot_header">Map</div>
                 <div id="map_panel"  class="plot_panel" style="overflow:auto">
                     <div id="map_plot_panel" style="float:left">
@@ -47,7 +47,7 @@ $(document).ready(function() {
                         </div>
                         <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
                     </div>
-                    <div id="map_controls_panel" style="font-size:small; float:left">
+                    <div id="map_controls_panel" style="float:left">
                         <p>
                             <label id="label_map" for="map">Map:</label>
                             <select id="map" onchange="onChangeMap()"></select>
@@ -99,34 +99,39 @@ $(document).ready(function() {
             </td>
             
             <td style="vertical-align:top">
-                <div id="time_series_container" style="display:none">
+                <div id="time_series_container" style="font-size:small; display:none">
                     <div id="time_series_header" class="plot_header">Time series</div>
                     <div id="time_series_panel"  class="plot_panel">
                         <table border="0">
                             <tr>
                                 <td>
-                                    <svg height="360" width="36">
-                                        <text x="-180" y="20" transform="rotate(-90)"
+                                    <svg height="300" width="36">
+                                        <text x="-150" y="20" transform="rotate(-90)"
                                             style="text-anchor: middle">Signal Amplitude (V)
                                         </text>
                                     </svg>
                                 </td>
-                                <td><span id="time_series_plot"></span></td>
+                                <td><div id="time_series_plot"></div></td>
                             </tr>
                             <tr>
                                 <td/>
                             <td style="text-align:center;">Time (ps)</td>
                             </tr>
                         </table>
-                        <p><form onsubmit="onZoomTimeSeries(); return false;">
-                                From: <input id="from_time" type="text" size="6"/> 
-                                To: <input id="to_time" type="text" size="6"/>
-                                <input type="submit" value="Zoom"/>
-                                <span> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
-                                </span>
-                            </form>
-                        </p>
-                        <p><span id="time_series_download"></span></p>
+                        <div id="timeseries_controls" style="overflow:auto">
+                            <div style="float:left">
+                                <form onsubmit="onZoomTimeSeries(); return false;">
+                                        From: <input id="from_time" type="text" size="6"/> 
+                                        To: <input id="to_time" type="text" size="6"/>
+                                        <input type="submit" value="Zoom"/>
+                                        <span> | <a href="#" onClick="onResetZoomTimeSeries(); false">Reset</a>
+                                        </span>
+                                    <span id="time_series_download"></span>
+                                </form>
+                            </div>
+                            <div style="float:right">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </td>
@@ -134,14 +139,14 @@ $(document).ready(function() {
         </tr>
         <tr>
             <td style="vertical-align:top">
-                <div id="phase_container" style="display:none">
+                <div id="phase_container" style="font-size:small; display:none">
                 <div id="phase_header" class="plot_header">Phase diagram</div>
                 <div id="phase_panel"  class="plot_panel">
                     <table border="0">
                         <tr>
                             <td>
-                                <svg height="360" width="36">
-                                    <text x="-180" y="20" transform="rotate(-90)"
+                                <svg height="300" width="36">
+                                    <text x="-150" y="20" transform="rotate(-90)"
                                         style="text-anchor: middle">Y(t)
                                     </text>
                                 </svg>
@@ -153,23 +158,23 @@ $(document).ready(function() {
                             <td style="text-align:center;">Y(t+delay)</td>
                         </tr>
                     </table>
-                    <p><form onsubmit="onChangePhaseDelay(); return false;">
+                    <div><form onsubmit="onChangePhaseDelay(); return false;">
                         Delay: <input id="phase_delay" type="text" value="1" size="3"/>
                         <input type="submit" value="Show"/>
-                    </form></p>
+                    </form></div>
                 </div>
                 </div>
             </td>
  
             <td style="vertical-align:top">
-                <div id="fft_container" style="display:none">
+                <div id="fft_container" style="font-size:small; display:none">
                 <div id="fft_header" class="plot_header">FFT</div>
                 <div id="fft_panel"  class="plot_panel">
                     <table border="0">
                         <tr>
                             <td>
-                                <svg height="360" width="36">
-                                    <text x="-180" y="20" transform="rotate(-90)"
+                                <svg height="300" width="36">
+                                    <text x="-150" y="20" transform="rotate(-90)"
                                         style="text-anchor: middle">Frequency (Hz)
                                     </text>
                                 </svg>
@@ -181,7 +186,7 @@ $(document).ready(function() {
                         <td style="text-align:center;">Power (dBm)</td>
                         </tr>
                     </table>
-                    <p><span id="fft_download"></span></p>
+                    <div><span id="fft_download"></span></div>
                 </div>
                 </div>
             </td>
@@ -214,6 +219,5 @@ $(document).ready(function() {
             <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/Sirca_Logo_RGB.png" alt="Sirca Ltd"/>
             <img style="padding:1em" src="http://knowledgediscovery.org/wp-content/uploads/2013/08/SIEF_logo.png" alt="SIEF"/>
         </p>
-
     </body>
 <html>

@@ -5,7 +5,8 @@
 .plot_header {
     background-color: turquoise;
     border-bottom: 2px solid slategray;
-    font-size: large;
+    font-size: medium;
+    font-weight: bold;
 }
 
 div.tooltip {
