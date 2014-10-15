@@ -47,7 +47,7 @@ $(document).ready(function() {
                         </div>
                         <span id="heatmap_spinner"><img src="/static/spinner.gif"/></span>
                     </div>
-                    <div id="map_controls_panel" style="float:left">
+                    <div id="map_controls_panel" style="max-width:16em; float:left">
                         <p>
                             <label id="label_map" for="map">Map:</label>
                             <select id="map" onchange="onChangeMap()"></select>
@@ -57,38 +57,32 @@ $(document).ready(function() {
                     <p><form onsubmit="onSelectTimeSeries(); return false">
                     <table>
                         <tr>
-                            <td colspan="2" style="text-align:right"><strong>
+                            <td colspan="3"><strong>
                                     <label for="map_y">{{ dataset.y_name }}</label>
-                                </strong>:
-                            </td>
-                            <td><span id="y_variable"></span></td>
+                            </strong>: <div style="float:right"><span id="y_variable"></span></div></td>
                         </tr>
                         <tr>
-                            <td style="text-align:right">Index</td>
-                            <td><input type="text" id="map_y" name="map_y" size="4"
+                            <td style="text-align:right;width:5em">Index</td>
+                            <td colspan="2"><input type="text" id="map_y" name="map_y" size="4"
                                 value="0" onblur="updateMapInputs()"/>
                                 <span id="map_y_range"></span>
                             </td>
-                            <td/>
                         </tr>
                         <tr>
-                            <td colspan="2" style="text-align:right"><strong>
+                            <td colspan="3"><strong>
                                     <label for="map_x">{{ dataset.x_name }}</label>
-                                </strong>:
-                            </td>
-                            <td><span id="x_variable"></span></td>
+                            </strong>: <div style="float:right"><span id="x_variable"></span></div></td>
                         </tr>
                         <tr>
                             <td style="text-align:right">Index</td>
-                            <td><input type="text" id="map_x" name="map_x" size="4"
+                            <td colspan="2"><input type="text" id="map_x" name="map_x" size="4"
                                 value="0" onblur="updateMapInputs()"/>
                                 <span id="map_x_range"></span>
                             </td>
-                            <td/>
                         </tr>
                         <tr>
                             <td/>
-                            <td><input type="submit" value="Generate Plots"/></td>
+                            <td colspan="2"><input type="submit" value="Generate Plots"/></td>
                         </tr>
                     </table>
                 </form></p>

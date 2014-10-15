@@ -2,9 +2,13 @@
     font-family: "sans-serif";
 }
 
+h1 {
+  color: #6361a0;
+}
+
 .plot_header {
-    background-color: turquoise;
-    border-bottom: 2px solid slategray;
+    background-color: rgba(35, 137, 13, 1);
+    color: white;
     font-size: medium;
     font-weight: bold;
 }
