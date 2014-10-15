@@ -26,11 +26,12 @@ def render_map_plot(dataset, map_name, plot_filename):
 
 def time_series_plot(time_series, from_time, to_time, z_interval_base):
     ts_x = range(from_time, to_time, z_interval_base)
-    fig = plt.figure(figsize=(5.0, 3.75), dpi=80)
+    fig = plt.figure(figsize=(6.25, 4.6875), dpi=64)
     fig.set_facecolor('white')
-    fig.subplots_adjust(bottom=0.05, top=0.95)
+    fig.subplots_adjust(bottom=0.20, top=0.95)
     plt.plot(ts_x, np.array(time_series))
     plt.axes().set_xlim(ts_x[0], ts_x[-1])
+    plt.xticks(rotation=90)
     return fig
 
 
@@ -54,6 +55,7 @@ def phase_plot(time_series, from_time, to_time,
     fig = plt.figure(figsize=(5.0, 3.75), dpi=80)
     fig.set_facecolor('white')
     plt.plot(ts_x, ts_y, 'r.')
+    plt.xticks(rotation=90)
     plt.tight_layout()
     return fig
 
@@ -94,6 +96,7 @@ def fft_plot(time_series_selected, z_interval, z_peak_voltage):
     fig = plt.figure(figsize=(5.0, 3.75), dpi=80)
     fig.set_facecolor('white')
     plt.plot(freq, dBm)
+    plt.xticks(rotation=90)
     plt.tight_layout()
     return fig
 
