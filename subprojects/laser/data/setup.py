@@ -10,7 +10,7 @@ datafiles = [(os.path.join(package_name, root), [os.path.join(root, f) for f in 
 
 setup(                         
         name=package_name,
-        version='0.0.1',
+        version='0.1.0',
         description='Access dataset data',
         author='Sirca Ltd',
         author_email='david.nelson@sirca.org.au',
