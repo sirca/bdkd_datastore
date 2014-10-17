@@ -66,6 +66,16 @@ and its meta-data via the dictionary :attr:`bdkd.datastore.Resource.metadata`.
 The ResourceFile instances contained in the Resource can be accessed via 
 :attr:`bdkd.datastore.Resource.files`.
 
+Resource files
+^^^^^^^^^^^^^^
+
+A subset of the files for a resource can be selected using 
+:meth:`bdkd.datastore.Resource.files_matching` or 
+:meth:`bdkd.datastore.Resource.file_ending` for getting a specific file ending 
+in a particular prefix.
+
+        files = resource.files_matching('FB_')
+
 Local cache files for a Resource can be accessed in two ways:
 
 1. Either individually for each ResourceFile via 
@@ -100,6 +110,18 @@ The question may be asked: why use one approach rather than the other?
   :meth:`bdkd.datastore.Resource.local_paths`.
 
 
+Resource metadata
+^^^^^^^^^^^^^^^^^
+
+The meta-data for a resource is available as a property called 
+:attr:`bdkd.datastore.Resource.metadata` or using the method 
+:meth:`bdkd.datastore.Resource.meta` to get the value for a given name.
+
+::
+
+        for name, value in resource.metadata.iteritems():
+            pass  # Use names and values here
+
 Command-line
 ^^^^^^^^^^^^
 
@@ -108,10 +130,18 @@ Details on a Resource can be obtained from the command-line as JSON text using
 
 ``datastore-get 'bdkd-datastore-test' 'FeatureCollections/Coastlines/Seton'``
 
+This will list all the Resource's files and meta-data.
+
 To get a list of all the local cache files for a Resource, use 
 :ref:`reference-datastore-files`, for example:
 
 ``datastore-files 'bdkd-datastore-test' 'FeatureCollections/Coastlines/Seton'``
+
+The metadata fields for a Resource can be updated using 
+:ref:`reference-datastore-update-metadata`.
+
+The last modified date of a resource can be obtained using the command-line 
+utility :ref:`reference-datastore-lastmod`.
 
 
 Creating and editing Resources
@@ -143,6 +173,10 @@ Resources can be created from the command-line using
 :ref:`reference-datastore-add`, for example:
 
 ``datastore-add 'bdkd-datastore-test' 'SampleData/FeatureCollections/Isochrons/Seton_etal_ESR2012_Isochrons_2012.1' ~/path/to/SampleData/FeatureCollections/Isochrons/Seton_etal_ESR2012_Isochrons_2012.1.gpmlz``
+
+There is also a utility :ref:`reference-datastore-add-bdkd` that provides more 
+options when adding a Resource, mostly to do with meta-data (author name, email 
+etc.).
 
 
 Deleting Resources

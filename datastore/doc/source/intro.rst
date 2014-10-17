@@ -1,13 +1,24 @@
 Introduction
 ============
 
-Introduction to BDKD Datastore.
+The BDKD Datastore is a Python library and set of associated command-line tools 
+for managing file-like data in an object store.  Files and sets of related 
+files can be stored and retrieved, along with associated meta-data.
 
 
 Installation
 ------------
 
-Installation is via RPM.
+BDKD Datastore is a standard Python setuptools library that can be installed 
+via Python Pip or packaged as an operating system-specific package such as RPM.
+
+Creating a source distribution package from the source tree:
+
+``python setup.py sdist``
+
+Installation via Pip:
+
+``pip install bdkd-datastore*``
 
 
 Configuration
