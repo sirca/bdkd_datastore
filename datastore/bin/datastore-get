@@ -5,7 +5,9 @@ import json, optparse
 
 def main():
     usage = "usage: %prog [options] 'repository' 'resource name'"
-    optparser = optparse.OptionParser(usage=usage)
+    epilog=("Get details of a Resource as JSON text. The meta-data and list "
+            "of Files for a Resource will be printed to STDOUT as JSON text.")
+    optparser = optparse.OptionParser(usage=usage, epilog=epilog)
     (options, args) = optparser.parse_args()
 
     if len(args) < 2:

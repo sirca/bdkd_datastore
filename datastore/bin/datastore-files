@@ -5,7 +5,8 @@ import json, optparse
 
 def main():
     usage = "usage: %prog [options] 'repository' 'resource name'"
-    optparser = optparse.OptionParser(usage=usage)
+    epilog = "Obtain a list of locally-cached filenames for the given Resource."
+    optparser = optparse.OptionParser(usage=usage, epilog=epilog)
     (options, args) = optparser.parse_args()
 
     if len(args) < 2:
