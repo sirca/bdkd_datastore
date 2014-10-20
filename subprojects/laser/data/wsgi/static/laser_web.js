@@ -1,13 +1,15 @@
 BDKD.MAP_SCALE=1;
-BDKD.MAP_X_AXIS_OFFSET=64;
-BDKD.MAP_Y_AXIS_OFFSET=80;
-BDKD.MAP_BORDER=24;
+BDKD.MAP_X_AXIS_OFFSET=104;
+BDKD.MAP_X_AXIS_LABEL=64;
+BDKD.MAP_Y_AXIS_OFFSET=104;
+BDKD.MAP_Y_AXIS_LABEL=16;
+BDKD.MAP_BORDER=12;
 
-BDKD.TIME_SERIES_LEFT_OFFSET_PX = 81;
-BDKD.TIME_SERIES_WIDTH_PX = 495;
+BDKD.TIME_SERIES_LEFT_OFFSET_PX = 51;
+BDKD.TIME_SERIES_WIDTH_PX = 309;
 BDKD.TIME_SERIES_RIGHT_PX = (BDKD.TIME_SERIES_LEFT_OFFSET_PX + 
         BDKD.TIME_SERIES_WIDTH_PX);
-BDKD.TIME_SERIES_HEIGHT_PX = 480;
+BDKD.TIME_SERIES_HEIGHT_PX = 300;
 
 BDKD.ZOOM_SIZE = 15;
 BDKD.ZOOM_SCALE = 10;
@@ -317,7 +319,7 @@ function drawHeatMapAxes(heatmap) {
         .call(xAxis)
         .attr("class", "x axis")
         .attr("transform", "translate(" + (BDKD.MAP_Y_AXIS_OFFSET -1) + ", " + 
-                ((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_BORDER) 
+                ((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE + BDKD.MAP_BORDER + 1) 
                 + ")")
         .attr("width", (BDKD.map_data.max_x + 1) * BDKD.MAP_SCALE)
         .selectAll("text")
@@ -327,7 +329,17 @@ function drawHeatMapAxes(heatmap) {
         .attr("transform", function(d) {
             return "rotate(-90)"
         })
-    ;
+        ;
+    // X axis label
+    heatmap
+        .append("text")
+        .attr("x", ((BDKD.map_data.max_x + 1) / 2 * BDKD.MAP_SCALE) +
+                BDKD.MAP_Y_AXIS_OFFSET)
+        .attr("y", ((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE +
+                    BDKD.MAP_BORDER + BDKD.MAP_X_AXIS_LABEL))
+        .style("text-anchor", "middle")
+        .text(BDKD.dataset.x_name)
+        ;
     // Append Y axis
     heatmap
         .append("g")
@@ -337,7 +349,17 @@ function drawHeatMapAxes(heatmap) {
                 (BDKD.MAP_BORDER) + ")")
         .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)
         .selectAll("text")
-    ;
+        ;
+    // Y axis label
+    heatmap
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -(((BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE)/2 +
+                    BDKD.MAP_BORDER))
+        .attr("y", BDKD.MAP_Y_AXIS_LABEL)
+        .style("text-anchor", "middle")
+        .text(BDKD.dataset.y_name)
+        ;
 };
 
 
@@ -357,7 +379,7 @@ function drawHeatMap(map_data) {
         .attr("width", (BDKD.map_data.max_x + 1) * BDKD.MAP_SCALE + 
                 BDKD.MAP_Y_AXIS_OFFSET + BDKD.MAP_BORDER)
         .attr("height", (BDKD.map_data.max_y + 1) * BDKD.MAP_SCALE + 
-                BDKD.MAP_X_AXIS_OFFSET + BDKD.MAP_BORDER)
+                BDKD.MAP_X_AXIS_LABEL + (BDKD.MAP_BORDER * 2))
         ;
 
     // Add a vertical group for each X
@@ -476,11 +498,11 @@ function onChangeTimeSeries() {
      *
      * The from/to times are reset to the defaults (0 - 999999).
      */
-    $('#time_series_panel').slideDown();
+    $('#time_series_container').css('display', 'block');
+    $('#phase_container').css('display', 'block');
+    $('#fft_container').css('display', 'block');
     updateTimeSeries();
-    $('#phase_panel').slideDown();
     updatePhaseDiagram();
-    $('#fft_panel').slideDown();
     updateFFTDiagram();
 };
 
@@ -519,7 +541,7 @@ function onChangePhaseDelay() {
 
 function updateTimeSeries() {
     $('#time_series_plot').replaceWith(
-            "<img id='time_series_plot' width=640 height=480 src='" + 
+            "<img id='time_series_plot' width=400 height=300 src='" + 
             timeSeriesPlotUrl() + "' />");
     if ( BDKD.ias ) 
         BDKD.ias.setOptions({ hide: true });
@@ -531,7 +553,7 @@ function updateTimeSeries() {
     $('#from_time').val(BDKD.selection.from_time);
     $('#to_time').val(BDKD.selection.to_time);
     $('#time_series_download').html('Data: <a href="' + timeSeriesDataUrl() + 
-            '">' + timeSeriesDataUrl() + '</a>');
+            '">download</a>');
 };
 
 
@@ -551,15 +573,15 @@ function updatePhaseDiagram() {
     var phase_delay = parseInt($('#phase_delay').val());
     var plot_src = phasePlotUrl(phase_delay);
     $('#phase_plot').replaceWith(
-            "<img id='phase_plot' width=640 height=480 src='" +
+            "<img id='phase_plot' width=400 height=300 src='" +
             phasePlotUrl(phase_delay) + "' />");
 };
 
 
 function updateFFTDiagram() {
     $('#fft_download').html(
-            'Data: <a href="' + fftDataUrl() + '">' + fftDataUrl() + '</a>'); 
-    $('#fft_plot').replaceWith("<img id='fft_plot' width=640 height=480 src='" +
+            'Data: <a href="' + fftDataUrl() + '">download</a>'); 
+    $('#fft_plot').replaceWith("<img id='fft_plot' width=400 height=300 src='" +
             fftPlotUrl() + "' />");
 };
 
@@ -576,6 +598,7 @@ function updateMapList() {
                 }
                 $('#map').html(map_options);
                 onChangeMap();
+                selectTimeSeries(0, 0);
             }
     });
 };
