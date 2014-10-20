@@ -4,7 +4,7 @@ import bdkd.datastore
 import optparse
 
 def main():
-    usage = "usage: %prog [options] 'repository'"
+    usage = "usage: %prog [options]"
     epilog="Get a list of all configured Repositories."
     optparser = optparse.OptionParser(usage=usage, epilog=epilog)
     optparser.add_option('-v', '--verbose', action='store_true',
