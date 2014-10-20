@@ -19,11 +19,20 @@ def info_parser(prog, desc):
     return parser
 
 
+def getkey_parser():
+    return info_parser(prog='datastore-getkey', 
+            desc='To get the information about the key of a resource')
+
+
+def lastmod_parser():
+    return info_parser(prog='datastore-lastmod', 
+            desc='To get the last modified date of a resource')
+
+
 def getkey_util(argv=None):
     """ Entry point for the datastore-getkey utility.
     """
-    parser = info_parser(prog='datastore-getkey', 
-            desc='To get the information about the key of a resource')
+    parser = getkey_parser()
     args = parser.parse_args(argv)
     resource_key = args.repository.get_resource_key(args.resource_name)
     pprint.pprint(resource_key.__dict__)
@@ -32,8 +41,7 @@ def getkey_util(argv=None):
 def lastmod_util(argv=None):
     """ Entry point for the datastore-lastmod utility.
     """
-    parser = info_parser(prog='datastore-lastmod', 
-            desc='To get the last modified date of a resource')
+    parser = lastmod_parser()
     args = parser.parse_args(argv)
     last_mod = args.repository.get_resource_last_modified(args.resource_name)
     print "Last modified: %s" % (last_mod)

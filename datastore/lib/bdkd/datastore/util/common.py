@@ -79,7 +79,8 @@ def _repository_parser():
     Parser providing the mandatory option 'repository'.
     """
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('repository', action=RepositoryAction)
+    parser.add_argument('repository', action=RepositoryAction,
+            help='Name of a defined Repository')
     return parser
 
 
@@ -90,5 +91,6 @@ def _repository_resource_parser():
     parser = argparse.ArgumentParser(add_help=False, parents=[
         _repository_parser(),
         ])
-    parser.add_argument('resource_name')
+    parser.add_argument('resource_name',
+            help='Name of a Resource')
     return parser

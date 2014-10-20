@@ -9,29 +9,24 @@ Command-line utilities
 ``datastore-add``
 ^^^^^^^^^^^^^^^^^
 
-Add a Resource to a Repository, optionally overwriting any other Resource of 
-the same name.
+.. argparse::
+  :module: bdkd.datastore.util.add
+  :func: add_parser
+  :prog: datastore-add
 
-Usage:
-        ``datastore-add [options] 'repository' 'resource name' file...``
 
-'repository'
-        Name of a defined Repository
 
-'resource name'
-        Name of the Resource to create (or overwrite: see --force below)
+.. _reference-datastore-add-bdkd:
 
-file...
-        One or more local file paths or URLs of remote files (HTTP, FTP)
-       
-Options:
+``datastore-add-bdkd``
+^^^^^^^^^^^^^^^^^^^^^^
 
-``--metadata, -m``
-        A JSON string containing meta-data for the Resource
-        
-``--force, -f``
-        If a Resource of the given name already exists in the Repository, 
-        overwrite it.  Default: do not overwrite (returns an error)
+.. argparse::
+  :module: bdkd.datastore.util.add
+  :func: add_bdkd_parser
+  :prog: datastore-add-bdkd
+
+
 
 .. _reference-datastore-delete:
 
@@ -51,6 +46,8 @@ Usage:
 
 'resource name'
         Name of the Resource to delete
+
+
 
 .. _reference-datastore-files:
 
@@ -73,6 +70,7 @@ Usage:
         Name of the Resource for which a list of cached files is required
 
 
+
 .. _reference-datastore-get:
 
 ``datastore-get``
@@ -91,6 +89,32 @@ Usage:
 
 'resource name'
         Name of the Resource for which details are required
+
+
+
+.. _reference-datastore-getkey:
+
+``datastore-getkey``
+^^^^^^^^^^^^^^^^^^^^
+
+.. argparse::
+  :module: bdkd.datastore.util.info
+  :func: getkey_parser
+  :prog: datastore-getkey
+
+
+
+.. _reference-datastore-lastmod:
+
+``datastore-lastmod``
+^^^^^^^^^^^^^^^^^^^^^
+
+.. argparse::
+  :module: bdkd.datastore.util.info
+  :func: lastmod_parser
+  :prog: datastore-lastmod
+
+
 
 .. _reference-datastore-list:
 
@@ -126,9 +150,23 @@ Usage:
         ``datastore-repositories``
 
 
+
+.. _reference-datastore-update-metadata:
+
+``datastore-update-metadata``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. argparse::
+  :module: bdkd.datastore.util.metadata
+  :func: update_metadata_bdkd_parser
+  :prog: datastore-update-metadata
+
+
+
 Python API
 ----------
 
-.. automodule:: bdkd.datastore
+.. automodule:: bdkd.datastore.datastore
    :members:
+   :undoc-members:
    :show-inheritance:

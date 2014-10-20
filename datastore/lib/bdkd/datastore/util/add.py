@@ -33,7 +33,8 @@ def _files_parser():
     Parser that handles the list of files provided on the command line
     """
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('filenames', nargs='+', action=FilesAction)
+    parser.add_argument('filenames', nargs='+', action=FilesAction,
+            help='List of local file names or URLs of remote files (HTTP, FTP)')
     return parser
 
 
@@ -42,7 +43,7 @@ def _metadata_parser():
     parser.add_argument('--metadata', 
             action=util_common.JsonDictionaryAction, 
             default=dict(),
-            help="Meta-data for resource (JSON string)")
+            help="Meta-data for resource (JSON string dictionary: '{...}')")
     return parser
 
 
@@ -62,17 +63,27 @@ def _bdkd_metadata_parser(enforce=True):
     """
     parser = argparse.ArgumentParser(add_help=False)
     # Mandatory arguments
-    parser.add_argument('--description', required=enforce)
-    parser.add_argument('--author', required=enforce)
-    parser.add_argument('--author-email', required=enforce)
+    parser.add_argument('--description', required=enforce,
+            help='Human-readable description of the resource')
+    parser.add_argument('--author', required=enforce,
+            help='Name of the author/creator')
+    parser.add_argument('--author-email', required=enforce,
+            help='Email address of the author/creator')
 
     # Optional arguments
-    parser.add_argument('--data-type')
-    parser.add_argument('--tags', action=util_common.JsonArrayAction)
-    parser.add_argument('--version')
-    parser.add_argument('--maintainer')
-    parser.add_argument('--maintainer-email')
-    parser.add_argument('--custom-fields', action=util_common.JsonDictionaryAction)
+    parser.add_argument('--data-type',
+            help='String describing the kind of data provided by the Resource')
+    parser.add_argument('--tags', action=util_common.JsonArrayAction,
+            help='JSON list of additional tags for the Resource')
+    parser.add_argument('--version',
+            help='Version string for the Resource')
+    parser.add_argument('--maintainer',
+            help='Name of the person responsible for maintaining the Resource')
+    parser.add_argument('--maintainer-email',
+            help='Email address of the maintainer')
+    parser.add_argument('--custom-fields', action=util_common.JsonDictionaryAction,
+            help="A JSON dictionary ('{...}') containing additional custom "
+            "fields to be stored in the Resource's meta-data")
 
     return parser
 
@@ -82,7 +93,8 @@ def add_parser():
     Parser for the generic 'datastore-add' utility
     """
     parser = argparse.ArgumentParser(prog='datastore-add', 
-            description="Add a Resource to a datastore", 
+            description="Add a Resource to a datastore, optionally "
+            "overwriting any other Resource of the same name.", 
             parents=[
                 util_common._repository_resource_parser(),
                 _files_parser(),
@@ -97,7 +109,8 @@ def add_bdkd_parser():
     Parser for the BDKD 'datastore-add-bdkd' utility
     """
     parser = argparse.ArgumentParser(prog='datastore-add-bdkd', 
-            description="Add a BDKD Resource to a datastore", 
+            description="Add a Resource to a datastore, including options "
+            "related to BDKD.", 
             parents=[
                 util_common._repository_resource_parser(),
                 _files_parser(),

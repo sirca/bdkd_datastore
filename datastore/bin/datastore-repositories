@@ -4,8 +4,9 @@ import bdkd.datastore
 import optparse
 
 def main():
-    usage = "usage: %prog [options] 'repository'"
-    optparser = optparse.OptionParser(usage=usage)
+    usage = "usage: %prog [options]"
+    epilog="Get a list of all configured Repositories."
+    optparser = optparse.OptionParser(usage=usage, epilog=epilog)
     optparser.add_option('-v', '--verbose', action='store_true',
             help='Verbose mode: all resource details (default names only)')
     (options, args) = optparser.parse_args()

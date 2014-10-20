@@ -7,7 +7,8 @@ import sys
 
 def main():
     usage = "usage: %prog [options] 'repository' 'resource name'"
-    optparser = optparse.OptionParser(usage=usage)
+    epilog = "Delete a Resource from a Repository."
+    optparser = optparse.OptionParser(usage=usage, epilog=epilog)
     (options, args) = optparser.parse_args()
 
     if len(args) < 2:

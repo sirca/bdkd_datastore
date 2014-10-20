@@ -28,6 +28,9 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), '..', '..', 'lib'))
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.todo', 'sphinx.ext.ifconfig', 'sphinx.ext.viewcode']
 
+# argparse extension for Sphinx
+extensions += ['sphinxarg.ext']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
