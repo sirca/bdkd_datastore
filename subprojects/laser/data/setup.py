@@ -16,7 +16,7 @@ setup(
         author_email='david.nelson@sirca.org.au',
         url='http://github.com/sirca/bdkd',
         package_dir={'': 'lib'},        
-        packages=['bdkd.laser'],
+        packages=['bdkd.laser', 'bdkd.laser.util'],
         data_files = datafiles,
         scripts=[
                 'bin/pack_maps.py',            
