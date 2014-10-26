@@ -1,0 +1,14 @@
+{
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "10.0.10.10:5000/stateline"
+    }
+  },
+  "id": "geostate",
+  "instances": "1",
+  "cpus": "0.5",
+  "mem": 64,
+  "uris": [],
+  "cmd": "/opt/geostate/pmmWorker -a 10.0.51.113:5555"
+}
