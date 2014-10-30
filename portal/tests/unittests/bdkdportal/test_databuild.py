@@ -285,6 +285,60 @@ class TestPortalBuilder:
         assert good_portal_builder.find_visual_site_for_datatype('unknown type') == None
 
 
+    def test_build_portal_selective_repos(self, mocked_resources):
+        """ Test that build_portal() can selectively choose which repos or all repos.
+        """
+        with patch('bdkdportal.databuild.RepositoryBuilder') as repo_builder_patcher:
+            mocked_resources.start_patching()
+            portal_builder = PortalBuilder(logger=MagicMock())
+            portal_builder.load_config(from_string="""
+                    api_key: test-key
+                    ckan_cfg: test_ckan_cfg_file
+                    ckan_url: test_ckan_url
+                    download_template: test_template
+                    repos:
+                        - bucket: test_bucket1
+                          org_name: test_org_name1
+                          org_title: test_org_title1
+                          ds_host: test_ds_host1
+                          download_url_format: test_format1
+                        - bucket: test_bucket2
+                          org_name: test_org_name2
+                          org_title: test_org_title2
+                          ds_host: test_ds_host2
+                          download_url_format: test_format2
+                    """)
+            portal_builder.build_portal()
+            mocked_resources.stop_patching()
+
+            # 2 repos configured so expects 2 x repo building to take place.
+            mock_repo_builder = repo_builder_patcher.return_value
+            mock_repo_builder.build_portal_from_repo.assert_has_calls([
+                    call(repo_cfg={'bucket': 'test_bucket1',
+                                   'org_name':'test_org_name1',
+                                   'org_title': 'test_org_title1',
+                                   'ds_host': 'test_ds_host1',
+                                   'download_url_format': 'test_format1'}),
+                    call(repo_cfg={'bucket': 'test_bucket2',
+                                   'org_name':'test_org_name2',
+                                   'org_title': 'test_org_title2',
+                                   'ds_host': 'test_ds_host2',
+                                   'download_url_format': 'test_format2'})])
+            assert mock_repo_builder.build_portal_from_repo.call_count == 2
+
+            # Build again but this time select only 1 repo and expect only 1 repo to be built.
+            mock_repo_builder.build_portal_from_repo.reset_mock()
+            mocked_resources.start_patching()
+            portal_builder.build_portal(repo_name='test_bucket2')
+            mocked_resources.stop_patching()
+            assert mock_repo_builder.build_portal_from_repo.call_count == 1
+            mock_repo_builder.build_portal_from_repo.assert_called_once_with(
+                    repo_cfg={'bucket': 'test_bucket2',
+                              'org_name':'test_org_name2',
+                              'org_title': 'test_org_title2',
+                              'ds_host': 'test_ds_host2',
+                              'download_url_format': 'test_format2'})
+
     def test_build_portal_repo_build_failed(self, mocked_resources, good_portal_builder):
         """ Test that build_portal() can deal with repo building failures.  """
         with patch('bdkdportal.databuild.RepositoryBuilder') as mock_RepositoryBuilder:
