@@ -534,6 +534,20 @@ class PortalBuilder:
                 self.logger.info("Organization %s already exists, skipping setup" % (org_name))
 
 
+    def remove_all_datasets(self):
+        """ Remove all datasets that are in the current portal.  """
+        # Validate config
+        self._check_cfg(self._cfg, ['api_key', 'ckan_cfg', 'ckan_url'],)
+
+        ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
+        datasets_in_portal = ckan_site.action.package_list()
+        self.logger.info("Removing {0} datasets from the portal".format(len(datasets_in_portal)))
+
+        for ds in datasets_in_portal:
+            purge_ckan_dataset(ds, self._cfg['ckan_cfg'])
+
+
+
 def _prepare_logging(args):
     """ Prepare logging mode based on args passed in during launch. """
     if args.log_ini:
@@ -565,7 +579,9 @@ def portal_data_builder_entry(cmd_args):
                         help='The command to execute, which can be:\n'
                              ' update - to update the portal using metadata from the datastore\n'
                              ' daemon - to run the portal update as a daemon process\n'
-                             ' setup - setup the organizations in the config file\n'
+                             ' setup  - setup the organizations in the config file\n'
+                             ' purge  - purge all datasets from this portal\n'
+                             ' reprime  - purge and rebuild all datasets for this portal\n'
     )
     parser.add_argument('-c', '--config', help='Configuration file')
     parser.add_argument('-b', '--bucket-name', help='Select the bucket to build from (must be in the config)')
@@ -577,7 +593,7 @@ def portal_data_builder_entry(cmd_args):
         sys.exit(1)
     args = parser.parse_args(args=cmd_args[1:])
 
-    if args.command not in ['update','daemon','setup']:
+    if args.command not in ['update','daemon','setup','purge','reprime']:
         sys.exit('Unknown command %s' % (args.command))
 
     if not args.config:
@@ -594,6 +610,14 @@ def portal_data_builder_entry(cmd_args):
         portal_builder = PortalBuilder()
         portal_builder.load_config(from_file=args.config)
         portal_builder.setup_organizations(repo_name=args.bucket_name)
+
+    elif args.command == 'purge' or args.command == 'reprime':
+        _prepare_logging(args)
+        portal_builder = PortalBuilder()
+        portal_builder.load_config(from_file=args.config)
+        portal_builder.remove_all_datasets()
+        if args.command == 'reprime':
+            portal_builder.build_portal()
 
     elif args.command == 'daemon':
         # run builder in daemonize mode (note: setup logging after daemonized)
