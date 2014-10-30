@@ -60,6 +60,24 @@ def test_update_dataset_metadata(portal_builder, ckan_site, sample_data1):
 # def test_update_dataset_add_file(portal_builder, ckan_site, sample_data1):
 # Can't do this test yet because datastore library does not directly support that.
 
+def test_purge_and_reprime_dataset(portal_builder, ckan_site, sample_data1, sample_data2):
+    # make sure the datasets are there in datastore
+    sample_data1.prepare()
+    sample_data2.prepare()
+    portal_builder.run_update()
+    # double check that the datasets were explorable in the portal
+    dss = ckan_site.action.package_list()
+    assert sample_data1.get_dataset_id() in dss, "Failed to see sample data 1"
+    assert sample_data2.get_dataset_id() in dss, "Failed to see sample data 2"
+    # now run the purge command
+    portal_builder.run(cmd='purge')
+    # check that the datasets are no longer there after purge
+    dss = ckan_site.action.package_list()
+    assert len(dss) == 0, "no dataset should be there after purge"
+    portal_builder.run(cmd='reprime')
+    dss = ckan_site.action.package_list()
+    assert len(dss) == 2, "dataset should have been rebuilt after the reprime"
+
 
 def test_search_dataset(portal_builder, ckan_site, sample_data1, sample_data2):
     # make sure the datasets are there in datastore
