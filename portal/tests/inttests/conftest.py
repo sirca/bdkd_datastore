@@ -85,10 +85,13 @@ class Portal_Builder_Runner:
         self._cfg_filename = cfg_filename
         self._cfg = None # reset
 
+    def run(self, cmd):
+        """ Run the portal dat builder with the given command """
+        call(["portal-data-builder", "-c", self._cfg_filename, cmd])
+
     def run_update(self):
-        """ Run the portal dat builder to build up the portal immediately.
-        """
-        call(["portal-data-builder", "-c", self._cfg_filename, "update"])
+        """ Run the portal dat builder to build up the portal immediately.  """
+        self.run(cmd='update')
 
     def daemon_running(self):
         """ check if the portal builder is running and return it as a process,
