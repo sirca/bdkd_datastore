@@ -340,8 +340,7 @@ class TestPortalBuilder:
                               'download_url_format': 'test_format2'})
 
     def test_build_portal_repo_build_failed(self, mocked_resources, good_portal_builder):
-        """ Test that build_portal() can deal with repo building failures.
-        """
+        """ Test that build_portal() can deal with repo building failures.  """
         with patch('bdkdportal.databuild.RepositoryBuilder') as mock_RepositoryBuilder:
             mock_RepositoryBuilder.return_value.build_portal_from_repo = MagicMock(side_effect=Exception("Test failure"))
             mocked_resources.start_patching()
@@ -495,6 +494,37 @@ class TestPortalBuilder:
         mocked_resources.stop_patching()
 
 
+    def test_remove_all_datasets(self, mocked_resources):
+        """ Test that remove_all_datasets() removes all dataset for all configured repositories.  """
+        with patch('bdkdportal.databuild.RepositoryBuilder') as repo_builder_patcher:
+            mocked_resources.start_patching()
+            mock_purge = mocked_resources.get_mock('bdkdportal.databuild.purge_ckan_dataset')
+            mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+            mock_ckan_site.action.package_list.return_value = [
+                'test_bucket-group1-group2-dataset1',
+                'test_bucket-group1-group2-dataset2',
+                'test_bucket-group3-dataset3']
+            portal_builder = PortalBuilder(logger=MagicMock())
+            portal_builder.load_config(from_string="""
+                    api_key: test-key
+                    ckan_cfg: test_ckan_cfg_file
+                    ckan_url: test_ckan_url
+                    repos:
+                        - bucket: test_bucket1
+                          org_name: test_org_name1
+                          org_title: test_org_title1
+                          ds_host: test_ds_host1
+                          download_url_format: test_format1
+                    """)
+            portal_builder.remove_all_datasets()
+            mocked_resources.stop_patching()
+
+            mock_purge.assert_has_calls([
+                call('test_bucket-group1-group2-dataset1', 'test_ckan_cfg_file'),
+                call('test_bucket-group1-group2-dataset2', 'test_ckan_cfg_file'),
+                call('test_bucket-group3-dataset3',        'test_ckan_cfg_file')])
+
+
 class TestRepositoryBuilder:
 
     def test_build_portal_from_repo(self, single_dataset_repo, good_portal_cfg, mocked_resources):
@@ -592,8 +622,7 @@ class TestRepositoryBuilder:
         repo_builder.build_portal_from_repo(repo_cfg)
         mocked_resources.stop_patching()
         mock_logger = mocked_resources.get_mock('logging.getLogger')
-        assert ('dataset1' in mock_logger.return_value.error.call_args[0][0],
-                "Expected error to be logged when resource is invalid")
+        assert 'dataset1' in mock_logger.return_value.error.call_args[0][0], "Expected error to be logged when resource is invalid"
 
 
     def test_build_portal_from_repo_visualization(self, good_portal_cfg, good_portal_builder, mocked_resources):
@@ -928,11 +957,28 @@ class TestMain:
     @patch('logging.basicConfig')
     def test_main_run_setup(self, mock_basicConfig, mock_PortalBuilder):
         mock_portal_builder = mock_PortalBuilder.return_value
-
         call_main(['prog', '-c','my_config','setup'])
-
         mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
         mock_portal_builder.setup_organizations.assert_called_once_with(repo_name=None)
+
+
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    def test_main_run_purge(self, mock_basicConfig, mock_PortalBuilder):
+        mock_portal_builder = mock_PortalBuilder.return_value
+        call_main(['prog', '-c','my_config','purge'])
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        mock_portal_builder.remove_all_datasets.assert_called_once_with()
+
+
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    def test_main_run_reprime(self, mock_basicConfig, mock_PortalBuilder):
+        mock_portal_builder = mock_PortalBuilder.return_value
+        call_main(['prog', '-c','my_config','reprime'])
+        mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
+        mock_portal_builder.remove_all_datasets.assert_called_once_with()
+        mock_portal_builder.build_portal.assert_called_once_with()
 
 
     @patch('time.sleep')
