@@ -14,6 +14,9 @@ BDKD.TIME_SERIES_HEIGHT_PX = 300;
 BDKD.ZOOM_SIZE = 15;
 BDKD.ZOOM_SCALE = 10;
 
+BDKD.COLOUR_RANGE = 300;
+BDKD.COLOUR_OFFSET = 0;
+
 function datasetUrl() {
     /**
      * Get the path of the current dataset.
@@ -201,6 +204,12 @@ function getHeatmapSelection(x_index, y_index) {
 };
 
 
+function hslHue(max, min, value) {
+    return (((value - min) / (max - min) * BDKD.COLOUR_RANGE) + 
+        BDKD.COLOUR_OFFSET).toString();
+};
+
+
 function updateHeatmapZoom(x_index, y_index) {
     var heatmap_data = getHeatmapSelection(x_index, y_index);
     var zoom = d3.select("svg#heatmap_zoom");
@@ -232,10 +241,9 @@ function updateHeatmapZoom(x_index, y_index) {
             .attr("width", BDKD.ZOOM_SCALE -1)
             .attr("height", BDKD.ZOOM_SCALE -1)
             .attr("fill", function(d) {
-                return "hsl(" + 
-                    ((d.value - BDKD.map_data.min_value) / 
-                     (BDKD.map_data.max_value - BDKD.map_data.min_value) * 360)
-                .toString() + ",100%, 50%)"; 
+                return "hsl(" + hslHue(BDKD.map_data.max_value, 
+                    BDKD.map_data.min_value, d.value) + 
+                    ",100%, 50%)";
             })
             .attr("class", function(d) {
                 // CSS styling for selected & surrounding pixels
@@ -404,10 +412,9 @@ function drawHeatMap(map_data) {
             .attr("width", BDKD.MAP_SCALE)
             .attr("height", BDKD.MAP_SCALE)
             .attr("fill", function(d) {
-                return "hsl(" +
-                    ((d.value - BDKD.map_data.min_value) / 
-                     (BDKD.map_data.max_value - BDKD.map_data.min_value) * 360)
-                .toString() + ",100%, 50%)"; 
+                return "hsl(" + hslHue(BDKD.map_data.max_value, 
+                    BDKD.map_data.min_value, d.value) + 
+                    ",100%, 50%)"; 
             })
             .on("mouseover", function(d) { 
                 tooltip.style("visibility", "visible");
