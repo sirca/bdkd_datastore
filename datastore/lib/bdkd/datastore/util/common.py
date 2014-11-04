@@ -74,6 +74,20 @@ class RepositoryAction(argparse.Action):
         setattr(namespace, self.dest, repository)
 
 
+class OptionalRepositoryAction(argparse.Action):
+    """
+    Action for Repository: get the BDKD datastore repository by name.  Optional 
+    but if specified the repository must exist.
+    """
+    def __call__(self, parser, namespace, values, option_string=None):
+        repository = None
+        if values:
+            repository = bdkd.datastore.repository(values)
+            if not repository:
+                raise ValueError("Repository '{0}' does not exist or is not configured!".format(values))
+        setattr(namespace, self.dest, repository)
+
+
 def _repository_parser():
     """
     Parser providing the mandatory option 'repository'.

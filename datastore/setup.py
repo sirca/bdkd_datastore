@@ -23,10 +23,11 @@ setup(
             'console_scripts': [
                 'datastore-add = bdkd.datastore.util.add:add_util',
                 'datastore-add-bdkd = bdkd.datastore.util.add:add_bdkd_util',
+                'datastore-copy = bdkd.datastore.util.copy_move:copy_util',
                 'datastore-getkey = bdkd.datastore.util.info:getkey_util',
                 'datastore-lastmod = bdkd.datastore.util.info:lastmod_util',
+                'datastore-move = bdkd.datastore.util.copy_move:move_util',
                 'datastore-update-metadata = bdkd.datastore.util.metadata:update_metadata_util',
-
             ],
         },
         install_requires=['boto', 'PyYAML']
