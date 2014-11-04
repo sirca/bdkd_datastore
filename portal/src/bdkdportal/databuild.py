@@ -18,13 +18,14 @@ import ckan.lib.cli
 import daemon
 import time
 import shutil
+import signal
 
 
 MANIFEST_FILENAME = "manifest.txt"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 
 class Dataset:
@@ -340,6 +341,9 @@ class RepositoryBuilder:
                     self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
 
                 # else don't need to update the dataset as it hasn't changed.
+
+                if not is_running():
+                    break # 
             # end-for ds_dataset_name in repo_dataset_names
 
         finally:
@@ -436,6 +440,8 @@ class PortalBuilder:
                 raise
 
             repo_builder.release()
+            if not is_running():
+                break # terminate asap
 
         # Clean up leftover (i.e. datasets that were not touched are assume to be deleted from datastore)
         # This will only take place if the priming is for all repo, otherwise some dataset might not be 'touched'.
@@ -507,6 +513,11 @@ class PortalBuilder:
         return self._cfg.get('cycle_nap_in_mins', 60) * 60
 
 
+    def get_config(self, key, default):
+        """ Return a config setting from the configuration file, returning 'default' if setting is not there """
+        return self._cfg.get(key, default)
+
+
     def setup_organizations(self, repo_name=None):
         """ Check that the organizations in the configuration file exist
         and if not create them.
@@ -566,9 +577,17 @@ def is_running():
     global _running
     return _running  
 
+
 def stop_running():
     global _running
     _running = False
+
+ 
+def sigterm_handler(signal, frame):
+    """ When SIGTERM is received, start shutting down the daemon """
+    stop_running()
+    logging.getLogger(__name__).warning("Terminate signal received, daemon shutting down")
+
 
 def portal_data_builder_entry(cmd_args):
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
@@ -621,10 +640,18 @@ def portal_data_builder_entry(cmd_args):
 
     elif args.command == 'daemon':
         # run builder in daemonize mode (note: setup logging after daemonized)
-        with daemon.DaemonContext():
+        # pidfile = FileLock('/tmp/portal_data_builder.pid'))
+        portal_builder = PortalBuilder()
+        portal_builder.load_config(from_file=args.config)
+        from lockfile.pidlockfile import PIDLockFile
+        context = daemon.DaemonContext(
+            pidfile = PIDLockFile(portal_builder.get_config('pidfile','/tmp/portal_data_builder.pid')),
+            signal_map = {
+                signal.SIGTERM: sigterm_handler,
+                }
+            )
+        with context:
             _prepare_logging(args)
-            portal_builder = PortalBuilder()
-            portal_builder.load_config(from_file=args.config)
             nap_duration = portal_builder.get_nap_duration()
             while is_running():
                 try:
@@ -635,7 +662,9 @@ def portal_data_builder_entry(cmd_args):
                     # Otherwise drop back to sleep, hopefully next cycle the failure
                     # would have recovered.
                     # We don't want to re-raise here or the daemon will terminates.
-                time.sleep(nap_duration)
+                if is_running():
+                    time.sleep(nap_duration)
+            logging.getLogger(__name__).info("Daemon terminated")
 
     return 0
 
