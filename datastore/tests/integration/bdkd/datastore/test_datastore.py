@@ -173,6 +173,23 @@ class RepositoryTest(unittest.TestCase):
         self.repository.copy(from_resource, 'copied/shapefile')
         self._check_bucket_count('', 12)
 
+    def test_copy_resource_with_metadata(self):
+        metadata = {'author': 'fred', 'author-email': 'fred@localhost'}
+        from_resource = self.resources.get('shapefile')
+        from_resource.metadata = metadata
+        self.repository.save(from_resource)
+        self.repository.copy(from_resource, 'copied/shapefile')
+        copied = self.repository.get('copied/shapefile')
+        self.assertTrue(
+                len(set(metadata.items()) ^ set(copied.metadata.items())) == 0)
+
+    def test_copy_resource_with_files(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        self.repository.copy(from_resource, 'copied/shapefile')
+        copied = self.repository.get('copied/shapefile')
+        self.assertEquals(len(from_resource.files), len(copied.files))
+
     def test_copy_resource_conflict(self):
         from_resource = self.resources.get('shapefile')
         self.repository.save(from_resource)
