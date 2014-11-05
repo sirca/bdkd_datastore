@@ -5,7 +5,7 @@ import glob
 
 setup(
         name='bdkd-datastore',
-        version='0.1.1',
+        version='0.1.2',
         description='Store and retrieve sets of files from an object store',
         author='Sirca Ltd',
         author_email='david.nelson@sirca.org.au',
