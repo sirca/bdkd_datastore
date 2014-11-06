@@ -166,6 +166,53 @@ class RepositoryTest(unittest.TestCase):
         self.repository.save(resource, overwrite=True)
         self.assertFalse(resource.is_edit)
 
+    def test_copy_resource(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 6)
+        self.repository.copy(from_resource, 'copied/shapefile')
+        self._check_bucket_count('', 12)
+
+    def test_copy_resource_with_metadata(self):
+        metadata = {'author': 'fred', 'author-email': 'fred@localhost'}
+        from_resource = self.resources.get('shapefile')
+        from_resource.metadata = metadata
+        self.repository.save(from_resource)
+        self.repository.copy(from_resource, 'copied/shapefile')
+        copied = self.repository.get('copied/shapefile')
+        self.assertTrue(
+                len(set(metadata.items()) ^ set(copied.metadata.items())) == 0)
+
+    def test_copy_resource_with_files(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        self.repository.copy(from_resource, 'copied/shapefile')
+        copied = self.repository.get('copied/shapefile')
+        self.assertEquals(len(from_resource.files), len(copied.files))
+
+    def test_copy_resource_conflict(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        # This name conflicts with an existing pseudopath
+        self.assertRaises(ValueError, self.repository.copy, from_resource,
+                'FeatureCollections/Coastlines')
+
+    def test_copy_resource_clash(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        # Can't copy over an existing resource
+        self.assertRaises(ValueError, self.repository.copy, from_resource,
+                'FeatureCollections/Coastlines/Shapefile')
+
+    def test_move_resource(self):
+        from_resource = self.resources.get('shapefile')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 6)
+        self.repository.move(from_resource, 'copied/shapefile')
+        self._check_bucket_count('', 6)
+        moved_resource = self.repository.get('copied/shapefile')
+        self.assertTrue(moved_resource)
+
     def test_resource_last_modified(self):
         # Force resource into remote storage.
         resource = self.resources.get('single')

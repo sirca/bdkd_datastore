@@ -12,6 +12,7 @@ import urlparse, urllib2
 import yaml
 import re
 import warnings
+import copy
 
 _config_global_file = '/etc/bdkd/Current/datastore.conf'
 _config_user_file = os.path.expanduser(os.environ.get('BDKD_DATASTORE_CONFIG', '~/.bdkd_datastore.conf'))
@@ -437,6 +438,67 @@ class Repository(object):
         resource.relocate(resource_cache_path, move=True)
         resource.is_edit = False
 
+    def move(self, from_resource, to_name):
+        try:
+            self.copy(from_resource, to_name)
+            from_resource.delete()
+        except Exception as e:
+            raise
+
+    def copy(self, from_resource, to_name):
+        """
+        Copy resource from its original position to the given name in this repository.
+        """
+        # Get destination bucket (needs to exist)
+        to_bucket = self.get_bucket()
+        if not to_bucket:
+            raise ValueError("Can only rename into a storage-backed repository")
+        # Check that from_resource has a bucket
+        from_bucket = None
+        if from_resource.repository:
+            from_bucket = from_resource.repository.get_bucket()
+        if not from_bucket:
+            raise ValueError("Can only rename a Resource into a storage-backed repository")
+        # Check that to_name has no conflicts with existing resources
+        conflicting_names = self.__resource_name_conflict(to_name)
+        if conflicting_names:
+            raise ValueError("The Resource name '" + to_name +
+                    "' conflicts with other Resource names including: " +
+                    ', '.join(conflicting_names))
+        # Check that name is not already in use
+        to_keyname = self.__resource_name_key(to_name)
+        to_key = to_bucket.get_key(to_keyname)
+        if to_key:
+            raise ValueError("Cannot rename: name in use")
+        # Create unsaved destination resource (also checks name)
+        to_resource = Resource(to_name, files=[],
+                metadata=copy.deepcopy(from_resource.metadata))
+        to_resource.is_edit = True
+        # Copy files to to_resource and save
+        try:
+            from_prefix = os.path.join(Repository.files_prefix, from_resource.name, '')
+            for from_file in from_resource.files:
+                to_file = copy.deepcopy(from_file)
+                to_file.is_edit = True
+                # Do S3 copy if in S3 (i.e. has 'location')
+                if 'location' in from_file.metadata:
+                    to_location = os.path.join(Repository.files_prefix, 
+                            to_resource.name, 
+                            from_file.metadata['location'][len(from_prefix):])
+                    to_bucket.copy_key(to_location, from_bucket.name, from_file.metadata['location'])
+                    to_file.metadata['location'] = to_location
+                # Add file to to_resource
+                to_resource.files.append(to_file)
+            # Save destination resource
+            self.save(to_resource)
+        except:
+            # Undo: delete all to-files if save failed
+            for to_file in to_resource.files:
+                if 'location' in to_file.metadata:
+                    self.__delete_resource_file(to_file)
+            to_resource.delete()
+            raise
+
     def list(self, prefix=''):
         """
         List all Resource names available in the Repository.
@@ -820,6 +882,11 @@ class Resource(Asset):
             raise ValueError("Cannot save a resource that is not loaded from a repository")
         # Always overwrite the existing one since it was loaded from the repository anyway.
         self.repository.save(self, overwrite=True)
+
+    def delete(self):
+        if not self.repository:
+            raise ValueError("Cannot delete a resource that is not loaded from a repository")
+        self.repository.delete(self)
 
     def set_edit(self):
         """
