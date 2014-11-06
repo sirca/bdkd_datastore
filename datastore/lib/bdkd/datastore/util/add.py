@@ -135,8 +135,20 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
         meta_args = meta_parser.parse_known_args(argv)
         metadata.update(meta_args[0].__dict__)
     metadata = dict((k, v) for k, v in metadata.items() if v != None)
+    resource_items = []
+    for item in resource_args.filenames:
+        if os.path.exists(item) and os.path.isdir(item):
+            # item is a dir, so recursively expands directories into files
+            for root, dir, files in os.walk(item):
+                for f in files:
+                    resource_items.append(os.path.join(root, f))
+        else:
+            resource_items.append(item)
+
+    if len(resource_items) == 0:
+        raise ValueError("Unable to create an empty resource")
     resource = bdkd.datastore.Resource.new(resource_args.resource_name, 
-            resource_args.filenames,
+            resource_items,
             metadata)
     return resource
 

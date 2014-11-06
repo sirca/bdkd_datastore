@@ -1,5 +1,7 @@
 # coding=utf-8
 import unittest
+from mock import patch, ANY
+import argparse
 
 import os
 # Load a custom configuration for unit testing
@@ -116,5 +118,79 @@ class AddUtilitiesTest(unittest.TestCase):
         self.assertEquals(resource.metadata, expected_metadata)
         self.assertEquals(resource.files[0].path, self.filepath)
 
-
         
+    @patch('os.path.exists')
+    @patch('os.path.isdir')
+    def test_create_parsed_resource_just_files(self,
+            mock_os_path_isdir,
+            mock_os_path_exists):
+        resource_args = argparse.Namespace()
+        setattr(resource_args, 'metadata', {})
+        setattr(resource_args, 'filenames', ['file1','file2'])
+        setattr(resource_args, 'resource_name', 'dummy-resource')
+
+        mock_os_path_exists.return_value = True
+        mock_os_path_isdir.return_value = False
+        with patch('bdkd.datastore.Resource.new') as mock_Resource_new:
+            resource = add_utils.create_parsed_resource(resource_args = resource_args)
+        mock_Resource_new.assert_called_once_with('dummy-resource', ['file1','file2'], ANY)
+
+
+    @patch('os.path.exists')
+    @patch('os.path.isdir')
+    def test_create_parsed_resource_files_and_remote(self,
+            mock_os_path_isdir,
+            mock_os_path_exists):
+        resource_args = argparse.Namespace()
+        setattr(resource_args, 'metadata', {})
+        setattr(resource_args, 'filenames', ['file1','http://test.dummy/file2','file3'])
+        setattr(resource_args, 'resource_name', 'dummy-resource')
+
+        mock_os_path_exists.side_effect = lambda f: f[0:4] == 'file'
+        mock_os_path_isdir.return_value = False
+        with patch('bdkd.datastore.Resource.new') as mock_Resource_new:
+            resource = add_utils.create_parsed_resource(resource_args = resource_args)
+        mock_Resource_new.assert_called_once_with(
+            'dummy-resource',
+            ['file1','http://test.dummy/file2', 'file3'],
+            ANY)
+
+
+    @patch('bdkd.datastore.Resource.new')
+    @patch('os.path.exists')
+    @patch('os.path.isdir')
+    @patch('os.walk')
+    def test_create_parsed_resource_files_and_dirs(self,
+            mock_walk,
+            mock_os_path_isdir,
+            mock_os_path_exists,
+            mock_Resource_new):
+        resource_args = argparse.Namespace()
+        setattr(resource_args, 'metadata', {})
+        setattr(resource_args, 'filenames', ['file1','dir1'])
+        setattr(resource_args, 'resource_name', 'dummy-resource')
+
+        mock_os_path_exists.return_value = True
+        mock_os_path_isdir.side_effect = lambda f: 'file' not in f
+        mock_walk.return_value = [
+            ('dir1', ['emptydir','subdir1','subdir2' ], []),
+            ('dir1/emptydir', [], []),
+            ('dir1/subdir1', [], ['file1']),
+            ('dir1/subdir2', [], ['file2'])
+            ]
+        # Simulates the following file structure:
+        # ./file1
+        # ./dir1/
+        # ./dir1/emptydir/
+        # ./dir1/subdir1/
+        # ./dir1/subdir1/file1
+        # ./dir1/subdir2/
+        # ./dir1/subdir2/file2
+        # When adding with the parameter 'file1 dir1', it will create a resource
+        # containing the file 'file1' and all files inside directory 'dir1'
+
+        resource = add_utils.create_parsed_resource(resource_args = resource_args)
+        mock_Resource_new.assert_called_once_with(
+            'dummy-resource',
+            ['file1','dir1/subdir1/file1','dir1/subdir2/file2'],
+            ANY)
