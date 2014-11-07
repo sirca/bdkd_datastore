@@ -443,6 +443,7 @@ class Repository(object):
             self.copy(from_resource, to_name)
             from_resource.delete()
         except Exception as e:
+            print >>sys.stderr, e.message
             raise
 
     def copy(self, from_resource, to_name):
@@ -472,13 +473,13 @@ class Repository(object):
             raise ValueError("Cannot rename: name in use")
         # Create unsaved destination resource (also checks name)
         to_resource = Resource(to_name, files=[],
-                metadata=copy.deepcopy(from_resource.metadata))
+                metadata=copy.copy(from_resource.metadata))
         to_resource.is_edit = True
         # Copy files to to_resource and save
         try:
             from_prefix = os.path.join(Repository.files_prefix, from_resource.name, '')
             for from_file in from_resource.files:
-                to_file = copy.deepcopy(from_file)
+                to_file = copy.copy(from_file)
                 to_file.is_edit = True
                 # Do S3 copy if in S3 (i.e. has 'location')
                 if 'location' in from_file.metadata:
@@ -491,7 +492,8 @@ class Repository(object):
                 to_resource.files.append(to_file)
             # Save destination resource
             self.save(to_resource)
-        except:
+        except Exception as e:
+            print >>sys.stderr, e.message
             # Undo: delete all to-files if save failed
             for to_file in to_resource.files:
                 if 'location' in to_file.metadata:
