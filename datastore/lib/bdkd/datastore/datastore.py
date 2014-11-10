@@ -441,6 +441,7 @@ class Repository(object):
     def move(self, from_resource, to_name):
         try:
             self.copy(from_resource, to_name)
+            from_resource.reload(from_resource.path)
             from_resource.delete()
         except Exception as e:
             print >>sys.stderr, e.message
