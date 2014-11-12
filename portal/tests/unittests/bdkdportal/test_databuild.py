@@ -119,20 +119,6 @@ def good_portal_builder(good_cfg_string):
     return builder
 
 
-def mock_getmeta(key, default=None):
-    mock_meta = {
-        'author':'test author',
-        'author_email':'test_author@test.email',
-        'maintainer':'test maintainer',
-        'maintainer_email':'test_maintainer@test.email',
-        'version':'1.0',
-        'description':'test desc',
-        'data_type':'ocean data',
-        }
-
-    return mock_meta.get(key, default)
-
-
 @pytest.fixture
 @patch('bdkd.datastore.Host')
 def single_dataset_repo(mock_ds_host):
@@ -159,7 +145,15 @@ def single_dataset_repo(mock_ds_host):
             mock_ds_resource = MagicMock()
             mock_ds_resource.files = [mock_ds_resource_file1, mock_ds_resource_file2]
             mock_ds_resource.name = ds_resource_name
-            mock_ds_resource.metadata.get = MagicMock(side_effect=mock_getmeta)
+            mock_ds_resource.metadata = {
+                'author':'test author',
+                'author_email':'test_author@test.email',
+                'maintainer':'test maintainer',
+                'maintainer_email':'test_maintainer@test.email',
+                'version':'1.0',
+                'description':'test desc',
+                'data_type':'ocean data',
+                }
             return mock_ds_resource
         return None
     mock_ds_repo.get = MagicMock(side_effect=mock_repo_get)
@@ -533,7 +527,8 @@ class TestRepositoryBuilder:
         mocked_resources.start_patching()
 
         # Mock a single dataset in datastore repository so that the builder attempts to connect to CKAN.
-        mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
+        mock_repo = mocked_resources.get_mock('bdkd.datastore.Repository')
+        mock_repo.return_value = single_dataset_repo
         mock_portal_builder = MagicMock()
         repo_builder = RepositoryBuilder(mock_portal_builder, good_portal_cfg)
         repo_cfg = good_portal_cfg['repos'][0]
@@ -868,6 +863,7 @@ class TestRepositoryBuilder:
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
 
+
     def test_build_portal_from_repo_no_download_if_not_configured3(self, single_dataset_repo, good_portal_cfg, mocked_resources):
         # The download template file does not exist.
         mocked_resources.start_patching()
@@ -879,6 +875,29 @@ class TestRepositoryBuilder:
         mocked_resources.stop_patching()
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         assert not check_calls_with(mock_ckan_site.action.resource_create, 'name', 'download'), "Should not have created a download"
+
+
+    def test_build_repo_create_metadata_resource_ok(self, single_dataset_repo, good_portal_cfg, mocked_resources):
+        """ Test that the metadata resource was correctly created """
+        mocked_resources.start_patching()
+        mock_repo = mocked_resources.get_mock('bdkd.datastore.Repository')
+        mock_repo.return_value = single_dataset_repo
+        mock_portal_builder = MagicMock()
+        repo_builder = RepositoryBuilder(mock_portal_builder, good_portal_cfg)
+        repo_cfg = good_portal_cfg['repos'][0]
+        repo_builder.build_portal_from_repo(repo_cfg)
+        mocked_resources.stop_patching()
+        mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
+
+        # Check that a metadata resource was created if there is meta data.
+        mock_ckan_site.action.resource_create.assert_has_calls([
+                call(package_id='test_bucket-groupa-groupaa-dataset1',
+                     description = ANY,
+                     name='metadata',
+                     format='JSON',
+                     upload=ANY)],
+                any_order=True)
+
 
 
 from bdkdportal.databuild import portal_data_builder_entry as call_main
