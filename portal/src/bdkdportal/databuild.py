@@ -19,13 +19,15 @@ import daemon
 import time
 import shutil
 import signal
+import json
 
 
 MANIFEST_FILENAME = "manifest.txt"
+METADATA_FILENAME = "metadata.json"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 
 class Dataset:
@@ -153,6 +155,32 @@ class RepositoryBuilder:
             description = 'Manifest for resource ' + ds_resource.name,
             name = 'manifest',
             upload=open(manifest_filename))
+
+
+    def _create_metadata_file(self, dataset_name, ds_resource):
+        """ Creates a metadata json file to be uploaded as the resource 'metadata'
+        :param dataset_name: the name of the dataset
+        :param ds_resource: the datastore resource (dataset) to build the meta data for
+        :type  ds_resource: datastore.Resource
+        """
+        if ds_resource.metadata:
+            self.logger.info("Creating metadata file for %s" % (ds_resource.name))
+            metadata_filename = self._tmp_dir + "/" + METADATA_FILENAME
+            metadata_file = open(metadata_filename, 'w')
+            metadata_file.write(json.dumps(ds_resource.metadata,
+                                           sort_keys=True,
+                                           indent=4,
+                                           separators=(',', ': ')))
+            metadata_file.close()
+            self.logger.info("Uploading metadata file for %s" % (ds_resource.name))
+            self._ckan_site.action.resource_create(
+                package_id = dataset_name,
+                description = 'Metadata for ' + ds_resource.name,
+                name = 'metadata',
+                format = 'JSON',
+                upload=open(metadata_filename))
+        else:
+            self.logger.info("No metadata found for %s, no metadata resource created" % (ds_resource.name))
 
 
     def _create_download_file(self, dataset, ds_resource, repo_cfg):
@@ -338,6 +366,7 @@ class RepositoryBuilder:
                     self._create_ckan_dataset(dataset)
                     self._create_visualization_resource(dataset_name=dataset.name, ds_resource=resource)
                     self._create_download_file(dataset=dataset, ds_resource=resource, repo_cfg=repo_cfg)
+                    self._create_metadata_file(dataset_name=dataset.name, ds_resource=resource)
                     self._create_manifest_file(dataset_name=dataset.name, ds_resource=resource)
 
                 # else don't need to update the dataset as it hasn't changed.
