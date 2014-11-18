@@ -6,6 +6,7 @@ import re
 import ckanapi
 import tempfile
 import yaml
+from yaml import YAMLError
 import logging
 import urllib
 import dateutil.parser
@@ -27,7 +28,32 @@ METADATA_FILENAME = "metadata.json"
 S3_PREFIX = 's3://'
 
 # Constants
-__version__ = '0.0.6'
+__version__ = '0.0.7'
+
+
+class FatalError(Exception):
+    """ For capture fatal exception that cannot be recovered """
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
+
+def check_cfg(cfg_dict, req_keys, name=None):
+    """ Checks if the mandatory keys are present in the config dictionary object.
+    :param cfg_dict:  the config data dictionary to check.
+    :param req_keys: the list of keys to check for.
+    :param name: the name of the token that should have those keys.
+    :throws FatalError if it is an unrecoverable error
+    """
+    for item in req_keys:
+        if item not in cfg_dict:
+            sect = ""
+            if name is not None:
+                sect = " from '%s'" % (name)
+            raise FatalError("Error: missing mandatory configuration token '%s'%s" % (item, sect))
+        else:
+           logging.getLogger(__name__).debug("config:%s = %s" % (item, cfg_dict[item]))
 
 
 class Dataset:
@@ -395,33 +421,27 @@ class PortalBuilder:
         """ Loads the portal builder configuration file either from a file or from a YAML string.
         :raises: IOError if the config can't be loaded.
         """
-        if from_file:
-            self.logger.info("Using config from " + from_file)
-            if not os.path.exists(from_file):
-                raise Exception("Error: portal data builder config file %s not found." % (from_file))
-            self._cfg = yaml.load(open(from_file))
+        try:
+            if from_file:
+                self.logger.info("Using config from " + from_file)
+                if not os.path.exists(from_file):
+                    raise FatalError("Error: portal data builder config file %s not found." % (from_file))
+                cfg_file = open(from_file)
+                if not cfg_file:
+                    raise IOError("Unable to open config file %s".format(from_file))
+                self._cfg = yaml.load(cfg_file)
 
-        elif from_string:
-            self._cfg = yaml.load(from_string)
+            elif from_string:
+                self._cfg = yaml.load(from_string)
 
-        else:
-            raise Exception("Error: Unable to load portal data builder config without any configuration")
-
-
-    def _check_cfg(self, cfg_dict, req_keys, name=None):
-        """ Checks if the mandatory keys are present in the config dictionary object.
-        :param cfg_dict:  the config data dictionary to check.
-        :param req_keys: the list of keys to check for.
-        :param name: the name of the token that should have those keys.
-        """
-        for item in req_keys:
-            if item not in cfg_dict:
-                sect = ""
-                if name is not None:
-                    sect = " from '%s'" % (name)
-                raise Exception("Error: missing mandatory configuration token '%s'%s" % (item, sect))
             else:
-               self.logger.debug("config:%s = %s" % (item, cfg_dict[item]))
+                raise FatalError("Error: Unable to load portal data builder config without any configuration")
+
+        except IOError as e:
+            raise FatalError("Failed to load load config file, reason:" + str(e))
+
+        except YAMLError as e:
+            raise FatalError("Failed to parse configuration, reason:" + str(e))
 
 
     def find_visual_site_for_datatype(self, datatype):
@@ -446,14 +466,14 @@ class PortalBuilder:
         """
 
         # Validate config
-        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url', 'download_template'],)
+        check_cfg(self._cfg, ['repos', 'api_key', 'ckan_cfg', 'ckan_url', 'download_template'],)
         self.logger.info("Building portal: %s" % (repo_name if repo_name else "ALL"))
 
         ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
         datasets_before_build = ckan_site.action.current_package_list_with_resources()
         datasets_touched = {}
         for repo in self._cfg['repos']:
-            self._check_cfg(repo, ['bucket','ds_host','org_name',], name='the repo config')
+            check_cfg(repo, ['bucket','ds_host','org_name',], name='the repo config')
 
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
@@ -553,11 +573,11 @@ class PortalBuilder:
         :param repo_name: Only setup the organization for that repo config.
         """
         # Validate config
-        self._check_cfg(self._cfg, ['repos', 'api_key', 'ckan_url'],)
+        check_cfg(self._cfg, ['repos', 'api_key', 'ckan_url'],)
         api_key = self._cfg['api_key']
 
         for repo in self._cfg['repos']:
-            self._check_cfg(repo, ['bucket','org_name','org_title'], name='the repo config')
+            check_cfg(repo, ['bucket','org_name','org_title'], name='the repo config')
             if repo_name is not None and repo['bucket'] != repo_name:
                 continue
             # Prepare a CKAN connection for use.
@@ -577,7 +597,7 @@ class PortalBuilder:
     def remove_all_datasets(self):
         """ Remove all datasets that are in the current portal.  """
         # Validate config
-        self._check_cfg(self._cfg, ['api_key', 'ckan_cfg', 'ckan_url'],)
+        check_cfg(self._cfg, ['api_key', 'ckan_cfg', 'ckan_url'],)
 
         ckan_site = ckanapi.RemoteCKAN(self._cfg['ckan_url'], apikey=self._cfg['api_key'])
         datasets_in_portal = ckan_site.action.package_list()
@@ -611,6 +631,11 @@ def stop_running():
     global _running
     _running = False
 
+
+def init_running_state():
+    """ Used by unit test to reset the running state of the daemon """
+    global _running
+    _running = True
  
 def sigterm_handler(signal, frame):
     """ When SIGTERM is received, start shutting down the daemon """
@@ -619,6 +644,7 @@ def sigterm_handler(signal, frame):
 
 
 def portal_data_builder_entry(cmd_args):
+    ret_code = 0
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter,
         description='BDKD Portal Data Builder V%s\nTo build the data of a BDKD Portal so that it is synchronized '
                     'with the BDKD Data Repository in an object store.' % (__version__))
@@ -631,6 +657,7 @@ def portal_data_builder_entry(cmd_args):
                              ' purge  - purge all datasets from this portal\n'
                              ' reprime  - purge and rebuild all datasets for this portal\n'
     )
+    parser.add_argument('--cycle', type=int, help='Maximum number of build cycle to run when running as daemon')
     parser.add_argument('-c', '--config', help='Configuration file')
     parser.add_argument('-b', '--bucket-name', help='Select the bucket to build from (must be in the config)')
     parser.add_argument('-l', '--log-ini', help='Specify a logging ini file')
@@ -671,7 +698,13 @@ def portal_data_builder_entry(cmd_args):
         # run builder in daemonize mode (note: setup logging after daemonized)
         # pidfile = FileLock('/tmp/portal_data_builder.pid'))
         portal_builder = PortalBuilder()
-        portal_builder.load_config(from_file=args.config)
+        try:
+            portal_builder.load_config(from_file=args.config)
+        except FatalError as e:
+            logging.getLogger(__name__).critical(
+                "Portal data building not started due to a critical failure: " + str(e))
+            return 1
+
         from lockfile.pidlockfile import PIDLockFile
         context = daemon.DaemonContext(
             pidfile = PIDLockFile(portal_builder.get_config('pidfile','/tmp/portal_data_builder.pid')),
@@ -680,22 +713,36 @@ def portal_data_builder_entry(cmd_args):
                 }
             )
         with context:
+            init_running_state()
             _prepare_logging(args)
             nap_duration = portal_builder.get_nap_duration()
+            max_cycle = args.cycle
             while is_running():
                 try:
                     portal_builder.build_portal()
+                except FatalError as e:
+                    logging.getLogger(__name__).critical(
+                        "Portal data building terminating due to a critical failure: " + str(e))
+                    stop_running()
+                    ret_code = 1
                 except Exception as e:
                     logging.getLogger(__name__).error("Portal data building has failed: " + str(e))
                     # If there is a monitoring system, we will raise an alert here.
                     # Otherwise drop back to sleep, hopefully next cycle the failure
                     # would have recovered.
                     # We don't want to re-raise here or the daemon will terminates.
+
+                # during testing, we can put cap on the number of build cycles.
+                if max_cycle:
+                    max_cycle -= 1
+                    if max_cycle <= 0 and is_running():
+                        stop_running()
+
                 if is_running():
                     time.sleep(nap_duration)
             logging.getLogger(__name__).info("Daemon terminated")
 
-    return 0
+    return ret_code
 
 def main():
     portal_data_builder_entry(sys.argv)
