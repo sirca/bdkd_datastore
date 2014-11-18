@@ -2,6 +2,7 @@ import pytest
 from mock import Mock, patch, MagicMock, call, ANY
 from bdkdportal.databuild import PortalBuilder
 from bdkdportal.databuild import RepositoryBuilder
+from bdkdportal.databuild import FatalError
 import yaml
 import datetime
 
@@ -199,12 +200,12 @@ class TestPortalBuilder:
         builder = PortalBuilder(logger=MagicMock())
         # If config file is missing or not openable, it should raise an exception.
         with patch('os.path.exists', return_value=False):
-            with pytest.raises(Exception):
+            with pytest.raises(FatalError):
                 builder.load_config("missing_cfg")
 
         with patch('os.path.exists', return_value=True):
             with patch('__builtin__.open', return_value=None):
-                with pytest.raises(Exception):
+                with pytest.raises(FatalError):
                     builder.load_config("open_fail_cfg")
 
 
@@ -224,12 +225,12 @@ class TestPortalBuilder:
         """
         # Config not loaded should fail
         mocked_resources.start_patching()
-        with pytest.raises(Exception):
+        with pytest.raises(FatalError):
             builder = PortalBuilder(logger=MagicMock())
             builder.build_portal()
 
         # Missing key settings should fail
-        with pytest.raises(Exception):
+        with pytest.raises(FatalError):
             builder = PortalBuilder(logger=MagicMock())
             builder.load_config(from_string="""
                 repos:
@@ -242,7 +243,7 @@ class TestPortalBuilder:
             builder.build_portal()
 
         # Missing repo key settings should fail too
-        with pytest.raises(Exception):
+        with pytest.raises(FatalError):
             builder = PortalBuilder(logger=MagicMock())
             builder.load_config(from_string="""
                     api_key: test-key
@@ -998,3 +999,60 @@ class TestMain:
         mock_portal_builder.load_config.assert_called_once_with(from_file='my_config')
         mock_portal_builder.remove_all_datasets.assert_called_once_with()
         mock_portal_builder.build_portal.assert_called_once_with()
+
+
+    @patch('bdkdportal.databuild.PortalBuilder')
+    @patch('logging.basicConfig')
+    def test_main_run_daemon_with_cycles(self, mock_basicConfig, mock_PortalBuilder):
+        mock_portal_builder = mock_PortalBuilder.return_value
+        with patch('daemon.DaemonContext') as mock_DaemonContext:
+            with patch('time.sleep') as mock_time_sleep:
+                call_main(['prog', '-c','my_config','daemon','--cycle','3'])
+        assert mock_portal_builder.build_portal.call_count == 3, "Should have build portal 3 times"
+
+
+    @patch('os.path.exists', return_value=True)
+    @patch('ckanapi.RemoteCKAN')
+    @patch('logging.basicConfig')
+    def test_main_run_daemon(self, mock_basicConfig, mock_RemoteCKAN, mock_os_path_exists):
+        mock_os_path_exists.return_value = True
+        with patch('bdkdportal.databuild.open', create=True) as mock_open:
+            mock_open.return_value = MagicMock(spec=file)
+            with patch('yaml.load') as mock_yaml_load:
+                mock_yaml_load.return_value = dict(
+                        api_key='api_key',
+                        ckan_cfg='ckan_cfg',
+                        ckan_url='ckan_url',
+                        download_template='download_template',
+                        repos=[])
+                with patch('daemon.DaemonContext') as mock_DaemonContext:
+                    with patch('time.sleep') as mock_time_sleep:
+                        rc = call_main(['prog', '-c','my_config','daemon','--cycle','2'])
+                assert mock_RemoteCKAN.call_count == 2, "Should have attempted to connect to CKAN 2 times"
+                assert rc == 0, "Should have terminated without an error"
+
+
+    @patch('os.path.exists', return_value=True)
+    @patch('ckanapi.RemoteCKAN')
+    @patch('logging.basicConfig')
+    def test_main_run_daemon_bad_config_is_fatal(self, mock_basicConfig, mock_RemoteCKAN, mock_os_path_exists):
+        with patch('bdkdportal.databuild.open', create=True) as mock_open:
+            mock_open.return_value = MagicMock(spec=file)
+            with patch('yaml.load') as mock_yaml_load:
+                mock_yaml_load.return_value = dict(
+                        ckan_cfg='ckan_cfg',
+                        ckan_url='ckan_url') # missing key cfg
+                with patch('daemon.DaemonContext') as mock_DaemonContext:
+                    rc = call_main(['prog', '-c','my_config','daemon','--cycle','5'])
+                    assert not mock_RemoteCKAN.called, 'Should have terminated due to bad config and not call CKAN at all'
+                    assert rc != 0, "Should have terminated with an error"
+
+
+    @patch('os.path.exists', return_value=False)
+    @patch('ckanapi.RemoteCKAN')
+    @patch('logging.basicConfig')
+    def test_main_run_daemon_missing_config_is_fatal(self, mock_basicConfig, mock_RemoteCKAN, mock_os_path_exists):
+        with patch('daemon.DaemonContext') as mock_DaemonContext:
+            rc = call_main(['prog', '-c','my_config','daemon','--cycle','5'])
+            assert not mock_RemoteCKAN.called, 'Should have terminated due to missing config and not call CKAN at all'
+            assert rc != 0, "Should have terminated with an error"
