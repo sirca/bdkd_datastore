@@ -25,9 +25,8 @@ class SampleData:
         return self._repo_name
 
     def get_dataset_id(self):
-        return '{0}-{1}'.format(
-            self.get_repo_name(),
-            self.get_dataset_name())
+        from bdkdportal.databuild import ckan_dataset_name
+	return ckan_dataset_name(self.get_dataset_name(), repo_name=self.get_repo_name())
         
     def data_repo(self):
         if not self._repo:

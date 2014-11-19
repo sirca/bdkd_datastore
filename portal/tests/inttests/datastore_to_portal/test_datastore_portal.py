@@ -31,7 +31,7 @@ def test_add_dataset(portal_builder, ckan_site, sample_data1):
     assert ds['maintainer'] == 'test maintain'
     assert ds['maintainer_email'] == 'testmain@test.email'
     assert ds['notes'] == 'laser in ocean'
-    assert ds['num_resources'] == 2
+    assert ds['num_resources'] == 3 # download, manifest, metadata
     assert ds['organization']['title'] == 'BDKD QA System'
     assert ds['organization']['name'] == 'bdkd-qa-org'
     for rs_name in ['download','manifest']:
