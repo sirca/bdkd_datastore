@@ -3,6 +3,7 @@ from mock import Mock, patch, MagicMock, call, ANY
 from bdkdportal.databuild import PortalBuilder
 from bdkdportal.databuild import RepositoryBuilder
 from bdkdportal.databuild import FatalError
+from bdkdportal.databuild import ckan_dataset_name
 import yaml
 import datetime
 
@@ -353,7 +354,7 @@ class TestPortalBuilder:
         mock_ckan_site.action.package_delete = MagicMock(side_effect=Exception("Delete failure"))
         mock_ckan_site.action.current_package_list_with_resources.return_value = [
             {
-                'name':'test_bucket-groupb-groupbb-dataset2',
+                'name':ckan_dataset_name('groupB/groupBB/dataset2', repo_name='test_bucket'),
                 'revision_timestamp' : '20131201T12:34:56',
                 'groups' : [{'name':'groupb'},{'name':'groupbb'}],
             }]
@@ -374,13 +375,13 @@ class TestPortalBuilder:
         # CKAN returns 2 datasets, in which one of the dataset is no longer in the dataset.
         mock_ckan_site.action.current_package_list_with_resources.return_value = [
             {
-                'name':'test_bucket-groupa-groupaa-dataset1',
+                'name':ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                 'revision_timestamp' : '20131201T12:34:56',
                 'groups' : [{'name':'groupa'},{'name':'groupaa'}],
             },{
-                'name':'test_bucket-groupa-groupbb-dataset2',
+                'name':ckan_dataset_name('groupA/groupBB/dataset2', repo_name='test_bucket'),
                 'revision_timestamp' : '20131201T12:34:56',
-                'groups' : [{'name':'groupa'},{'name':'groupbb'}],
+                'groups' : [{'name':'groupa'},{'name':'groupbb'}]
             }]
         # Datastore is only going to return 1 dataset (i.e. single_dataset_repo)
         mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
@@ -392,7 +393,8 @@ class TestPortalBuilder:
         mocked_resources.stop_patching()
 
         mock_purge = mocked_resources.get_mock('bdkdportal.databuild.purge_ckan_dataset')
-        mock_purge.assert_called_once_with('test_bucket-groupa-groupbb-dataset2','test_ckan_cfg_file')
+        mock_purge.assert_called_once_with(ckan_dataset_name('groupA/groupBB/dataset2', repo_name='test_bucket'),
+                                           'test_ckan_cfg_file')
         # This was disabled at the library as purging of group in CKAN has an issue.
         # mock_site.action.group_purge.assert_called_once_with(id='groupbb')
 
@@ -496,9 +498,9 @@ class TestPortalBuilder:
             mock_purge = mocked_resources.get_mock('bdkdportal.databuild.purge_ckan_dataset')
             mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
             mock_ckan_site.action.package_list.return_value = [
-                'test_bucket-group1-group2-dataset1',
-                'test_bucket-group1-group2-dataset2',
-                'test_bucket-group3-dataset3']
+                ckan_dataset_name('group1/group2/dataset1', repo_name='test_bucket'),
+                ckan_dataset_name('group1/group2/dataset2', repo_name='test_bucket'),
+                ckan_dataset_name('group3/dataset3',        repo_name='test_bucket')]
             portal_builder = PortalBuilder(logger=MagicMock())
             portal_builder.load_config(from_string="""
                     api_key: test-key
@@ -515,9 +517,9 @@ class TestPortalBuilder:
             mocked_resources.stop_patching()
 
             mock_purge.assert_has_calls([
-                call('test_bucket-group1-group2-dataset1', 'test_ckan_cfg_file'),
-                call('test_bucket-group1-group2-dataset2', 'test_ckan_cfg_file'),
-                call('test_bucket-group3-dataset3',        'test_ckan_cfg_file')])
+                call(ckan_dataset_name('group1/group2/dataset1', repo_name='test_bucket'), 'test_ckan_cfg_file'),
+                call(ckan_dataset_name('group1/group2/dataset2', repo_name='test_bucket'), 'test_ckan_cfg_file'),
+                call(ckan_dataset_name('group3/dataset3',        repo_name='test_bucket'), 'test_ckan_cfg_file')])
 
 
 class TestRepositoryBuilder:
@@ -558,7 +560,7 @@ class TestRepositoryBuilder:
         mock_portal_builder.find_visual_site_for_datatype.assert_called_once_with('ocean data')
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
-                     package_id='test_bucket-groupa-groupaa-dataset1',
+                     package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                      description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
@@ -566,7 +568,7 @@ class TestRepositoryBuilder:
 
         # Check that a download resource was created (content will be checked in a separate test)
         mock_ckan_site.action.resource_create.assert_has_calls([
-                call(package_id='test_bucket-groupa-groupaa-dataset1',
+                call(package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                      description = ANY,
                      name='download',
                      format='html',
@@ -642,7 +644,7 @@ class TestRepositoryBuilder:
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
-                     package_id='test_bucket-dataset1',
+                     package_id=ckan_dataset_name('dataset1', repo_name='test_bucket'),
                      description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
@@ -716,7 +718,7 @@ class TestRepositoryBuilder:
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url=ANY,
-                     package_id='test_bucket-dataset1',
+                     package_id=ckan_dataset_name('dataset1', repo_name='test_bucket'),
                      description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
@@ -739,7 +741,7 @@ class TestRepositoryBuilder:
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         mock_ckan_site.action.resource_create.assert_has_calls([
                 call(url='http://ocean.site/test_bucket/groupA%2FgroupAA%2Fdataset1',
-                     package_id='test_bucket-groupa-groupaa-dataset1',
+                     package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                      description='Explore/visualise the dataset',
                      name='explore',
                      format='html')],
@@ -757,7 +759,7 @@ class TestRepositoryBuilder:
         mocked_resources.stop_patching()
 
         mock_ckan_site.action.package_create.assert_called_once_with(
-            name = 'test_bucket-groupa-groupaa-dataset1',
+            name = ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
             owner_org = 'test_org_name',
             title = 'dataset1',
             version = '1.0',
@@ -778,7 +780,7 @@ class TestRepositoryBuilder:
                 side_effect=lambda r: datetime.datetime(2013, 11, 01, 0, 0, 0))
         mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
         mock_ckan_site.action.current_package_list_with_resources.return_value = [{
-                'name':'test_bucket-groupa-groupaa-dataset1',
+                'name':ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                 'revision_timestamp' : '20131201T12:34:56',
                 'groups' : [],
             }]
@@ -800,7 +802,7 @@ class TestRepositoryBuilder:
                 side_effect=lambda r: datetime.datetime(2014, 11, 01, 0, 0, 0))
         mocked_resources.get_mock('bdkd.datastore.Repository').return_value = single_dataset_repo
         mock_ckan_site.action.current_package_list_with_resources.return_value = [{
-                'name':'test_bucket-groupa-groupaa-dataset1',
+                'name':ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                 'revision_timestamp' : '20131201T12:34:56',
                 'groups' : [],
             }]
@@ -812,7 +814,8 @@ class TestRepositoryBuilder:
         # Check that the existing dataset was purged and a new dataset created.
         assert mock_ckan_site.action.package_create.called, 'Package should have been updated'
         mock_purge = mocked_resources.get_mock('bdkdportal.databuild.purge_ckan_dataset')
-        mock_purge.assert_called_once_with('test_bucket-groupa-groupaa-dataset1','test_ckan_cfg_file')
+        mock_purge.assert_called_once_with(ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
+                                           'test_ckan_cfg_file')
 
 
     def test_build_portal_from_repo_dataset_audit(self, single_dataset_repo, good_portal_cfg, mocked_resources):
@@ -826,9 +829,18 @@ class TestRepositoryBuilder:
         # CKAN returns 3 datasets.
         mock_ckan_site = mocked_resources.get_mock('ckanapi.RemoteCKAN').return_value
         mock_ckan_site.action.current_package_list_with_resources.return_value = [
-                { 'name':'test_bucket-groupa-groupaa-dataset1', 'revision_timestamp' : '20131201T12:34:56', 'groups' : [] },
-                { 'name':'test_bucket-groupb-groupbb-dataset2', 'revision_timestamp' : '20131201T12:34:56', 'groups' : [] },
-                { 'name':'test_bucket-groupc-groupcc-dataset3', 'revision_timestamp' : '20131201T12:34:56', 'groups' : [] }]
+                {
+                    'name':ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
+                    'revision_timestamp' : '20131201T12:34:56', 'groups' : []
+                },
+                {
+                    'name':ckan_dataset_name('groupB/groupBB/dataset2', repo_name='test_bucket'),
+                    'revision_timestamp' : '20131201T12:34:56', 'groups' : []
+                },
+                {
+                    'name':ckan_dataset_name('groupC/groupCC/dataset3', repo_name='test_bucket'),
+                    'revision_timestamp' : '20131201T12:34:56', 'groups' : []
+                }]
         dataset_audit = {}
         repo_builder = RepositoryBuilder(MagicMock(), good_portal_cfg)
         repo_builder.set_dataset_audit(dataset_audit)
@@ -836,8 +848,8 @@ class TestRepositoryBuilder:
         mocked_resources.stop_patching()
         # Audit should detect that there were 2 datasets that are still in both CKAN and datastore
         assert len(dataset_audit) == 2, "Incorrect number of dataset detected during audit"
-        assert 'test_bucket-groupa-groupaa-dataset1' in dataset_audit
-        assert 'test_bucket-groupb-groupbb-dataset2' in dataset_audit
+        assert ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket') in dataset_audit
+        assert ckan_dataset_name('groupB/groupBB/dataset2', repo_name='test_bucket') in dataset_audit
 
 
     def test_build_portal_from_repo_no_download_if_not_configured1(self, single_dataset_repo, good_portal_cfg, mocked_resources):
@@ -892,7 +904,7 @@ class TestRepositoryBuilder:
 
         # Check that a metadata resource was created if there is meta data.
         mock_ckan_site.action.resource_create.assert_has_calls([
-                call(package_id='test_bucket-groupa-groupaa-dataset1',
+                call(package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
                      description = ANY,
                      name='metadata',
                      format='JSON',
@@ -1056,3 +1068,18 @@ class TestMain:
             rc = call_main(['prog', '-c','my_config','daemon','--cycle','5'])
             assert not mock_RemoteCKAN.called, 'Should have terminated due to missing config and not call CKAN at all'
             assert rc != 0, "Should have terminated with an error"
+
+
+    def test_ckan_dataset_name(self):
+        name1 = ckan_dataset_name('abc')
+        name2 = ckan_dataset_name('abc', repo_name='repo')
+        assert len(name1) < 100, "CKAN compatible name needs to be below 100 characters"
+        assert len(name2) < 100, "CKAN compatible name needs to be below 100 characters"
+        assert name1 != name2,   "CKAN dataset should be different depending on the repo/dataset names"
+
+
+    def test_ckan_usable_string(self):
+        from bdkdportal.databuild import ckan_usable_string
+        funny_name = ckan_usable_string('AbCdE/Spac es/123_-!abc')
+        import re
+        assert len(re.sub(r'[0-9a-z_-]', '', funny_name)) == 0, 'Found invalid characters that was not handled'

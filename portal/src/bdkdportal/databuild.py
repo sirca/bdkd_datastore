@@ -21,6 +21,7 @@ import time
 import shutil
 import signal
 import json
+import hashlib
 
 
 MANIFEST_FILENAME = "manifest.txt"
@@ -54,6 +55,29 @@ def check_cfg(cfg_dict, req_keys, name=None):
             raise FatalError("Error: missing mandatory configuration token '%s'%s" % (item, sect))
         else:
            logging.getLogger(__name__).debug("config:%s = %s" % (item, cfg_dict[item]))
+
+
+def ckan_dataset_name(dataset_name, repo_name=None):
+    """ Takes a BDKD datastore dataset name and turn it into a dataset that
+    is usable as a dataset name in CKAN. This basically involves turning anything
+    that is not an alphanumeric, underscores, or dashes, into dashes.
+    If the dataset name came from datastore, it is likely to be a pseudo path of the
+    resource name. In the case, it is possible that collusion can happen if the pseudo path
+    contains too many non alphanumeric characters.
+    """
+    if repo_name:
+        full_name = "{0}:{1}".format(repo_name, dataset_name) 
+    else:
+        full_name = dataset_name
+    return hashlib.sha384(full_name).hexdigest()
+
+
+def ckan_usable_string(s):
+    """ Takes a string and replace characters that are not usable by CKAN
+    with those that are. Note that during the replacement, it is possible that
+    collusion can happen if the string contains too many non alphanumeric characters.
+    """
+    return re.sub(r'[^0-9a-zA-Z_-]', '-', s).lower()
 
 
 class Dataset:
@@ -112,18 +136,6 @@ class RepositoryBuilder:
         self._portal_builder = portal_builder
         self._portal_cfg = portal_cfg
         self.logger = logger or logging.getLogger(__name__)
-
-
-    @staticmethod
-    def to_ckan_usable_name(dataset_name):
-        """ Takes a BDKD datastore dataset name and turn it into a dataset that
-        is usable as a dataset name in CKAN. This basically involves turning anything
-        that is not an alphanumeric, underscores, or dashes, into dashes.
-        If the dataset name came from datastore, it is likely to be a pseudo path of the
-        resource name. In the case, it is possible that collusion can happen if the pseudo path
-        contains too many non alphanumeric characters.
-        """
-        return re.sub(r'[^0-9a-zA-Z_-]', '-', dataset_name).lower()
 
 
     def release(self):
@@ -342,7 +354,7 @@ class RepositoryBuilder:
     
             for ds_dataset_name in repo_dataset_names:
                 self.logger.debug("Building repository:%s dataset:%s" % (self._repo_name, ds_dataset_name))
-                dataset_name = RepositoryBuilder.to_ckan_usable_name(self._repo_name + "-" + ds_dataset_name)
+                dataset_name = ckan_dataset_name(ds_dataset_name, repo_name=self._repo_name)
                 build_dataset_portal_data = True
                 # Look for the dataset in the portal.
                 for dataset in datasets_in_portal:
@@ -381,7 +393,7 @@ class RepositoryBuilder:
                     group_names = pseudo_path[0:-1]
                     dataset.groups = []
                     for group_name in group_names:
-                        group_ckan_name = RepositoryBuilder.to_ckan_usable_name(group_name)
+                        group_ckan_name = ckan_usable_string(group_name)
                         if group_ckan_name not in existing_groups:
                             self.logger.info("Group %s not found, creating group..." % (group_ckan_name))
                             self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)

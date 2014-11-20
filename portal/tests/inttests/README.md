@@ -13,7 +13,9 @@ The integration tests requires the following python packages to be installed:
 - psutil
 
 To run the integration test, from the ./bdkd/portal/tests/inttests directory
-(which should be the current directory), type: `pytest`
+(which should be the current directory), type:
+
+`  sudo /usr/lib/ckan/bdkd/bin/activate_bash py.test`
 
 Make sure your instance have access to AWS S3. The bucket that the tests uses
 is called "bdkd-qa-bucket". This bucket is configured in the /etc/bdkd/Current/datastore.conf
