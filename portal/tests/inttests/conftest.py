@@ -167,6 +167,18 @@ def sample_data2():
                           'author_email': 'test@test.email'})
 
 
+@pytest.fixture()
+def long_name_sample_data():
+    return SampleData(dataset_name='my_name_is_really_long/because_i_have_long_path_name/and_i_like_to_use_lots_of_words/in_my_dataset_path/just_to_be_really_information/long_name_data',
+                      dataset_files=['test_data/sample_dataset/sample001.csv'],
+                      meta_data={
+                          'description': 'long name data',
+                          'author': 'test author',
+                          'author_email': 'test@test.email',
+                          'maintainer': 'test maintain',
+                          'maintainer_email': 'testmain@test.email'})
+
+
 # short live - only for test
 @pytest.fixture()
 def short_sample_data():
