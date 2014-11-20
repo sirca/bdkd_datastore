@@ -147,6 +147,12 @@ def test_manifest(portal_builder, ckan_site, sample_data1):
     assert manifest[1], 's3://bdkd-qa-bucket/files/visual_dataset1/sample002.txt'
 
 
+def test_add_long_name_dataset(portal_builder, ckan_site, long_name_sample_data):
+    long_name_sample_data.prepare() # make sure dataset1 is there
+    portal_builder.run_update() # Build portal
+    assert get_dataset_from_ckan(ckan_site, long_name_sample_data.get_dataset_id()) != None, "Long name dataset not found"
+
+
 def test_auto_build(portal_builder, ckan_site, short_sample_data):
     # Test that when running in daemon mode, CKAN is updated without manual trigger.
     assert portal_builder.daemon_running() == None, "portal builder should not be running"
