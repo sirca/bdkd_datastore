@@ -665,7 +665,8 @@ class Resource(Asset):
                 if o.files:
                     for resource_file in o.files:
                         file_data = resource_file.metadata
-                        if len(resource_file.files):
+                        if (resource_file.files != None and 
+                                len(resource_file.files)):
                             bundled_files_data = []
                             for bundled_file in resource_file.files:
                                 bundled_files_data.append(bundled_file.metadata)
@@ -832,7 +833,13 @@ class Resource(Asset):
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
-                resource_files.append(ResourceFile(None, resource=self, metadata=file_data))
+                bundled_files_data = file_data.pop('files', None)
+                resource_file = ResourceFile(None, resource=self, metadata=file_data)
+                if bundled_files_data:
+                    resource_file.files = []
+                    for bundled_file_data in bundled_files_data:
+                        resource_file.files.append(ResourceFile(None, metadata=bundled_file_data))
+                resource_files.append(resource_file)
             self.name = data.pop('name', None)
             self.path = local_resource_filename
             self.metadata = data.get('metadata', dict())
