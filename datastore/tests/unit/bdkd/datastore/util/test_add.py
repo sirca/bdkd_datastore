@@ -46,11 +46,13 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'test-repository', 'my_resource', 
                 '--metadata', '{"foo": "bar"}',
                 '--force',
+                '--bundle-path', 'bundle.tar.gz',
                 self.filepath ]
         args = parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.metadata, dict(foo='bar'))
         self.assertEquals(args.force, True)
+        # self.assertEquals(args.bundle_path, 'bundle.tar.gz')
 
 
     def test_add_bdkd_mandatory_arguments(self):
@@ -125,6 +127,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_isdir,
             mock_os_path_exists):
         resource_args = argparse.Namespace()
+        setattr(resource_args, 'bundle_path', None)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','file2'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -133,7 +136,10 @@ class AddUtilitiesTest(unittest.TestCase):
         mock_os_path_isdir.return_value = False
         with patch('bdkd.datastore.Resource.new') as mock_Resource_new:
             resource = add_utils.create_parsed_resource(resource_args = resource_args)
-        mock_Resource_new.assert_called_once_with('dummy-resource', ['file1','file2'], ANY)
+        mock_Resource_new.assert_called_once_with('dummy-resource', 
+                files_data=['file1','file2'],
+                bundle_path=None,
+                metadata={})
 
 
     @patch('os.path.exists')
@@ -142,6 +148,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_isdir,
             mock_os_path_exists):
         resource_args = argparse.Namespace()
+        setattr(resource_args, 'bundle_path', None)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','http://test.dummy/file2','file3'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -152,8 +159,9 @@ class AddUtilitiesTest(unittest.TestCase):
             resource = add_utils.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with(
             'dummy-resource',
-            ['file1','http://test.dummy/file2', 'file3'],
-            ANY)
+            files_data=['file1','http://test.dummy/file2', 'file3'],
+            metadata={},
+            bundle_path=None)
 
 
     @patch('bdkd.datastore.Resource.new')
@@ -166,6 +174,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_exists,
             mock_Resource_new):
         resource_args = argparse.Namespace()
+        setattr(resource_args, 'bundle_path', None)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','dir1'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -191,6 +200,7 @@ class AddUtilitiesTest(unittest.TestCase):
 
         resource = add_utils.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with(
-            'dummy-resource',
-            ['file1','dir1/subdir1/file1','dir1/subdir2/file2'],
-            ANY)
+            'dummy-resource', 
+            bundle_path=None,
+            files_data=['file1','dir1/subdir1/file1','dir1/subdir2/file2'],
+            metadata={})
