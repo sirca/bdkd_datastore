@@ -19,6 +19,7 @@ class RepositoryTest(unittest.TestCase):
                 single=self._create_single_file_fixture(),
                 multi=self._create_multi_file_fixture(),
                 shapefile=self._create_shapefile_fixture(),
+                bundled=self._create_bundled_fixture(),
                 )
 
     def setUp(self):
@@ -93,6 +94,14 @@ class RepositoryTest(unittest.TestCase):
         shp.local_path()
         # The shapefile consists of five files (plus one resource)
         self._check_file_count(self.repository.local_cache, 6)
+
+    def test_bundled_resource(self):
+        resource = self.resources.get('bundled')
+        self.assertTrue(resource)
+        self.repository.save(resource)
+        self._check_bucket_count('', 2)
+        self._check_file_count(self.repository.local_cache, 2)
+        self.assertEquals(5, len(resource.local_paths()))
 
     def test_remote_resource(self):
         resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
@@ -286,6 +295,16 @@ class RepositoryTest(unittest.TestCase):
                 files.append(file_meta)
         resource = bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Shapefile/Seton',
                 files, metadata=dict(unified=True))
+        return resource
+
+    def _create_bundled_fixture(self):
+        shapefile_dir = os.path.join(FIXTURES, 'FeatureCollections', 
+                'Coastlines', 'Shapefile')
+        shapefile_parts = glob.glob(os.path.join(shapefile_dir, '*.*'))
+        bundle_path = os.path.join(FIXTURES, 'bundle.tar.gz')
+        resource = bdkd.datastore.Resource.new('bundled resource', 
+                shapefile_parts,
+                bundle_path=bundle_path)
         return resource
 
 if __name__ == '__main__':
