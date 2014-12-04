@@ -175,8 +175,14 @@ class Repository(object):
             resource_file.location_or_remote()))
 
     def __file_working_path(self, resource_file):
-        return os.path.join(self.working, type(self).files_prefix, 
+        return os.path.join(self.working, 
             resource_file.location_or_remote())
+
+    def file_path(self, resource_file):
+        if resource_file.is_edit:
+            return self.__file_working_path(resource_file)
+        else:
+            return self.__file_cache_path(resource_file)
 
     def __download(self, key_name, dest_path):
         # Ensure that a file on the local system is up-to-date with respect to 
@@ -321,17 +327,21 @@ class Repository(object):
                 name_parts = name_parts[0:-1]
         return None
 
-
-    def _refresh_resource_file(self, resource_file):
+    def _resource_file_dest_path(self, resource_file):
         if resource_file.is_edit:
             dest_path = self.__file_working_path(resource_file)
         else:
             dest_path = self.__file_cache_path(resource_file)
         logger.debug("Cache path for resource file is %s", dest_path)
+        return dest_path
+
+    def _refresh_resource_file(self, resource_file):
+        dest_path = self._resource_file_dest_path(resource_file)
         bucket = self.get_bucket()
         if bucket:
             location = resource_file.location()
             if location:
+                print "Location: {0}, dest path: {1}".format(location, dest_path)
                 if self.__download(location, dest_path):
                     logger.debug("Refreshed resource file from %s to %s", location, dest_path)
                 else:
@@ -394,11 +404,12 @@ class Repository(object):
         are required that process should be managed by some other means.
         """
         self.refresh_resource(resource)
-        for resource_file in resource.files:
-            file_working_path = self.__file_working_path(resource_file)
-            mkdir_p(os.path.dirname(file_working_path))
-            resource_file.relocate(file_working_path, stat.S_IRWXU)
-            resource_file.is_edit = True
+        for resource_file in ([ resource.bundle ] + resource.files):
+            if resource_file:
+                file_working_path = self.__file_working_path(resource_file)
+                mkdir_p(os.path.dirname(file_working_path))
+                resource_file.relocate(file_working_path, stat.S_IRWXU)
+                resource_file.is_edit = True
         resource_working_path = self.__resource_name_working_path(resource.name)
         mkdir_p(os.path.dirname(resource_working_path))
         resource.relocate(resource_working_path, stat.S_IRWXU)
@@ -437,8 +448,11 @@ class Repository(object):
             logger.debug("Setting the repository for the resource")
             resource.repository = self
 
-        for resource_file in resource.files:
-            self.__save_resource_file(resource_file)
+        if resource.bundle:
+            self.__save_resource_file(resource.bundle)
+        else:
+            for resource_file in resource.files:
+                self.__save_resource_file(resource_file)
 
         resource.relocate(resource_cache_path, move=True)
         resource.is_edit = False
@@ -661,18 +675,13 @@ class Resource(Asset):
                 resource = dict(name=o.name)
                 if o.metadata:
                     resource['metadata'] = o.metadata
-                files_data = []
+                file_data = []
                 if o.files:
                     for resource_file in o.files:
-                        file_data = resource_file.metadata
-                        if (resource_file.files != None and 
-                                len(resource_file.files)):
-                            bundled_files_data = []
-                            for bundled_file in resource_file.files:
-                                bundled_files_data.append(bundled_file.metadata)
-                            file_data['files'] = bundled_files_data
-                        files_data.append(file_data)
-                resource['files'] = files_data
+                        file_data.append(resource_file.metadata)
+                resource['files'] = file_data
+                if o.bundle:
+                    resource['bundle'] = o.bundle.metadata
                 return resource
             else:
                 return json.JSONEncoder.default(self, o)
@@ -687,7 +696,14 @@ class Resource(Asset):
                 return True
         return False
 
-    def __init__(self, name, files=None, metadata=None):
+    @classmethod
+    def bundle_temp_path(cls, name):
+        return os.path.join(settings()['working_root'],
+                str(os.getuid()), 
+                str(os.getpid()),
+                name)
+
+    def __init__(self, name, files=None, bundle=None, metadata=None):
         """
         Constructor for a Resource given a name, file data and any meta-data.
         """
@@ -701,6 +717,7 @@ class Resource(Asset):
         if metadata and not isinstance(metadata, dict):
             raise ValueError("Meta-data must be a dictionary")
         self.metadata = metadata or dict()
+        self.bundle = bundle
         self.files = files
 
     @classmethod
@@ -743,7 +760,7 @@ class Resource(Asset):
         return files_data
 
     @classmethod
-    def new(cls, name, files_data=None, metadata=None, bundle_path=None):
+    def new(cls, name, files_data=None, metadata=None, do_bundle=False):
         """
         A convenience factory method that creates a new, unsaved Resource of 
         the given name, using file information and metadata.
@@ -761,15 +778,16 @@ class Resource(Asset):
         resource_files = []
         bundle = None
         if files_data:
-            if bundle_path:
+            if do_bundle:
+                bundle_path = cls.bundle_temp_path(name)
                 bundle = ResourceFile(bundle_path, resource=None, metadata={
                     'location': os.path.join(Repository.files_prefix, name,
-                        'bundle.tar.gz')})
+                        '.bundle', 'bundle.tar.gz')})
+                mkdir_p(os.path.dirname(bundle_path))
                 bundle.is_edit = True
                 bundle.files = []
                 bundle_archive = tarfile.open(name=bundle_path, mode='w:gz')
-                bundle.metadata['bundled'] = True
-                resource_files.append(bundle)
+                # resource_files.append(bundle)
             files_data = cls.__normalise_file_data(files_data)
             for file_data in files_data:
                 path = file_data.pop('path', None)
@@ -782,10 +800,9 @@ class Resource(Asset):
                         if not header_name in keyset and remote_url.info().has_key(header_name):
                             meta[header_name] = remote_url.info().getheader(header_name)
                 else:
-                    if bundle:
-                        meta['location'] = location
-                    else:
-                        meta['location'] = os.path.join(Repository.files_prefix, name, location)
+                    if do_bundle:
+                        meta['bundled'] = True
+                    meta['location'] = os.path.join(Repository.files_prefix, name, location)
                     if path:
                         path = os.path.expanduser(path)
                         if not 'md5sum' in meta:
@@ -800,14 +817,13 @@ class Resource(Asset):
                     else:
                         raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
                 resource_file = ResourceFile(path, resource=None, metadata=meta)
-                if bundle_path:
-                    bundle.files.append(resource_file)
-                else:
-                    resource_file.is_edit = True
-                    resource_files.append(resource_file)
-            if bundle_path:
+                resource_file.is_edit = True
+                resource_files.append(resource_file)
+            if do_bundle:
                 bundle_archive.close()
         resource = cls(name, files=resource_files, metadata=metadata)
+        if do_bundle:
+            resource.bundle = bundle
         for resource_file in resource_files:
             resource_file.resource = resource
         resource.is_edit = True
@@ -833,13 +849,12 @@ class Resource(Asset):
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
-                bundled_files_data = file_data.pop('files', None)
-                resource_file = ResourceFile(None, resource=self, metadata=file_data)
-                if bundled_files_data:
-                    resource_file.files = []
-                    for bundled_file_data in bundled_files_data:
-                        resource_file.files.append(ResourceFile(None, metadata=bundled_file_data))
-                resource_files.append(resource_file)
+                resource_files.append(ResourceFile(None, resource=self, 
+                    metadata=file_data))
+            bundle_data = data.pop('bundle', None)
+            if bundle_data:
+                self.bundle = ResourceFile(None, resource=self,
+                        metadata=bundle_data)
             self.name = data.pop('name', None)
             self.path = local_resource_filename
             self.metadata = data.get('metadata', dict())
@@ -879,9 +894,11 @@ class Resource(Asset):
         if self.repository and not self.is_edit:
             self.repository.refresh_resource(self, True)
         paths = []
+        do_refresh = True
+        if self.bundle:
+            self.bundle.unpack_bundle(do_refresh=True)
         for resource_file in self.files:
-            for file_path in resource_file.local_paths(do_refresh=False):
-                paths.append(file_path)
+            paths.append(resource_file.local_path())
         return paths
 
     def files_matching(self, pattern):
@@ -912,6 +929,20 @@ class Resource(Asset):
                 match = resource_file
         return match
 
+    def update_bundle(self):
+        """
+        Update the bundle with any local file changes.
+        """
+        if not self.bundle:
+            return  # no-op
+        if not self.is_edit:
+            raise ValueError("Resource file is not currently being edited")
+        bundle_file = tarfile.open(self.bundle.local_path(), mode='w:gz')
+        for resource_file in self.files:
+            if resource_file.path:
+                bundle_file.add(resource_file.path, resource_file.location())
+        bundle_file.close()
+
     def save(self):
         """
         Helper method that saves the resource back to the repository that
@@ -921,6 +952,7 @@ class Resource(Asset):
         if not self.repository:
             raise ValueError("Cannot save a resource that is not loaded from a repository")
         # Always overwrite the existing one since it was loaded from the repository anyway.
+        self.update_bundle()
         self.repository.save(self, overwrite=True)
 
     def delete(self):
@@ -972,58 +1004,23 @@ class ResourceFile(Asset):
         """
         If this ResourceFile is bundled, unpack its contents to the bundle path.
         """
+        if not self.resource or not self.resource.repository:
+            return
+        if self.resource.is_edit:
+            unpack_path = self.resource.repository.working
+        else:
+            unpack_path = self.resource.repository.local_cache
         if not self.path:
             do_refresh = True
-        resource_filename = self.local_path(do_refresh=do_refresh)
-        if self.is_bundled():
-            bundle_path = os.path.dirname(resource_filename)
-            bundle_dirname = self.bundle_dirname()
-            if not os.path.exists(bundle_dirname):
-                os.makedirs(bundle_dirname)
-            bundle_file = tarfile.open(resource_filename)
-            bundle_file.extractall(path=bundle_dirname)
-            bundle_file.close()
+        resource_filename = self.local_path()
+        if not os.path.exists(unpack_path):
+            mkdir_p(unpack_path)
+        print "Unpack path: {0}, resource filename: {1}".format(unpack_path, resource_filename)
+        bundle_file = tarfile.open(resource_filename)
+        bundle_file.extractall(path=unpack_path)
+        bundle_file.close()
 
-    def repack_bundle(self):
-        """
-        If this ResourceFile is bundled, re-pack its bundle path contents into 
-        the bundle file.
-        """
-        if self.is_bundled():
-            bundle_dirname = self.bundle_dirname()
-            if os.path.exists(bundle_dirname):
-                bundle_archive = tarfile.open(name=self.path, mode='w:gz')
-                for (dirpath, dirnames, filenames) in os.walk(bundle_dirname):
-                    if len(filenames):
-                        for filename in filenames:
-                            bundle_filename = os.path.join(dirpath, filename)
-                            bundle_archive.add(bundle_filename)
-                bundle_archive
-                bundle_archive.close()
-
-    def local_paths(self, do_refresh=True):
-        """
-        Returns an array of local paths for the ResourceFile.
-        """
-        resource_filename = self.local_path(do_refresh=do_refresh)
-        if not self.is_bundled():
-            try:
-                return [ str(resource_filename) ]
-            except UnicodeEncodeError:
-                return [ resource_filename ]
-        self.unpack_bundle()
-        bundle_filenames = []
-        for (dirpath, dirnames, filenames) in os.walk(self.bundle_dirname()):
-            if len(filenames):
-                for filename in filenames:
-                    bundle_filename = os.path.join(dirpath, filename)
-                    try:
-                        bundle_filenames.append(str(bundle_filename))
-                    except UnicodeEncodeError:
-                        bundle_filenames.append(bundle_filename)
-        return bundle_filenames
-
-    def local_path(self, do_refresh=True):
+    def local_path(self):
         """
         Get the local filename for this File's data.
 
@@ -1031,12 +1028,16 @@ class ResourceFile(Asset):
         that all locally-stored data is relatively up-to-date.  Only this File 
         is refreshed: not the Resource, nor the Resource's other File objects.)
         """
-        if (self.resource and self.resource.repository 
-                and do_refresh):
-            if self.resource.meta('unified'):
-                self.resource.repository.refresh_resource(self.resource, True)
+        if (self.resource and self.resource.repository):
+            if self.is_bundled():
+                self.path = self.resource.repository._resource_file_dest_path(self)
+                if not os.path.exists(self.path):
+                    self.resource.local_paths()  # Trigger refresh
             else:
-                self.resource.repository._refresh_resource_file(self)
+                if self.resource.meta('unified'):
+                    self.resource.repository.refresh_resource(self.resource, True)
+                else:
+                    self.resource.repository._refresh_resource_file(self)
         try:
             return str(self.path)
         except UnicodeEncodeError:

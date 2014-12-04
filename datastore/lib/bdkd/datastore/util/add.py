@@ -54,8 +54,8 @@ def _add_options_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--force', action='store_true', default=False,
             help="Force overwriting any existing resource")
-    parser.add_argument('--bundle-path', default=None,
-            help="Path to create bundled upload file")
+    parser.add_argument('--bundle', action='store_true', default=False,
+            help="Bundle all files together")
     return parser
 
 
@@ -152,7 +152,7 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
     resource = bdkd.datastore.Resource.new(resource_args.resource_name, 
             files_data=resource_items,
             metadata=metadata,
-            bundle_path=resource_args.bundle_path)
+            do_bundle=resource_args.bundle)
     return resource
 
 

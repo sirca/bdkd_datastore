@@ -301,10 +301,9 @@ class RepositoryTest(unittest.TestCase):
         shapefile_dir = os.path.join(FIXTURES, 'FeatureCollections', 
                 'Coastlines', 'Shapefile')
         shapefile_parts = glob.glob(os.path.join(shapefile_dir, '*.*'))
-        bundle_path = os.path.join(FIXTURES, 'bundle.tar.gz')
         resource = bdkd.datastore.Resource.new('bundled resource', 
                 shapefile_parts,
-                bundle_path=bundle_path)
+                do_bundle=True)
         return resource
 
 if __name__ == '__main__':

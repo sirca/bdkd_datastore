@@ -196,10 +196,9 @@ class ResourceTest(unittest.TestCase):
         shapefile_dir = os.path.join(FIXTURES, 'FeatureCollections', 
                 'Coastlines', 'Shapefile')
         shapefile_parts = glob.glob(os.path.join(shapefile_dir, '*.*'))
-        bundle_path = os.path.join(FIXTURES, 'bundle.tar.gz')
         resource = bdkd.datastore.Resource.new('bundled resource', 
                 shapefile_parts,
-                bundle_path=bundle_path)
+                do_bundle=True)
         return resource
 
     @classmethod
@@ -276,9 +275,6 @@ class ResourceTest(unittest.TestCase):
 
     def test_bundled_local_paths(self):
         local_paths = self.bundled_resource.local_paths()
-        # For bundles, the number of local paths doesn't necessarily
-        # equal the number of files
-        self.assertEquals(1, len(self.bundled_resource.files))
         self.assertEquals(5, len(local_paths))
 
 
@@ -318,13 +314,6 @@ class ResourceFileTest(unittest.TestCase):
         self.assertFalse(self.resource.files[0].is_bundled())
         self.assertTrue(self.bundled_resource.files[0].is_bundled())
 
-    def test_bundle_dirname(self):
-        self.assertEquals(os.path.join(FIXTURES, 'bundle'), 
-                self.bundled_resource.files[0].bundle_dirname())
-
-    def test_local_paths(self):
-        self.assertEquals(5, len(self.bundled_resource.files[0].local_paths()))
-        self.assertEquals(1, len(self.resource.files[0].local_paths()))
 
 if __name__ == '__main__':
     unittest.main()

@@ -46,7 +46,7 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'test-repository', 'my_resource', 
                 '--metadata', '{"foo": "bar"}',
                 '--force',
-                '--bundle-path', 'bundle.tar.gz',
+                '--bundle',
                 self.filepath ]
         args = parser.parse_args(args_in)
         self.assertTrue(args)
@@ -127,7 +127,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_isdir,
             mock_os_path_exists):
         resource_args = argparse.Namespace()
-        setattr(resource_args, 'bundle_path', None)
+        setattr(resource_args, 'bundle', False)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','file2'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -138,7 +138,7 @@ class AddUtilitiesTest(unittest.TestCase):
             resource = add_utils.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with('dummy-resource', 
                 files_data=['file1','file2'],
-                bundle_path=None,
+                do_bundle=False,
                 metadata={})
 
 
@@ -148,7 +148,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_isdir,
             mock_os_path_exists):
         resource_args = argparse.Namespace()
-        setattr(resource_args, 'bundle_path', None)
+        setattr(resource_args, 'bundle', False)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','http://test.dummy/file2','file3'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -161,7 +161,7 @@ class AddUtilitiesTest(unittest.TestCase):
             'dummy-resource',
             files_data=['file1','http://test.dummy/file2', 'file3'],
             metadata={},
-            bundle_path=None)
+            do_bundle=False)
 
 
     @patch('bdkd.datastore.Resource.new')
@@ -174,7 +174,7 @@ class AddUtilitiesTest(unittest.TestCase):
             mock_os_path_exists,
             mock_Resource_new):
         resource_args = argparse.Namespace()
-        setattr(resource_args, 'bundle_path', None)
+        setattr(resource_args, 'bundle', False)
         setattr(resource_args, 'metadata', {})
         setattr(resource_args, 'filenames', ['file1','dir1'])
         setattr(resource_args, 'resource_name', 'dummy-resource')
@@ -201,6 +201,6 @@ class AddUtilitiesTest(unittest.TestCase):
         resource = add_utils.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with(
             'dummy-resource', 
-            bundle_path=None,
+            do_bundle=False,
             files_data=['file1','dir1/subdir1/file1','dir1/subdir2/file2'],
             metadata={})
