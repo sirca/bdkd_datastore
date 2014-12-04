@@ -52,7 +52,7 @@ class AddUtilitiesTest(unittest.TestCase):
         self.assertTrue(args)
         self.assertEquals(args.metadata, dict(foo='bar'))
         self.assertEquals(args.force, True)
-        # self.assertEquals(args.bundle_path, 'bundle.tar.gz')
+        self.assertEquals(args.bundle, True)
 
 
     def test_add_bdkd_mandatory_arguments(self):
