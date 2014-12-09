@@ -341,7 +341,6 @@ class Repository(object):
         if bucket:
             location = resource_file.location()
             if location:
-                print "Location: {0}, dest path: {1}".format(location, dest_path)
                 if self.__download(location, dest_path):
                     logger.debug("Refreshed resource file from %s to %s", location, dest_path)
                 else:
