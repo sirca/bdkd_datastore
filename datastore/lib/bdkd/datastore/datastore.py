@@ -1015,7 +1015,6 @@ class ResourceFile(Asset):
         resource_filename = self.local_path()
         if not os.path.exists(unpack_path):
             mkdir_p(unpack_path)
-        print "Unpack path: {0}, resource filename: {1}".format(unpack_path, resource_filename)
         bundle_file = tarfile.open(resource_filename)
         bundle_file.extractall(path=unpack_path)
         bundle_file.close()
