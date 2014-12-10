@@ -54,6 +54,8 @@ def _add_options_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--force', action='store_true', default=False,
             help="Force overwriting any existing resource")
+    parser.add_argument('--bundle', action='store_true', default=False,
+            help="Bundle all files together")
     return parser
 
 
@@ -148,8 +150,9 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
     if len(resource_items) == 0:
         raise ValueError("Unable to create an empty resource")
     resource = bdkd.datastore.Resource.new(resource_args.resource_name, 
-            resource_items,
-            metadata)
+            files_data=resource_items,
+            metadata=metadata,
+            do_bundle=resource_args.bundle)
     return resource
 
 

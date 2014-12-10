@@ -3,6 +3,7 @@ import codecs
 import unittest
 from mock import MagicMock
 import os, shutil, re
+import glob
 
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(os.path.dirname(__file__), 
@@ -181,6 +182,7 @@ class ResourceTest(unittest.TestCase):
     def setUp(self):
         self.repository = RepositoryTest.fixture()
         self.resource = ResourceTest.fixture()
+        self.bundled_resource = ResourceTest.bundled_fixture()
 
     @classmethod
     def fixture(cls):
@@ -188,6 +190,16 @@ class ResourceTest(unittest.TestCase):
                 os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
                 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'),
                 metadata=dict(citation=u'M. Seton, R.D. Müller, S. Zahirovic, C. Gaina, T.H. Torsvik, G. Shephard, A. Talsma, M. Gurnis, M. Turner, S. Maus, M. Chandler, Global continental and ocean basin reconstructions since 200 Ma, Earth-Science Reviews, Volume 113, Issues 3-4, July 2012, Pages 212-270, ISSN 0012-8252, 10.1016/j.earscirev.2012.03.002. (http://www.sciencedirect.com/science/article/pii/S0012825212000311)'))
+
+    @classmethod
+    def bundled_fixture(self):
+        shapefile_dir = os.path.join(FIXTURES, 'FeatureCollections', 
+                'Coastlines', 'Shapefile')
+        shapefile_parts = glob.glob(os.path.join(shapefile_dir, '*.*'))
+        resource = bdkd.datastore.Resource.new('bundled resource', 
+                shapefile_parts,
+                do_bundle=True)
+        return resource
 
     @classmethod
     def _resource_sans_modified(cls, filename):
@@ -261,12 +273,17 @@ class ResourceTest(unittest.TestCase):
         self.assertTrue(self.resource.file_ending('.gpmlz'))
         self.assertFalse(self.resource.file_ending('foo'))
 
+    def test_bundled_local_paths(self):
+        local_paths = self.bundled_resource.local_paths()
+        self.assertEquals(5, len(local_paths))
+
 
 class ResourceFileTest(unittest.TestCase):
 
     def setUp(self):
         self.repository = RepositoryTest.fixture()
         self.resource = ResourceTest.fixture()
+        self.bundled_resource = ResourceTest.bundled_fixture()
         self.resource_file = self.resource.files[0]
         self.url = 'http://www.gps.caltech.edu/~gurnis/GPlates/Caltech_Global_20101129.tar.gz'
         self.remote_resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
@@ -292,6 +309,10 @@ class ResourceFileTest(unittest.TestCase):
     def test_location_or_remote(self):
         self.assertTrue(self.resource.files[0].location_or_remote())
         self.assertTrue(self.remote_resource.files[0].location_or_remote())
+
+    def test_is_bundled(self):
+        self.assertFalse(self.resource.files[0].is_bundled())
+        self.assertTrue(self.bundled_resource.files[0].is_bundled())
 
 
 if __name__ == '__main__':
