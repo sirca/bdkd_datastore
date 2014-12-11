@@ -286,8 +286,9 @@ class Repository(object):
             os.remove(cache_path)
 
     def __delete_resource(self, resource):
-        for resource_file in resource.files:
-            self.__delete_resource_file(resource_file)
+        for resource_file in (resource.files + [resource.bundle]):
+            if resource_file:
+                self.__delete_resource_file(resource_file)
         key_name = self.__resource_name_key(resource.name)
         bucket = self.get_bucket()
         if bucket and key_name:

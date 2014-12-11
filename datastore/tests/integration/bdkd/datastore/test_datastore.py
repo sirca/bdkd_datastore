@@ -247,6 +247,18 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 0)
         self._check_file_count(self.repository.local_cache, 0)
 
+    def test_delete_bundled_resource(self):
+        resource = self.resources.get('bundled')
+        self.repository.save(resource)
+        # Before delete: two files
+        self._check_bucket_count('', 2)
+        self._check_file_count(self.repository.local_cache, 2)
+
+        self.repository.delete(resource)
+        # After delete: no files
+        self._check_bucket_count('', 0)
+        self._check_file_count(self.repository.local_cache, 0)
+
     def _clear_local(self):
         for tmp_path in [ self.repository.local_cache, self.repository.working ]:
             if tmp_path and tmp_path.startswith('/var/tmp'):
