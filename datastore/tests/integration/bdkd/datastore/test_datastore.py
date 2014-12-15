@@ -182,6 +182,13 @@ class RepositoryTest(unittest.TestCase):
         self.repository.copy(from_resource, 'copied/shapefile')
         self._check_bucket_count('', 12)
 
+    def test_copy_bundled_resource(self):
+        from_resource = self.resources.get('bundled')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 2)
+        self.repository.copy(from_resource, 'copied/bundled')
+        self._check_bucket_count('', 4)
+
     def test_copy_resource_with_metadata(self):
         metadata = {'author': 'fred', 'author-email': 'fred@localhost'}
         from_resource = self.resources.get('shapefile')
@@ -220,6 +227,15 @@ class RepositoryTest(unittest.TestCase):
         self.repository.move(from_resource, 'copied/shapefile')
         self._check_bucket_count('', 6)
         moved_resource = self.repository.get('copied/shapefile')
+        self.assertTrue(moved_resource)
+
+    def test_move_bundled_resource(self):
+        from_resource = self.resources.get('bundled')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 2)
+        self.repository.move(from_resource, 'moved/bundled')
+        self._check_bucket_count('', 2)
+        moved_resource = self.repository.get('moved/bundled')
         self.assertTrue(moved_resource)
 
     def test_resource_last_modified(self):
