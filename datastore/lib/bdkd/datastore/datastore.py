@@ -415,7 +415,7 @@ class Repository(object):
         resource.relocate(resource_working_path, stat.S_IRWXU)
         resource.is_edit = True
 
-    def save(self, resource, overwrite=False):
+    def save(self, resource, overwrite=False, update_bundle=True):
         """
         Save a Resource that is either new or being edited to the Repository.
         """
@@ -449,8 +449,9 @@ class Repository(object):
             resource.repository = self
 
         if resource.bundle:
-            resource.update_bundle()
-            self.__save_resource_file(resource.bundle)
+            if update_bundle:
+                resource.update_bundle()
+                self.__save_resource_file(resource.bundle)
         else:
             for resource_file in resource.files:
                 self.__save_resource_file(resource_file)
@@ -526,7 +527,7 @@ class Repository(object):
                 to_resource.bundle.metadata['location'] = to_location
 
             # Save destination resource
-            self.save(to_resource)
+            self.save(to_resource, update_bundle=False)
         except Exception as e:
             print >>sys.stderr, e.message
             # Undo: delete all to-files if save failed

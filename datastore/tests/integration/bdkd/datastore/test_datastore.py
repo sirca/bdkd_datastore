@@ -188,6 +188,8 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 2)
         self.repository.copy(from_resource, 'copied/bundled')
         self._check_bucket_count('', 4)
+        copied_resource = self.repository.get('copied/bundled')
+        self.assertEquals(len(copied_resource.local_paths()), 5)
 
     def test_copy_resource_with_metadata(self):
         metadata = {'author': 'fred', 'author-email': 'fred@localhost'}
@@ -237,6 +239,7 @@ class RepositoryTest(unittest.TestCase):
         self._check_bucket_count('', 2)
         moved_resource = self.repository.get('moved/bundled')
         self.assertTrue(moved_resource)
+        self.assertEquals(len(moved_resource.local_paths()), 5)
 
     def test_resource_last_modified(self):
         # Force resource into remote storage.
