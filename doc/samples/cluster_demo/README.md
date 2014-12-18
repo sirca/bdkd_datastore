@@ -17,10 +17,10 @@ can be built to a Docker image and deployed to a private Docker registry.
 
     components/
         queue/
-	    Dockerfile
-	worker/
-	    scripts/
-	    Dockerfile
+            Dockerfile
+        worker/
+            scripts/
+            Dockerfile
 
 In the case of the "worker" this includes a scripts/ directory.  These scripts 
 are copied to the worker and can be used to consume messages from an AMQP 
@@ -100,7 +100,7 @@ To deploy to the cluster use the `deploy.sh` script, providing the host:port
 where Marathon is running, the tag name of a previously-built image, and the 
 name of the queue to use e.g.:
 
-    ./deploy.sh -m 10.0.0.10:8080 -t amqp:v1 -q myqueue
+    ./deploy.sh -m 10.0.0.10:8080 -t worker:v1 -q myqueue
 
 The user can interact with the queue using the standard AMQP tools.  For 
 example, to send a message to a local queue the user could use a command such 
