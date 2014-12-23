@@ -1,0 +1,18 @@
+{
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "localhost:5000/{{TAGNAME}}",
+      "network": "BRIDGE",
+      "portMappings": [
+        { "containerPort": 5672, "hostPort": 0, "protocol": "tcp" }
+      ]
+    }
+  },
+  "id": "amqp",
+  "instances": 1,
+  "cpus": 0.5,
+  "mem": 64,
+  "uris": [],
+  "cmd": "/usr/sbin/rabbitmq-server"
+}
