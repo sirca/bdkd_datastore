@@ -968,6 +968,9 @@ class Resource(Asset):
             raise ValueError("Cannot edit a resource that is not loaded from a repository")
         self.repository.edit_resource(self)
 
+    def is_bundled(self):
+        return self.bundle != None
+
 class ResourceFile(Asset):
     """
     A file component of a Resource, including any file-specific meta-data 

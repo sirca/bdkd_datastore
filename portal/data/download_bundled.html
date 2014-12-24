@@ -1,0 +1,15 @@
+<html>
+<body>
+<font size=+1>
+Repository name: {{ repository_name }}<br/>
+Dataset name: {{ dataset_name }}<br/>
+<a href="{{bundled_item.url}}">{{bundled_item.name}}</a>
+</font>
+<ul>
+{% for item in items %}
+ <li>{{ item.name }}</li>
+{% endfor %}
+</ul>
+</body>
+</html>
+

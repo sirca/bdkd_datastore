@@ -175,6 +175,8 @@ class RepositoryBuilder:
         """
         manifest_filename = self._tmp_dir + "/" + MANIFEST_FILENAME
         manifest_file = open(manifest_filename, 'w')
+        if ds_resource.is_bundled():
+            manifest_file.write('#Bundled dataset\n')
         for f in ds_resource.files:
             # If the file is in the bucket, give it a "s3://<bucket_name>/" style URL prefix.
             # Otherwise assume it is a remote file and just push that directly into the manifest.
@@ -234,18 +236,21 @@ class RepositoryBuilder:
             self.logger.debug('No download_url_format configured so no download page generated')
             return 
         download_template = self._portal_cfg.get('download_template', None)
-        if download_template is None:
-            self.logger.debug('No download_template configured so no download page generated')
-            return
-        if not os.path.exists(download_template):
-            self.logger.warn("Download template '%s' is not readable or does not exist." % download_template)
-            return
+        bundled_download_template = self._portal_cfg.get('bundled_download_template', None)
+        for temp in download_template, bundled_download_template:
+            if temp is None:
+                self.logger.debug("No download template '%s' configured so no download page generated" % temp)
+                return
+            if not os.path.exists(temp):
+                self.logger.warn("Download template '%s' is not readable or does not exist." % temp)
+                return
 
         self.logger.info("Creating download file for dataset %s" % (ds_resource.name))
         from jinja2 import FileSystemLoader, Environment, PackageLoader
         template_loader = FileSystemLoader(searchpath='/')
         template_env = Environment(loader=template_loader)
         template = template_env.get_template(download_template)
+        bundled_template = template_env.get_template(bundled_download_template)
         items = []
         resource_name_len = len(ds_resource.name)
         for f in ds_resource.files:
@@ -270,10 +275,26 @@ class RepositoryBuilder:
                 # Unknown resource error.
                 self.logger.error("Error determining file location while generating download links for resource '%s'."
                                   % (ds_resource.name))
-        generated_page = template.render(
-                repository_name=ds_resource.repository.name,
-                dataset_name=ds_resource.name,
-                items=items)
+
+        generated_page = ''
+        if ds_resource.is_bundled():
+            print "Bundled resource, doing thing"
+            bundled_file_url = url_format.format(datastore_host=repo_cfg['ds_host'],
+                                                 repository_name=repo_cfg['bucket'],
+                                                 resource_id=urllib.quote_plus(ds_resource.bundle.location()))
+            bundled_item = { 'name': 'Bundled file', 'url': bundled_file_url}
+            print bundled_item
+            generated_page = bundled_template.render(
+                    repository_name=ds_resource.repository.name,
+                    dataset_name=ds_resource.name,
+                    items=items,
+                    bundled_item=bundled_item)
+        else:
+            generated_page = template.render(
+                    repository_name=ds_resource.repository.name,
+                    dataset_name=ds_resource.name,
+                    items=items)
+
         download_filename = self._tmp_dir + "/download.html"
         download_file = open(download_filename, "w")
         download_file.write(generated_page)
