@@ -278,12 +278,10 @@ class RepositoryBuilder:
 
         generated_page = ''
         if ds_resource.is_bundled():
-            print "Bundled resource, doing thing"
             bundled_file_url = url_format.format(datastore_host=repo_cfg['ds_host'],
                                                  repository_name=repo_cfg['bucket'],
                                                  resource_id=urllib.quote_plus(ds_resource.bundle.location()))
             bundled_item = { 'name': 'Bundled file', 'url': bundled_file_url}
-            print bundled_item
             generated_page = bundled_template.render(
                     repository_name=ds_resource.repository.name,
                     dataset_name=ds_resource.name,

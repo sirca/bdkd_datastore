@@ -45,6 +45,7 @@ class PortalResourceMocker:
         'ckanapi.RemoteCKAN',
         'bdkd.datastore.Repository',
         'bdkd.datastore.Host',
+        'bdkd.datastore.Resource',
         'bdkdportal.databuild.prepare_lock_file',
         'bdkdportal.databuild.purge_ckan_dataset',
         'logging.getLogger',
@@ -122,9 +123,10 @@ def good_portal_builder(good_cfg_string):
     return builder
 
 
-@pytest.fixture
+@pytest.fixture(scope="module",
+                params=[False, True])   # bundled/non-bundled
 @patch('bdkd.datastore.Host')
-def single_dataset_repo(mock_ds_host):
+def single_dataset_repo(mock_ds_host, request):
     """ Returns a mock datastore repository that gives the caller:
     - repository called 'test_bucket'
     - some meta data about the dataset, as per mock_metadata()
@@ -138,6 +140,7 @@ def single_dataset_repo(mock_ds_host):
     mock_ds_repo.name = 'test_bucket'
     mock_ds_repo.host = mock_ds_host.return_value
     mock_ds_repo.list.return_value = ds_resource_list
+    mock_ds_repo.bundled = request.param
     def mock_repo_get(ds_resource_name):
         if ds_resource_name == 'groupA/groupAA/dataset1':
             mock_ds_resource_file1 = MagicMock()
@@ -157,6 +160,7 @@ def single_dataset_repo(mock_ds_host):
                 'description':'test desc',
                 'data_type':'ocean data',
                 }
+            mock_ds_resource.is_bundled = MagicMock(return_value=request.param)
             return mock_ds_resource
         return None
     mock_ds_repo.get = MagicMock(side_effect=mock_repo_get)
@@ -553,6 +557,8 @@ class TestRepositoryBuilder:
         mock_ds_repo.assert_has_calls(call(mock_ds_host.return_value, 'test_bucket'))
 
         # Check there was an attempt to write to a manifest file containing the right entries.
+        if single_dataset_repo.get('groupA/groupAA/dataset1').is_bundled() == True:
+            mock_write.assert_has_calls([call('#Bundled dataset\n')])
         mock_write.assert_has_calls([
             call('s3://test_bucket/groupA/groupAA/dataset1/file1\n'),
             call('http://remotefile.internet/file2\n'),
@@ -578,58 +584,6 @@ class TestRepositoryBuilder:
                      upload=ANY)],
                 any_order=True)
 
-    def test_build_portal_from_repo_bundled(self, single_dataset_repo, good_portal_cfg, mocked_resources):
-        """ Test that a typical portal building works correctly with a bundled dataset
-        """
-        mocked_resources.start_patching()
-
-        # Mock a single dataset in datastore repository so that the builder attempts to connect to CKAN.
-        mock_repo = mocked_resources.get_mock('bdkd.datastore.Repository')
-        mock_repo.return_value = single_dataset_repo
-        mock_portal_builder = MagicMock()
-        repo_builder = RepositoryBuilder(mock_portal_builder, good_portal_cfg)
-        repo_cfg = good_portal_cfg['repos'][0]
-        repo_builder.build_portal_from_repo(repo_cfg)
-        mocked_resources.stop_patching()
-
-        mock_ckan_conn = mocked_resources.get_mock('ckanapi.RemoteCKAN')
-        mock_ckan_site = mock_ckan_conn.return_value
-        mock_ds_repo = mocked_resources.get_mock('bdkd.datastore.Repository')
-        mock_ds_host = mocked_resources.get_mock('bdkd.datastore.Host')
-        #mock_ds_resource = mocked_resources.get_mock('bdkd.datastore.Resource')
-        mock_write = mocked_resources.get_mock('__builtin__.open').return_value.write
-
-        # Check that using the configs, it connects to the right hosts/repos.
-        mock_ckan_conn.assert_has_calls(call('test_ckan_url', apikey='test-key'))
-        mock_ds_host.assert_has_calls(call(host='test_ds_host'))
-        mock_ds_repo.assert_has_calls(call(mock_ds_host.return_value, 'test_bucket'))
-        #mock_ds_resource.assert_has_calls(call())
-
-        # Check there was an attempt to write to a manifest file containing the right entries.
-        mock_write.assert_has_calls([
-            call('s3://test_bucket/groupA/groupAA/dataset1/file1\n'),
-            call('http://remotefile.internet/file2\n'),
-            ])
-
-        # Check that there was a look up for its visual site and that a visualization resource was created.
-        # Note: as the portal builder is a mock, we'll check the link to the visualization in a separate test.
-        mock_portal_builder.find_visual_site_for_datatype.assert_called_once_with('ocean data')
-        mock_ckan_site.action.resource_create.assert_has_calls([
-                call(url=ANY,
-                     package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
-                     description='Explore/visualise the dataset',
-                     name='explore',
-                     format='html')],
-                any_order=True)
-
-        # Check that a download resource was created (content will be checked in a separate test)
-        mock_ckan_site.action.resource_create.assert_has_calls([
-                call(package_id=ckan_dataset_name('groupA/groupAA/dataset1', repo_name='test_bucket'),
-                     description = ANY,
-                     name='download',
-                     format='html',
-                     upload=ANY)],
-                any_order=True)
 
     def test_build_portal_from_repo_bad_portal_config(self, single_dataset_repo, good_portal_cfg, mocked_resources):
         """ Test that bad config throws error
