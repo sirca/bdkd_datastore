@@ -182,6 +182,15 @@ class RepositoryTest(unittest.TestCase):
         self.repository.copy(from_resource, 'copied/shapefile')
         self._check_bucket_count('', 12)
 
+    def test_copy_bundled_resource(self):
+        from_resource = self.resources.get('bundled')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 2)
+        self.repository.copy(from_resource, 'copied/bundled')
+        self._check_bucket_count('', 4)
+        copied_resource = self.repository.get('copied/bundled')
+        self.assertEquals(len(copied_resource.local_paths()), 5)
+
     def test_copy_resource_with_metadata(self):
         metadata = {'author': 'fred', 'author-email': 'fred@localhost'}
         from_resource = self.resources.get('shapefile')
@@ -222,6 +231,16 @@ class RepositoryTest(unittest.TestCase):
         moved_resource = self.repository.get('copied/shapefile')
         self.assertTrue(moved_resource)
 
+    def test_move_bundled_resource(self):
+        from_resource = self.resources.get('bundled')
+        self.repository.save(from_resource)
+        self._check_bucket_count('', 2)
+        self.repository.move(from_resource, 'moved/bundled')
+        self._check_bucket_count('', 2)
+        moved_resource = self.repository.get('moved/bundled')
+        self.assertTrue(moved_resource)
+        self.assertEquals(len(moved_resource.local_paths()), 5)
+
     def test_resource_last_modified(self):
         # Force resource into remote storage.
         resource = self.resources.get('single')
@@ -237,6 +256,18 @@ class RepositoryTest(unittest.TestCase):
 
     def test_delete_resource(self):
         resource = self.resources.get('single')
+        self.repository.save(resource)
+        # Before delete: two files
+        self._check_bucket_count('', 2)
+        self._check_file_count(self.repository.local_cache, 2)
+
+        self.repository.delete(resource)
+        # After delete: no files
+        self._check_bucket_count('', 0)
+        self._check_file_count(self.repository.local_cache, 0)
+
+    def test_delete_bundled_resource(self):
+        resource = self.resources.get('bundled')
         self.repository.save(resource)
         # Before delete: two files
         self._check_bucket_count('', 2)

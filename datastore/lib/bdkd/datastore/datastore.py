@@ -286,8 +286,9 @@ class Repository(object):
             os.remove(cache_path)
 
     def __delete_resource(self, resource):
-        for resource_file in resource.files:
-            self.__delete_resource_file(resource_file)
+        for resource_file in (resource.files + [resource.bundle]):
+            if resource_file:
+                self.__delete_resource_file(resource_file)
         key_name = self.__resource_name_key(resource.name)
         bucket = self.get_bucket()
         if bucket and key_name:
@@ -338,7 +339,7 @@ class Repository(object):
     def _refresh_resource_file(self, resource_file):
         dest_path = self._resource_file_dest_path(resource_file)
         bucket = self.get_bucket()
-        if bucket:
+        if bucket and not resource_file.is_bundled():
             location = resource_file.location()
             if location:
                 if self.__download(location, dest_path):
@@ -414,7 +415,7 @@ class Repository(object):
         resource.relocate(resource_working_path, stat.S_IRWXU)
         resource.is_edit = True
 
-    def save(self, resource, overwrite=False):
+    def save(self, resource, overwrite=False, update_bundle=True):
         """
         Save a Resource that is either new or being edited to the Repository.
         """
@@ -448,7 +449,9 @@ class Repository(object):
             resource.repository = self
 
         if resource.bundle:
-            self.__save_resource_file(resource.bundle)
+            if update_bundle:
+                resource.update_bundle()
+                self.__save_resource_file(resource.bundle)
         else:
             for resource_file in resource.files:
                 self.__save_resource_file(resource_file)
@@ -505,12 +508,26 @@ class Repository(object):
                     to_location = os.path.join(Repository.files_prefix, 
                             to_resource.name, 
                             from_file.metadata['location'][len(from_prefix):])
-                    to_bucket.copy_key(to_location, from_bucket.name, from_file.metadata['location'])
+                    if not from_file.is_bundled():
+                       to_bucket.copy_key(to_location, from_bucket.name, 
+                               from_file.metadata['location'])
                     to_file.metadata['location'] = to_location
                 # Add file to to_resource
                 to_resource.files.append(to_file)
+            if from_resource.bundle:
+                to_resource.bundle = copy.copy(from_resource.bundle)
+                to_resource.bundle.resource = to_resource
+                to_resource.bundle.is_edit = True
+                from_location = from_resource.bundle.metadata['location']
+                to_location = os.path.join(Repository.files_prefix,
+                        to_resource.name,
+                        from_location[len(from_prefix):])
+                to_bucket.copy_key(to_location, from_bucket.name,
+                        from_location)
+                to_resource.bundle.metadata['location'] = to_location
+
             # Save destination resource
-            self.save(to_resource)
+            self.save(to_resource, update_bundle=False)
         except Exception as e:
             print >>sys.stderr, e.message
             # Undo: delete all to-files if save failed
@@ -812,7 +829,7 @@ class Resource(Asset):
                         if not 'content-length' in meta:
                             meta['content-length'] = os.stat(path).st_size
                         if bundle:
-                            bundle_archive.add(name=path, arcname=meta['location'])
+                            bundle_archive.add(name=path, arcname=location)
                     else:
                         raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
                 resource_file = ResourceFile(path, resource=None, metadata=meta)
@@ -938,8 +955,10 @@ class Resource(Asset):
             raise ValueError("Resource file is not currently being edited")
         bundle_file = tarfile.open(self.bundle.local_path(), mode='w:gz')
         for resource_file in self.files:
-            if resource_file.path:
-                bundle_file.add(resource_file.path, resource_file.location())
+            if resource_file.path and resource_file.location():
+                storage_location = resource_file.storage_location()
+                bundle_file.add(resource_file.path, 
+                        resource_file.storage_location())
         bundle_file.close()
 
     def save(self):
@@ -951,7 +970,6 @@ class Resource(Asset):
         if not self.repository:
             raise ValueError("Cannot save a resource that is not loaded from a repository")
         # Always overwrite the existing one since it was loaded from the repository anyway.
-        self.update_bundle()
         self.repository.save(self, overwrite=True)
 
     def delete(self):
@@ -1006,9 +1024,11 @@ class ResourceFile(Asset):
         if not self.resource or not self.resource.repository:
             return
         if self.resource.is_edit:
-            unpack_path = self.resource.repository.working
+            unpack_path = os.path.join(self.resource.repository.working, 
+                    Repository.files_prefix, self.resource.name)
         else:
-            unpack_path = self.resource.repository.local_cache
+            unpack_path = os.path.join(self.resource.repository.local_cache, 
+                    Repository.files_prefix, self.resource.name)
         if not self.path:
             do_refresh = True
         resource_filename = self.local_path()
@@ -1047,6 +1067,16 @@ class ResourceFile(Asset):
         the Repository) or None.
         """
         return self.meta('location')
+
+    def storage_location(self):
+        """
+        The path of a ResourceFile within its Resource directory.
+        """
+        if self.resource and self.location():
+            return self.location()[(len(os.path.join(Repository.files_prefix,
+                self.resource.name)) + 1):]
+        else:
+            return None
 
     def remote(self):
         """
