@@ -281,7 +281,7 @@ class RepositoryBuilder:
             bundled_file_url = url_format.format(datastore_host=repo_cfg['ds_host'],
                                                  repository_name=repo_cfg['bucket'],
                                                  resource_id=urllib.quote_plus(ds_resource.bundle.location()))
-            bundled_item = { 'name': 'Bundled file', 'url': bundled_file_url}
+            bundled_item = { 'url': bundled_file_url}
             generated_page = bundled_template.render(
                     repository_name=ds_resource.repository.name,
                     dataset_name=ds_resource.name,
