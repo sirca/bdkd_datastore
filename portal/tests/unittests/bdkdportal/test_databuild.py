@@ -45,6 +45,7 @@ class PortalResourceMocker:
         'ckanapi.RemoteCKAN',
         'bdkd.datastore.Repository',
         'bdkd.datastore.Host',
+        'bdkd.datastore.Resource',
         'bdkdportal.databuild.prepare_lock_file',
         'bdkdportal.databuild.purge_ckan_dataset',
         'logging.getLogger',
@@ -93,6 +94,7 @@ api_key: test-key
 ckan_cfg: test_ckan_cfg_file
 ckan_url: test_ckan_url
 download_template: test_template
+bundled_download_template: bundled_test_template
 repos:
     - bucket: test_bucket
       org_name: test_org_name
@@ -121,9 +123,10 @@ def good_portal_builder(good_cfg_string):
     return builder
 
 
-@pytest.fixture
+@pytest.fixture(scope="module",
+                params=[False, True])   # bundled/non-bundled
 @patch('bdkd.datastore.Host')
-def single_dataset_repo(mock_ds_host):
+def single_dataset_repo(mock_ds_host, request):
     """ Returns a mock datastore repository that gives the caller:
     - repository called 'test_bucket'
     - some meta data about the dataset, as per mock_metadata()
@@ -137,6 +140,7 @@ def single_dataset_repo(mock_ds_host):
     mock_ds_repo.name = 'test_bucket'
     mock_ds_repo.host = mock_ds_host.return_value
     mock_ds_repo.list.return_value = ds_resource_list
+    mock_ds_repo.bundled = request.param
     def mock_repo_get(ds_resource_name):
         if ds_resource_name == 'groupA/groupAA/dataset1':
             mock_ds_resource_file1 = MagicMock()
@@ -156,6 +160,7 @@ def single_dataset_repo(mock_ds_host):
                 'description':'test desc',
                 'data_type':'ocean data',
                 }
+            mock_ds_resource.is_bundled = MagicMock(return_value=request.param)
             return mock_ds_resource
         return None
     mock_ds_repo.get = MagicMock(side_effect=mock_repo_get)
@@ -251,6 +256,7 @@ class TestPortalBuilder:
                     ckan_cfg: test_ckan_cfg_file
                     ckan_url: test_ckan_url
                     download_template: test_template
+                    bundled_download_template: bundled_test_template
                     repos:
                         - bucket: test_bucket
                           org_title: test_org_title
@@ -292,6 +298,7 @@ class TestPortalBuilder:
                     ckan_cfg: test_ckan_cfg_file
                     ckan_url: test_ckan_url
                     download_template: test_template
+                    bundled_download_template: bundled_test_template
                     repos:
                         - bucket: test_bucket1
                           org_name: test_org_name1
@@ -550,6 +557,8 @@ class TestRepositoryBuilder:
         mock_ds_repo.assert_has_calls(call(mock_ds_host.return_value, 'test_bucket'))
 
         # Check there was an attempt to write to a manifest file containing the right entries.
+        if single_dataset_repo.get('groupA/groupAA/dataset1').is_bundled() == True:
+            mock_write.assert_has_calls([call('#Bundled dataset\n')])
         mock_write.assert_has_calls([
             call('s3://test_bucket/groupA/groupAA/dataset1/file1\n'),
             call('http://remotefile.internet/file2\n'),
