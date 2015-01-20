@@ -1,6 +1,6 @@
 import unittest
 import bdkd.datastore
-import bdkd.datastore.util.add as add_utils
+import bdkd.datastore.util.ds_util as ds_util
 import glob, os, shutil
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
@@ -32,7 +32,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         args_in = [ 'bdkd-datastore-test', 'my_resource', 
                 self.filepath 
                 ]
-        add_utils.add_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
 
@@ -51,7 +51,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
                 '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
-        add_utils.add_bdkd_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
 
@@ -63,15 +63,15 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         args_in = [ 'bdkd-datastore-test', 'my_resource', 
                 self.filepath 
                 ]
-        add_utils.add_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
         # Again: error (already exists)
         with self.assertRaises(ValueError):
-            add_utils.add_util(args_in)
+            ds_util.ds_util(args_in)
         # Do it properly
         args_in.append('--force')
         try:
-            add_utils.add_util(args_in)
+            ds_util.ds_util(args_in)
         except ValueError:
             self.fail("Flag '--force' should allow overwrite of resource.")
 

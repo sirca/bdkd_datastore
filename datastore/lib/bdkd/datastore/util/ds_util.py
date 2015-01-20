@@ -105,62 +105,37 @@ def _repository_resource_from_to_parser():
     return parser
 
 
-
-def _add_parser(subparser):
-    """
-    Parser for the generic 'add' subcommand
-    """
-    parser = subparser.add_parser('add', help="Add a Resource to a datastore",
-                                  description="Add a Resource to a datastore, optionally "
-                                  "overwriting any other Resource of the same name.", 
-                                  parents=[
-                                      util_common._repository_resource_parser(),
-                                      _files_parser(),
-                                      _metadata_parser(),
-                                      _add_options_parser(),
-                                  ])
-    return parser
-
-def _add_bdkd_parser(subparser):
-    """
-    Parser for the BDKD 'add-bdkd' subcommand
-    """
-    parser = subparser.add_parser('add-bdkd', help="Add a Resource to a datastore (with BDKD options)",
-                                  description="Add a Resource to a datastore, including options "
-                                  "related to BDKD.", 
-                                  parents=[
-                                      util_common._repository_resource_parser(),
-                                      _files_parser(),
-                                      _metadata_parser(),
-                                      _add_options_parser(),
-                                      _bdkd_metadata_parser(),
-                                  ])
-    return parser
-
-def _copy_parser(subparser):
-    """
-    Parser for the 'copy' subcommand
-    """
-    parser = subparser.add_parser('copy', help="Copy a resource",
-                                  description="Copy a resource within datastore",
-                                  parents=[
-                                      _repository_resource_from_to_parser(),
-                                  ])
-    return parser
-
-def _move_parser(subparser):
-    """
-    Parser for the 'move' subcommand
-    """
-    parser = subparser.add_parser('move', help="Move a resource",
-                                  description="Move a resource within datastore",
-                                  parents=[
-                                      _repository_resource_from_to_parser(),
-                                  ])
-    return parser
-
 def _create_subparsers(subparser):
-    subparser.add_parser('getkey', help="Get information about the key of a resource",
+    subparser.add_parser('add', help='Add a Resource to a datastore',
+                         description='Add a Resource to a datastore, optionally '
+                         'overwriting any other Resource of the same name.',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                             _files_parser(),
+                             _metadata_parser(),
+                             _add_options_parser(),
+                         ])
+    subparser.add_parser('add-bdkd', help='Add a Resource to a datastore (with BDKD options)',
+                         description='Add a Resource to a datastore, including options '
+                         'related to BDKD.',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                             _files_parser(),
+                             _metadata_parser(),
+                             _add_options_parser(),
+                             _bdkd_metadata_parser(),
+                         ])
+    subparser.add_parser('copy', help='Copy a resource',
+                         description='Copy a resource within datastore',
+                         parents=[
+                             _repository_resource_from_to_parser(),
+                         ])
+    subparser.add_parser('move', help='Move a resource',
+                         description='Move a resource within datastore',
+                         parents=[
+                             _repository_resource_from_to_parser(),
+                         ])
+    subparser.add_parser('getkey', help='Get information about the key of a resource',
                          description='Get information about the key of a resource',
                          parents=[
                              util_common._repository_resource_parser(),
@@ -177,6 +152,38 @@ def _create_subparsers(subparser):
                              _metadata_parser(),
                              _bdkd_metadata_parser(enforce=False)
                          ])
+    subparser.add_parser('delete', help='Delete a resource from a repository',
+                         description='Delete a resource from a repository', 
+                         parents=[
+                             util_common._repository_resource_parser(),
+                         ])
+    subparser.add_parser('get', help='Get details of a Resource as JSON text.',
+                         description='Get details of a Resource as JSON text. The meta-data and list '
+                         'of Files for a Resource will be printed to STDOUT as JSON text.',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                         ])
+    subparser.add_parser('files', help='List of locally-cached filenames',
+                         description='List of locally-cached filenames for the given Resource', 
+                         parents=[
+                             util_common._repository_resource_parser(),
+                         ])
+    list_parser = subparser.add_parser('list', help='Get a list of all Resources in a Repository',
+                         description='Get a list of all Resources in a Repository (or optionally '
+                         'those Resources underneath a leading path).',
+                         parents=[
+                             util_common._repository_parser()
+                         ])
+    list_parser.add_argument('--path', '-p', help='Email address of the maintainer')
+    list_parser.add_argument('--verbose', '-v', action='store_true', default=False,
+                             help='Verbose mode: all resource details (default names only)')
+    
+    repositories_parser = subparser.add_parser('repositories', help='Get a list of all configured Repositories',
+                                               description='Get a list of all configured Repositories')
+    repositories_parser.add_argument('--verbose', '-v', action='store_true', default=False,
+                                     help='Verbose mode: all resource details (default names only)')
+    return subparser
+
 
 
 def create_parsed_resource(resource_args, meta_parser=None, argv=None):
@@ -257,21 +264,58 @@ def _update_with_parser(args, meta_parser, argv):
     metadata.update(args.metadata)
     _update_metadata(args.repository, args.resource_name, metadata)
 
-def ds_util():
+def _delete_resource(repository, resource_name):
+    resource = repository.get(resource_name)
+    if resource:
+        repository.delete(resource)
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+
+def _get_resource_details(repository, resource_name):
+    resource = repository.get(resource_name)
+    if resource:
+        print resource.to_json(indent=4, separators=(',', ': '))
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+
+def _list_resource_files(repository, resource_name):
+    resource = repository.get(resource_name)
+    if resource:
+        paths = resource.local_paths()
+        for path in paths:
+            print path
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+
+def _list_resources(repository, path, verbose):
+    resource_names = repository.list(path or '')
+    for resource_name in resource_names:
+        print resource_name
+        if verbose:
+            resource = repository.get(resource_name)
+            print resource.to_json(indent=4, separators=(',', ': ')) + '\n'
+
+def _list_repositories(verbose):
+    repositories = bdkd.datastore.repositories()
+    for name, repository in repositories.items():
+        print name
+        if verbose:
+            print "\tCache path:\t{0}".format(repository.local_cache)
+            print "\tWorking path:\t{0}".format(repository.working)
+            print "\tStale time:\t{0}".format(repository.stale_time)
+    
+
+
+def ds_util(argv=None):
     """
     Main entry point for ds-util
     """
     parser = argparse.ArgumentParser(prog='ds-util', description='Perform actions on a datastore')
     
     subparser = parser.add_subparsers(description='The following datastore commands are avilable', dest='subcmd')
-    _add_parser(subparser)
-    _add_bdkd_parser(subparser)
-    _copy_parser(subparser)
-    _move_parser(subparser)
     _create_subparsers(subparser)
-    
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.subcmd == 'add':
         resource = create_parsed_resource(args)
@@ -290,10 +334,15 @@ def ds_util():
         last_mod = args.repository.get_resource_last_modified(args.resource_name)
         print "Last modified: %s" % (last_mod)
     elif args.subcmd == 'update-metadata':
-        _update_with_parser(args, _bdkd_metadata_parser(enfore=False), sys.argv)
+        _update_with_parser(args, _bdkd_metadata_parser(enforce=False), sys.argv)
+    elif args.subcmd == 'delete':
+        _delete_resource(args.repository, args.resource_name)
+    elif args.subcmd == 'get':
+        _get_resource_details(args.repository, args.resource_name)
+    elif args.subcmd == 'files':
+        _list_resource_files(args.repository, args.resource_name)
+    elif args.subcmd == 'list':
+        _list_resources(args.repository, args.path, args.verbose)
+    elif args.subcmd == 'repositories':
+        _list_repositories(args.verbose)
 
-
-
-
-if __name__ == '__main__':
-    ds_util()

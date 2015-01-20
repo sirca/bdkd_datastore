@@ -7,9 +7,7 @@ import os
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'conf', 'test.conf')
-import bdkd.datastore
-import bdkd.datastore.util.add as add_utils
-import sys
+import bdkd.datastore.util.ds_util as ds_util
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
     '..', '..', '..', '..', 'fixtures')
@@ -19,14 +17,17 @@ class AddUtilitiesTest(unittest.TestCase):
 
     def setUp(self):
         self.filepath = os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
-                    'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz') 
+                    'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz')
+        self.parser = argparse.ArgumentParser()
+        subparser = self.parser.add_subparsers(dest='subcmd')
+        ds_util._create_subparsers(subparser)
 
 
     def test_add_minimal_arguments(self):
-        parser = add_utils.add_parser()
-        args_in = [ 'test-repository', 'my_resource', 
+        args_in = [ 'add', 'test-repository', 'my_resource',
                 self.filepath ]
-        args = parser.parse_args(args_in)
+        #args = parser.parse_args(args_in)
+        args = self.parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.repository.name, 'test-repository')
         self.assertEquals(args.resource_name, 'my_resource')
@@ -35,20 +36,18 @@ class AddUtilitiesTest(unittest.TestCase):
 
 
     def test_add_bad_path(self):
-        parser = add_utils.add_parser()
-        args_in = [ 'test-repository', 'my_resource',
+        args_in = [ 'add', 'test-repository', 'my_resource',
                 'some/nonexistent/file' ]
-        self.assertRaises(ValueError, parser.parse_args, args_in)
+        self.assertRaises(ValueError, self.parser.parse_args, args_in)
 
 
     def test_add_all_arguments(self):
-        parser = add_utils.add_parser()
-        args_in = [ 'test-repository', 'my_resource', 
+        args_in = [ 'add', 'test-repository', 'my_resource',
                 '--metadata', '{"foo": "bar"}',
                 '--force',
                 '--bundle',
                 self.filepath ]
-        args = parser.parse_args(args_in)
+        args = self.parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.metadata, dict(foo='bar'))
         self.assertEquals(args.force, True)
@@ -56,13 +55,12 @@ class AddUtilitiesTest(unittest.TestCase):
 
 
     def test_add_bdkd_mandatory_arguments(self):
-        parser = add_utils.add_bdkd_parser()
-        args_in = [ 'test-repository', 'my_resource', 
+        args_in = [ 'add-bdkd', 'test-repository', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', u'Dietmar Müller', 
                 '--author-email', 'fred@here', 
                 self.filepath ]
-        args = parser.parse_args(args_in)
+        args = self.parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.description, 'Description of resource')
         self.assertEquals(args.author, u'Dietmar Müller')
@@ -70,8 +68,7 @@ class AddUtilitiesTest(unittest.TestCase):
 
 
     def test_add_bdkd_all_arguments(self):
-        parser = add_utils.add_bdkd_parser()
-        args_in = [ 'test-repository', 'my_resource', 
+        args_in = [ 'add-bdkd', 'test-repository', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
@@ -81,14 +78,14 @@ class AddUtilitiesTest(unittest.TestCase):
                 '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
-        args = parser.parse_args(args_in)
+        args = self.parser.parse_args(args_in)
         self.assertEquals(args.tags, ['foo', 'bar'])
         self.assertEquals(args.version, '1.0')
         self.assertEquals(args.maintainer_email, 'joe@here')
 
 
     def test_create_parsed_resource(self):
-        args_in = [ 'test-repository', 'my_resource', 
+        args_in = [ 'add-bdkd', 'test-repository', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
@@ -111,10 +108,10 @@ class AddUtilitiesTest(unittest.TestCase):
                 maintainer_email='joe@here',
                 custom_fields= dict(continent='asia', dataset_type='features'),
                 )
-        resource_args = add_utils.add_bdkd_parser().parse_args(args_in)
-        resource = add_utils.create_parsed_resource(
+        resource_args = self.parser.parse_args(args_in)
+        resource = ds_util.create_parsed_resource(
                 resource_args,
-                add_utils._bdkd_metadata_parser(),
+                ds_util._bdkd_metadata_parser(),
                 args_in
                 )
         self.assertEquals(resource.metadata, expected_metadata)
@@ -135,7 +132,7 @@ class AddUtilitiesTest(unittest.TestCase):
         mock_os_path_exists.return_value = True
         mock_os_path_isdir.return_value = False
         with patch('bdkd.datastore.Resource.new') as mock_Resource_new:
-            resource = add_utils.create_parsed_resource(resource_args = resource_args)
+            resource = ds_util.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with('dummy-resource', 
                 files_data=['file1','file2'],
                 do_bundle=False,
@@ -156,7 +153,7 @@ class AddUtilitiesTest(unittest.TestCase):
         mock_os_path_exists.side_effect = lambda f: f[0:4] == 'file'
         mock_os_path_isdir.return_value = False
         with patch('bdkd.datastore.Resource.new') as mock_Resource_new:
-            resource = add_utils.create_parsed_resource(resource_args = resource_args)
+            resource = ds_util.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with(
             'dummy-resource',
             files_data=['file1','http://test.dummy/file2', 'file3'],
@@ -198,7 +195,7 @@ class AddUtilitiesTest(unittest.TestCase):
         # When adding with the parameter 'file1 dir1', it will create a resource
         # containing the file 'file1' and all files inside directory 'dir1'
 
-        resource = add_utils.create_parsed_resource(resource_args = resource_args)
+        resource = ds_util.create_parsed_resource(resource_args = resource_args)
         mock_Resource_new.assert_called_once_with(
             'dummy-resource', 
             do_bundle=False,
