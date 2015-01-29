@@ -1,6 +1,6 @@
 import unittest
 import bdkd.datastore
-import bdkd.datastore.util.add as add_utils
+from bdkd.datastore.util import ds_util
 import glob, os, shutil
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
@@ -29,10 +29,10 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Simulate adding a Resource from the command-line, with only a basic set 
         of options (same as `datastore-add`).
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
-        add_utils.add_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
 
@@ -41,7 +41,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Simulate adding a Resource from the command-line, including all BDKD 
         options (same as `datastore-add-bdkd`).
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add-bdkd', 'bdkd-datastore-test', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
@@ -51,7 +51,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
                 '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
-        add_utils.add_bdkd_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
 
@@ -60,18 +60,18 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Adding a resource of the same name (duplicate) should fail with a 
         ValueError, unless the user provides the '--force' flag.
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
-        add_utils.add_util(args_in)
+        ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
         # Again: error (already exists)
         with self.assertRaises(ValueError):
-            add_utils.add_util(args_in)
+            ds_util.ds_util(args_in)
         # Do it properly
         args_in.append('--force')
         try:
-            add_utils.add_util(args_in)
+            ds_util.ds_util(args_in)
         except ValueError:
             self.fail("Flag '--force' should allow overwrite of resource.")
 

@@ -1,6 +1,6 @@
 import unittest
 import bdkd.datastore
-import bdkd.datastore.util.metadata as metadata_utils
+from bdkd.datastore.util import ds_util
 import glob, os, shutil
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
@@ -27,7 +27,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
 
 
     def test_update_metadata(self):
-        args_in = [ self.repository_name, self.resource_name, 
+        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
@@ -36,7 +36,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
                 ]
-        metadata_utils.update_metadata_util(args_in)
+        ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertTrue(updated)
         self.assertEquals('Description of resource', 
@@ -56,18 +56,18 @@ class DatastoreUtilsAddTest(unittest.TestCase):
 
     def test_change_updated_metadata(self):
         # Set description to something
-        args_in = [ self.repository_name, self.resource_name, 
+        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--description', 'Description of resource',
                 ]
-        metadata_utils.update_metadata_util(args_in)
+        ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertEquals('Description of resource', 
                 updated.meta('description'))
         # Then check that it is altered subsequently
-        args_in = [ self.repository_name, self.resource_name, 
+        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--description', 'Altered description',
                 ]
-        metadata_utils.update_metadata_util(args_in)
+        ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertEquals('Altered description', 
                 updated.meta('description'))
@@ -75,18 +75,18 @@ class DatastoreUtilsAddTest(unittest.TestCase):
     def test_nullify_metadata(self):
         # Meta-data can be explicitly nullified by use of the --metadata option
         # Set description to something
-        args_in = [ self.repository_name, self.resource_name, 
+        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--description', 'Description of resource',
                 ]
-        metadata_utils.update_metadata_util(args_in)
+        ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertEquals('Description of resource', 
                 updated.meta('description'))
         # Then nullify it with --metadata
-        args_in = [ self.repository_name, self.resource_name, 
+        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--metadata', '{"description": null}',
                 ]
-        metadata_utils.update_metadata_util(args_in)
+        ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertEquals(None, 
                 updated.meta('description'))
