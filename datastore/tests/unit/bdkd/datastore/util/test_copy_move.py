@@ -5,7 +5,7 @@ import os
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'conf', 'test.conf')
-import bdkd.datastore.util.ds_util as ds_util
+from bdkd.datastore.util import ds_util
 
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 

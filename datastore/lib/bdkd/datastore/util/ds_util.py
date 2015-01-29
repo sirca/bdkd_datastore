@@ -308,9 +308,9 @@ def _list_repositories(verbose):
 
 def ds_util(argv=None):
     """
-    Main entry point for ds-util
+    Main entry point for datastore-util
     """
-    parser = argparse.ArgumentParser(prog='ds-util', description='Perform actions on a datastore')
+    parser = argparse.ArgumentParser(prog='datastore-util', description='Perform actions on a datastore')
     
     subparser = parser.add_subparsers(description='The following datastore commands are avilable', dest='subcmd')
     _create_subparsers(subparser)
@@ -321,7 +321,7 @@ def ds_util(argv=None):
         resource = create_parsed_resource(args)
         _save_resource(args.repository, resource, args.force)
     elif args.subcmd == 'add-bdkd':
-        resource = create_parsed_resource(args, meta_parser=_bdkd_metadata_parser(), argv=sys.argv)
+        resource = create_parsed_resource(args, meta_parser=_bdkd_metadata_parser(), argv=argv)
         _save_resource(args.repository, resource, args.force)
     elif args.subcmd == 'copy':
         _copy_or_move(args, do_move=False)
@@ -334,7 +334,7 @@ def ds_util(argv=None):
         last_mod = args.repository.get_resource_last_modified(args.resource_name)
         print "Last modified: %s" % (last_mod)
     elif args.subcmd == 'update-metadata':
-        _update_with_parser(args, _bdkd_metadata_parser(enforce=False), sys.argv)
+        _update_with_parser(args, _bdkd_metadata_parser(enforce=False), argv)
     elif args.subcmd == 'delete':
         _delete_resource(args.repository, args.resource_name)
     elif args.subcmd == 'get':

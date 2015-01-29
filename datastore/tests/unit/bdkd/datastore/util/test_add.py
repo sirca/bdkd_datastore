@@ -7,7 +7,7 @@ import os
 # Load a custom configuration for unit testing
 os.environ['BDKD_DATASTORE_CONFIG'] = os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'conf', 'test.conf')
-import bdkd.datastore.util.ds_util as ds_util
+from bdkd.datastore.util import ds_util
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
     '..', '..', '..', '..', 'fixtures')
@@ -26,7 +26,6 @@ class AddUtilitiesTest(unittest.TestCase):
     def test_add_minimal_arguments(self):
         args_in = [ 'add', 'test-repository', 'my_resource',
                 self.filepath ]
-        #args = parser.parse_args(args_in)
         args = self.parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.repository.name, 'test-repository')

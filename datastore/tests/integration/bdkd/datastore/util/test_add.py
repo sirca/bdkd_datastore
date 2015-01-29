@@ -1,6 +1,6 @@
 import unittest
 import bdkd.datastore
-import bdkd.datastore.util.ds_util as ds_util
+from bdkd.datastore.util import ds_util
 import glob, os, shutil
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 
@@ -29,7 +29,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Simulate adding a Resource from the command-line, with only a basic set 
         of options (same as `datastore-add`).
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
         ds_util.ds_util(args_in)
@@ -41,7 +41,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Simulate adding a Resource from the command-line, including all BDKD 
         options (same as `datastore-add-bdkd`).
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add-bdkd', 'bdkd-datastore-test', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
@@ -60,7 +60,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         Adding a resource of the same name (duplicate) should fail with a 
         ValueError, unless the user provides the '--force' flag.
         """
-        args_in = [ 'bdkd-datastore-test', 'my_resource', 
+        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
         ds_util.ds_util(args_in)

@@ -14,7 +14,7 @@ setup(
         packages=find_packages('lib'),
         entry_points = {
             'console_scripts': [
-                'ds-util = bdkd.datastore.util.ds_util:ds_util',
+                'datastore-util = bdkd.datastore.util.ds_util:ds_util',
             ],
         },
         install_requires=['boto', 'PyYAML']
