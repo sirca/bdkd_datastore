@@ -8,7 +8,7 @@ setup(
         version='0.1.5',
         description='Store and retrieve sets of files from an object store',
         author='Sirca Ltd',
-        author_email='david.nelson@sirca.org.au',
+        author_email='balram.ramanathan@sirca.org.au',
         url='http://github.com/sirca/bdkd',
         package_dir={'': 'lib'},
         packages=find_packages('lib'),
