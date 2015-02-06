@@ -326,7 +326,7 @@ def ds_util(argv=None):
     elif args.subcmd == 'copy':
         _copy_or_move(args, do_move=False)
     elif args.subcmd == 'move':
-        _copy_or_move(args, do_move=False)
+        _copy_or_move(args, do_move=True)
     elif args.subcmd == 'getkey':
         resource_key = args.repository.get_resource_key(args.resource_name)
         pprint.pprint(resource_key.__dict__)
