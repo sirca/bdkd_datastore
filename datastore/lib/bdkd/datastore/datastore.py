@@ -6,7 +6,7 @@ import errno
 import hashlib
 import json
 import logging
-import os, stat, sys, time
+import os, stat, sys, time, getpass
 import shutil
 import urlparse, urllib2
 import yaml
@@ -24,6 +24,17 @@ _repositories = None
 TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 
 logger = logging.getLogger(__name__)
+
+def get_uid():
+    """
+    Get a unique user identifier in a cross-platform manner.
+    On Unix type systems, this equates os.getuid; otherwise,
+    getpass.getuser
+    """
+    try:
+        return os.getuid()
+    except AttributeError:
+        return getpass.getuser()
 
 def checksum(local_path):
     """ Calculate the md5sum of the contents of a local file. """
@@ -128,11 +139,11 @@ class Repository(object):
 
         self.local_cache = os.path.join(
                 (cache_path or settings()['cache_root']),
-                str(os.getuid()),
+                str(get_uid()),
                 name)
         self.working = os.path.join(
                 (working_path or settings()['working_root']), 
-                str(os.getuid()), 
+                str(get_uid()),
                 str(os.getpid()), 
                 name)
         self.bucket = None

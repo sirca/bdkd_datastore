@@ -312,7 +312,7 @@ def ds_util(argv=None):
     """
     parser = argparse.ArgumentParser(prog='datastore-util', description='Perform actions on a datastore')
     
-    subparser = parser.add_subparsers(description='The following datastore commands are avilable', dest='subcmd')
+    subparser = parser.add_subparsers(description='The following datastore commands are available', dest='subcmd')
     _create_subparsers(subparser)
 
     args = parser.parse_args(argv)
