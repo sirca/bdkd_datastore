@@ -653,7 +653,7 @@ class Asset(object):
         self.metadata = None
         self.files = None
 
-    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH, 
+    def relocate(self, dest_path, mod=stat.S_IRWXU,
             move=False):
         """
         Relocate an Asset's file to some other path, and set the mode of the 
@@ -895,7 +895,7 @@ class Resource(Asset):
         return Resource.ResourceJSONEncoder(ensure_ascii=False, 
                 encoding='UTF-8', **kwargs).encode(self)
 
-    def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
+    def write(self, dest_path, mod=stat.S_IRWXU):
         """
         Write the JSON file representation of a Resource to a destination file.
         """
@@ -1105,7 +1105,7 @@ class ResourceFile(Asset):
         """
         return self.location() or self.remote()
 
-    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH, 
+    def relocate(self, dest_path, mod=stat.S_IRWXU,
             move=False):
         """
         Overridden relocate() -- including support for bundle directory.
