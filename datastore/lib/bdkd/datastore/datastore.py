@@ -6,7 +6,7 @@ import errno
 import hashlib
 import json
 import logging
-import os, stat, sys, time
+import os, stat, sys, time, getpass
 import shutil
 import urlparse, urllib2
 import yaml
@@ -24,6 +24,17 @@ _repositories = None
 TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 
 logger = logging.getLogger(__name__)
+
+def get_uid():
+    """
+    Get a unique user identifier in a cross-platform manner.
+    On Unix type systems, this equates os.getuid; otherwise,
+    getpass.getuser
+    """
+    try:
+        return os.getuid()
+    except AttributeError:
+        return getpass.getuser()
 
 def checksum(local_path):
     """ Calculate the md5sum of the contents of a local file. """
@@ -128,11 +139,11 @@ class Repository(object):
 
         self.local_cache = os.path.join(
                 (cache_path or settings()['cache_root']),
-                str(os.getuid()),
+                str(get_uid()),
                 name)
         self.working = os.path.join(
                 (working_path or settings()['working_root']), 
-                str(os.getuid()), 
+                str(get_uid()),
                 str(os.getpid()), 
                 name)
         self.bucket = None
@@ -642,7 +653,7 @@ class Asset(object):
         self.metadata = None
         self.files = None
 
-    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH, 
+    def relocate(self, dest_path, mod=stat.S_IRWXU,
             move=False):
         """
         Relocate an Asset's file to some other path, and set the mode of the 
@@ -884,7 +895,7 @@ class Resource(Asset):
         return Resource.ResourceJSONEncoder(ensure_ascii=False, 
                 encoding='UTF-8', **kwargs).encode(self)
 
-    def write(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH):
+    def write(self, dest_path, mod=stat.S_IRWXU):
         """
         Write the JSON file representation of a Resource to a destination file.
         """
@@ -1094,7 +1105,7 @@ class ResourceFile(Asset):
         """
         return self.location() or self.remote()
 
-    def relocate(self, dest_path, mod=stat.S_IRUSR|stat.S_IRGRP|stat.S_IROTH, 
+    def relocate(self, dest_path, mod=stat.S_IRWXU,
             move=False):
         """
         Overridden relocate() -- including support for bundle directory.
