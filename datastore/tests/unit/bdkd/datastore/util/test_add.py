@@ -42,13 +42,11 @@ class AddUtilitiesTest(unittest.TestCase):
 
     def test_add_all_arguments(self):
         args_in = [ 'add', 'test-repository', 'my_resource',
-                '--metadata', '{"foo": "bar"}',
                 '--force',
                 '--bundle',
                 self.filepath ]
         args = self.parser.parse_args(args_in)
         self.assertTrue(args)
-        self.assertEquals(args.metadata, dict(foo='bar'))
         self.assertEquals(args.force, True)
         self.assertEquals(args.bundle, True)
 
@@ -70,15 +68,13 @@ class AddUtilitiesTest(unittest.TestCase):
         args_in = [ 'add-bdkd', 'test-repository', 'my_resource',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author-email', 'fred@here', 
-                '--tags', '["foo", "bar"]',
+                '--author-email', 'fred@here',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
                 self.filepath 
                 ]
         args = self.parser.parse_args(args_in)
-        self.assertEquals(args.tags, ['foo', 'bar'])
         self.assertEquals(args.version, '1.0')
         self.assertEquals(args.maintainer_email, 'joe@here')
 
@@ -89,11 +85,9 @@ class AddUtilitiesTest(unittest.TestCase):
                 '--author', 'fred', 
                 '--author-email', 'fred@here', 
                 '--data-type', 'feature collection',
-                '--tags', '["foo", "bar"]',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
-                '--custom-fields', '{"continent":"asia", "dataset_type":"features"}',
                 self.filepath
                 ]
         expected_metadata = dict(
@@ -101,17 +95,14 @@ class AddUtilitiesTest(unittest.TestCase):
                 author='fred',
                 author_email='fred@here',
                 data_type='feature collection',
-                tags=['foo', 'bar'],
                 version='1.0',
                 maintainer='Joe',
                 maintainer_email='joe@here',
-                custom_fields= dict(continent='asia', dataset_type='features'),
                 )
         resource_args = self.parser.parse_args(args_in)
         resource = ds_util.create_parsed_resource(
                 resource_args,
-                ds_util._bdkd_metadata_parser(),
-                args_in
+                extract_bdkd_metadata=True
                 )
         self.assertEquals(resource.metadata, expected_metadata)
         self.assertEquals(resource.files[0].path, self.filepath)
