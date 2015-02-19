@@ -25,17 +25,6 @@ TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 
 logger = logging.getLogger(__name__)
 
-def get_uid():
-    """
-    Get a unique user identifier in a cross-platform manner.
-    On Unix type systems, this equates os.getuid; otherwise,
-    getpass.getuser
-    """
-    try:
-        return os.getuid()
-    except AttributeError:
-        return getpass.getuser()
-
 def checksum(local_path):
     """ Calculate the md5sum of the contents of a local file. """
     result = None
@@ -130,7 +119,7 @@ class Repository(object):
     files_prefix = 'files'
     bundle_prefix = 'bundle'
 
-    def __init__(self, host, name, cache_path=None, working_path=None, stale_time=60):
+    def __init__(self, host, name, cache_path=None, stale_time=60):
         """
         Create a "connection" to a Repository.
         """
@@ -139,12 +128,7 @@ class Repository(object):
 
         self.local_cache = os.path.join(
                 (cache_path or settings()['cache_root']),
-                str(get_uid()),
-                name)
-        self.working = os.path.join(
-                (working_path or settings()['working_root']), 
-                str(get_uid()),
-                str(os.getpid()), 
+                str(os.getuid()),
                 name)
         self.bucket = None
         self.stale_time = stale_time
@@ -170,11 +154,6 @@ class Repository(object):
         # local cache file
         return os.path.join(self.local_cache, type(self).resources_prefix, name)
 
-    def __resource_name_working_path(self, name):
-        # For the given Resource name, return the working path to which that 
-        # Resource would be copied if it were edited.
-        return os.path.join(self.working, type(self).resources_prefix, name)
-
     def __file_keyname(self, resource_file):
         # For the given ResourceFile, return the S3 key string
         return resource_file.location()
@@ -185,15 +164,8 @@ class Repository(object):
         return os.path.expanduser(os.path.join(self.local_cache, 
             resource_file.location_or_remote()))
 
-    def __file_working_path(self, resource_file):
-        return os.path.join(self.working, 
-            resource_file.location_or_remote())
-
     def file_path(self, resource_file):
-        if resource_file.is_edit:
-            return self.__file_working_path(resource_file)
-        else:
-            return self.__file_cache_path(resource_file)
+        return self.__file_cache_path(resource_file)
 
     def __download(self, key_name, dest_path):
         # Ensure that a file on the local system is up-to-date with respect to 
@@ -340,10 +312,7 @@ class Repository(object):
         return None
 
     def _resource_file_dest_path(self, resource_file):
-        if resource_file.is_edit:
-            dest_path = self.__file_working_path(resource_file)
-        else:
-            dest_path = self.__file_cache_path(resource_file)
+        dest_path = self.__file_cache_path(resource_file)
         logger.debug("Cache path for resource file is %s", dest_path)
         return dest_path
 
@@ -384,55 +353,19 @@ class Repository(object):
                 logger.debug("Refreshed resource file with path %s", resource_file.path)
 
     def __save_resource_file(self, resource_file):
-        if not resource_file.is_edit:
-            raise ValueError("Resource file is not currently being edited")
         file_cache_path = self.__file_cache_path(resource_file)
-        file_working_path = self.__file_working_path(resource_file)
         if resource_file.path and os.path.exists(resource_file.path) and resource_file.location():
-            if resource_file.path != file_working_path:
-                resource_file.relocate(file_working_path)
+            if resource_file.path != file_cache_path:
+                resource_file.relocate(file_cache_path)
             bucket = self.get_bucket()
             if bucket:
                 file_keyname = self.__file_keyname(resource_file)
-                self.__upload(file_keyname, file_working_path)
-            resource_file.relocate(file_cache_path, move=True)
-        resource_file.is_edit = False
-        
-    def edit_resource(self, resource):
-        """
-        Copy a Resource to the working area of the Repository and make it 
-        read/write.
-
-        The Resource is refreshed first, to ensure that its files in the cache 
-        are current, then it is copied to the Repository's working area so that 
-        it can be edited independently of other processes.  After editing 
-        save() may be called to write the modified Resource back to the 
-        repository.
-
-        Note that no locking mechanism is provided here: it is possible for two 
-        independent processes to edit the same Resource and for stale data to 
-        be saved back to the Repository.  In contexts where synchronous edits 
-        are required that process should be managed by some other means.
-        """
-        self.refresh_resource(resource)
-        for resource_file in ([ resource.bundle ] + resource.files):
-            if resource_file:
-                file_working_path = self.__file_working_path(resource_file)
-                mkdir_p(os.path.dirname(file_working_path))
-                resource_file.relocate(file_working_path, stat.S_IRWXU)
-                resource_file.is_edit = True
-        resource_working_path = self.__resource_name_working_path(resource.name)
-        mkdir_p(os.path.dirname(resource_working_path))
-        resource.relocate(resource_working_path, stat.S_IRWXU)
-        resource.is_edit = True
+                self.__upload(file_keyname, resource_file.path)
 
     def save(self, resource, overwrite=False, update_bundle=True):
         """
-        Save a Resource that is either new or being edited to the Repository.
+        Save a Resource to the Repository.
         """
-        if not resource.is_edit:
-            raise ValueError("Resource is not currently being edited")
-
         conflicting_names = self.__resource_name_conflict(resource.name)
         if conflicting_names:
             raise ValueError("The Resource name '" + resource.name +
@@ -440,9 +373,8 @@ class Repository(object):
                     ', '.join(conflicting_names))
 
         resource_cache_path = self.__resource_name_cache_path(resource.name)
-        resource_working_path = self.__resource_name_working_path(resource.name)
-        resource.write(resource_working_path)
-        resource.path = resource_working_path
+        resource.write(resource_cache_path)
+        resource.path = resource_cache_path
 
         bucket = self.get_bucket()
         if bucket:
@@ -453,8 +385,8 @@ class Repository(object):
                     raise ValueError("Resource already exists!")
             else:
                 resource_key = boto.s3.key.Key(bucket, resource_keyname)
-            logger.debug("Uploading resource from %s to key %s", resource_working_path, resource_keyname)
-            resource_key.set_contents_from_filename(resource_working_path)
+            logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
+            resource_key.set_contents_from_filename(resource_cache_path)
         if resource.repository != self:
             logger.debug("Setting the repository for the resource")
             resource.repository = self
@@ -466,9 +398,6 @@ class Repository(object):
         else:
             for resource_file in resource.files:
                 self.__save_resource_file(resource_file)
-
-        resource.relocate(resource_cache_path, move=True)
-        resource.is_edit = False
 
     def move(self, from_resource, to_name):
         try:
@@ -507,13 +436,11 @@ class Repository(object):
         # Create unsaved destination resource (also checks name)
         to_resource = Resource(to_name, files=[],
                 metadata=copy.copy(from_resource.metadata))
-        to_resource.is_edit = True
         # Copy files to to_resource and save
         try:
             from_prefix = os.path.join(Repository.files_prefix, from_resource.name, '')
             for from_file in from_resource.files:
                 to_file = copy.copy(from_file)
-                to_file.is_edit = True
                 # Do S3 copy if in S3 (i.e. has 'location')
                 if 'location' in from_file.metadata:
                     to_location = os.path.join(Repository.files_prefix, 
@@ -528,7 +455,6 @@ class Repository(object):
             if from_resource.bundle:
                 to_resource.bundle = copy.copy(from_resource.bundle)
                 to_resource.bundle.resource = to_resource
-                to_resource.bundle.is_edit = True
                 from_location = from_resource.bundle.metadata['location']
                 to_location = os.path.join(Repository.files_prefix,
                         to_resource.name,
@@ -642,14 +568,11 @@ class Asset(object):
 
     :ivar path:
         The local filesystem path of the Asset
-    :ivar is_edit:
-        Whether the Asset is currently in edit mode
     :ivar metadata:
         Dictionary of meta-data key/value pairs
     """
     def __init__(self):
         self.path = None
-        self.is_edit = False
         self.metadata = None
         self.files = None
 
@@ -658,9 +581,6 @@ class Asset(object):
         """
         Relocate an Asset's file to some other path, and set the mode of the 
         relocated file.
-
-        This method is used when moving a Resource or a ResourceFile to a 
-        working path so that it can be edited.
         """
         if self.path:
             if os.path.exists(dest_path):
@@ -673,7 +593,7 @@ class Asset(object):
                 shutil.copy2(self.path, dest_path)
             os.chmod(dest_path, mod)
             self.path = dest_path
-    
+
     def meta(self, keyname):
         """
         Get the meta-data value for the given key.
@@ -725,10 +645,7 @@ class Resource(Asset):
 
     @classmethod
     def bundle_temp_path(cls, name):
-        return os.path.join(settings()['working_root'],
-                str(os.getuid()), 
-                str(os.getpid()),
-                name)
+        return os.path.join(settings()['cache_root'], str(os.getuid()), name)
 
     def __init__(self, name, files=None, bundle=None, metadata=None):
         """
@@ -799,8 +716,7 @@ class Resource(Asset):
 
         The rest of the keyword arguments are used as Resource meta-data.
 
-        The Resource and all its ResourceFile objects are set to edit mode, 
-        i.e. ready to be saved to a Repository.
+        The Resource and all its ResourceFile objects ready to be saved to a Repository.
         """
         resource_files = []
         bundle = None
@@ -811,7 +727,6 @@ class Resource(Asset):
                     'location': os.path.join(Repository.files_prefix, name,
                         '.bundle', 'bundle.tar.gz')})
                 mkdir_p(os.path.dirname(bundle_path))
-                bundle.is_edit = True
                 bundle.files = []
                 bundle_archive = tarfile.open(name=bundle_path, mode='w:gz')
                 # resource_files.append(bundle)
@@ -844,7 +759,6 @@ class Resource(Asset):
                     else:
                         raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
                 resource_file = ResourceFile(path, resource=None, metadata=meta)
-                resource_file.is_edit = True
                 resource_files.append(resource_file)
             if do_bundle:
                 bundle_archive.close()
@@ -853,7 +767,6 @@ class Resource(Asset):
             resource.bundle = bundle
         for resource_file in resource_files:
             resource_file.resource = resource
-        resource.is_edit = True
         return resource
     
     @classmethod
@@ -914,11 +827,10 @@ class Resource(Asset):
         Get a list of local filenames for all the File data associated with 
         this Resource.
 
-        (Note that this method will trigger a refresh of the Resource if it is 
-        not currently being edited, ensuring that all locally-stored data is 
-        relatively up-to-date.)
+        (Note that this method will trigger a refresh of the Resource, ensuring that all
+        locally-stored data is relatively up-to-date.)
         """
-        if self.repository and not self.is_edit:
+        if self.repository:
             self.repository.refresh_resource(self, True)
         paths = []
         do_refresh = True
@@ -962,8 +874,6 @@ class Resource(Asset):
         """
         if not self.bundle:
             return  # no-op
-        if not self.is_edit:
-            raise ValueError("Resource file is not currently being edited")
         bundle_file = tarfile.open(self.bundle.local_path(), mode='w:gz')
         for resource_file in self.files:
             if resource_file.path and resource_file.location():
@@ -987,15 +897,6 @@ class Resource(Asset):
         if not self.repository:
             raise ValueError("Cannot delete a resource that is not loaded from a repository")
         self.repository.delete(self)
-
-    def set_edit(self):
-        """
-        Helper method to set the resource into edit mode. Can only be used if the
-        resource was loaded from a repository.
-        """
-        if not self.repository:
-            raise ValueError("Cannot edit a resource that is not loaded from a repository")
-        self.repository.edit_resource(self)
 
     def is_bundled(self):
         return self.bundle != None
@@ -1037,12 +938,8 @@ class ResourceFile(Asset):
         """
         if not self.resource or not self.resource.repository:
             return
-        if self.resource.is_edit:
-            unpack_path = os.path.join(self.resource.repository.working, 
-                    Repository.files_prefix, self.resource.name)
-        else:
-            unpack_path = os.path.join(self.resource.repository.local_cache, 
-                    Repository.files_prefix, self.resource.name)
+        unpack_path = os.path.join(self.resource.repository.local_cache, 
+                Repository.files_prefix, self.resource.name)
         if not self.path:
             do_refresh = True
         resource_filename = self.local_path()
@@ -1105,22 +1002,6 @@ class ResourceFile(Asset):
         """
         return self.location() or self.remote()
 
-    def relocate(self, dest_path, mod=stat.S_IRWXU,
-            move=False):
-        """
-        Overridden relocate() -- including support for bundle directory.
-        """
-        bundle_dirname = self.bundle_dirname()
-        super(ResourceFile, self).relocate(dest_path, mod, move)
-        if bundle_dirname and os.path.exists(bundle_dirname):
-            dest_bundle_dirname = self.bundle_dirname()
-            if os.path.exists(dest_bundle_dirname):
-                shutil.rmtree(dest_bundle_dirname)
-            if move:
-                shutil.move(bundle_dirname, dest_bundle_dirname)
-            else:
-                shutil.copytree(bundle_dirname, dest_bundle_dirname)
-
 def __load_config():
     global _settings, _hosts, _repositories
     _settings = {}
@@ -1163,11 +1044,8 @@ def __load_config():
                     cache_path = os.path.expanduser(
                             repo_config.get('cache_path', 
                                 os.path.join(_settings['cache_root'])))
-                    working_path = os.path.expanduser(
-                            repo_config.get('working_path', 
-                                os.path.join(_settings['working_root'])))
                     stale_time = repo_config.get('stale_time', 60)
-                    repo = Repository(host, repo_name, cache_path, working_path, stale_time)
+                    repo = Repository(host, repo_name, cache_path, stale_time)
                     _repositories[repo_name] = repo
 
 def settings():

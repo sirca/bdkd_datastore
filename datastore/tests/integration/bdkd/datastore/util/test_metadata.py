@@ -107,8 +107,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
 
         
     def _clear_local(self):
-        for tmp_path in [ self.repository.local_cache, self.repository.working ]:
+        for tmp_path in [ self.repository.local_cache ]:
             if tmp_path and tmp_path.startswith('/var/tmp'):
                 if os.path.exists(tmp_path):
                     shutil.rmtree(tmp_path)
-

@@ -143,37 +143,17 @@ class RepositoryTest(unittest.TestCase):
         resource_names = self.repository.list('foo/bar')
         self.assertEquals(len(resource_names), 0)
 
-    def test_edit_resource(self):
-        resource = self.resources.get('single')
-        self.repository.save(resource)
-        # After saving, the Resource should not be in editing mode.
-        self.assertFalse(resource.is_edit)
-        # The Resource path should be a file in the cache directory that is not writable.
-        self.assertTrue(resource.path.startswith(self.repository.local_cache))
-        self.assertFalse(os.access(resource.path, os.W_OK))
-        self._check_file_count(self.repository.working, 0)
-        # Now set resource to editing mode
-        self.repository.edit_resource(resource)
-        self.assertTrue(resource.is_edit)
-        # There should be a writable file in the repository's working path
-        self.assertTrue(resource.path.startswith(self.repository.working))
-        self.assertTrue(os.access(resource.path, os.W_OK))
-        self._check_file_count(self.repository.working, 2)
-
     def test_overwrite_resource_blocked(self):
         # You shouldn't be able to save over an existing resource
         # (overwrite=True is required)
         resource = self.resources.get('single')
         self.repository.save(resource)
-        self.repository.edit_resource(resource)
         self.assertRaises(ValueError, self.repository.save, resource)
 
     def test_overwrite_resource(self):
         resource = self.resources.get('single')
         self.repository.save(resource)
-        self.repository.edit_resource(resource)
         self.repository.save(resource, overwrite=True)
-        self.assertFalse(resource.is_edit)
 
     def test_copy_resource(self):
         from_resource = self.resources.get('shapefile')
@@ -248,7 +228,6 @@ class RepositoryTest(unittest.TestCase):
         datetime1 = self.repository.get_resource_last_modified(resource.name)
         # Force an update to the resource 1 second later.
         time.sleep(1) 
-        self.repository.edit_resource(resource)
         self.repository.save(resource, overwrite=True)
         datetime2 = self.repository.get_resource_last_modified(resource.name)
         # The sequence of events should produce a sequential set of times.
@@ -279,7 +258,7 @@ class RepositoryTest(unittest.TestCase):
         self._check_file_count(self.repository.local_cache, 0)
 
     def _clear_local(self):
-        for tmp_path in [ self.repository.local_cache, self.repository.working ]:
+        for tmp_path in [ self.repository.local_cache ]:
             if tmp_path and tmp_path.startswith('/var/tmp'):
                 if os.path.exists(tmp_path):
                     shutil.rmtree(tmp_path)
@@ -339,4 +318,3 @@ class RepositoryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
