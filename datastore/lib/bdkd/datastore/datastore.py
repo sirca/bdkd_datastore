@@ -25,6 +25,17 @@ TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 
 logger = logging.getLogger(__name__)
 
+def get_uid():
+    """
+    Get a unique user identifier in a cross-platform manner.
+    On Unix type systems, this equates os.getuid; otherwise,
+    getpass.getuser
+    """
+    try:
+        return os.getuid()
+    except AttributeError:
+        return getpass.getuser()
+
 def checksum(local_path):
     """ Calculate the md5sum of the contents of a local file. """
     result = None
@@ -128,7 +139,7 @@ class Repository(object):
 
         self.local_cache = os.path.join(
                 (cache_path or settings()['cache_root']),
-                str(os.getuid()),
+                str(get_uid()),
                 name)
         self.bucket = None
         self.stale_time = stale_time
@@ -645,7 +656,7 @@ class Resource(Asset):
 
     @classmethod
     def bundle_temp_path(cls, name):
-        return os.path.join(settings()['cache_root'], str(os.getuid()), name)
+        return os.path.join(settings()['cache_root'], str(get_uid()), name)
 
     def __init__(self, name, files=None, bundle=None, metadata=None):
         """
