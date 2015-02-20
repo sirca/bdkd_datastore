@@ -30,8 +30,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         args_in = [ 'update-metadata', self.repository_name, self.resource_name,
                 '--description', 'Description of resource',
                 '--author', 'fred', 
-                '--author-email', 'fred@here', 
-                '--tags', '["foo", "bar"]',
+                '--author-email', 'fred@here',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
@@ -45,8 +44,6 @@ class DatastoreUtilsAddTest(unittest.TestCase):
                 updated.meta('author'))
         self.assertEquals('fred@here',
                 updated.meta('author_email'))
-        self.assertEquals(['foo', 'bar'],
-                updated.meta('tags'))
         self.assertEquals('1.0',
                 updated.meta('version'))
         self.assertEquals('Joe',
@@ -70,25 +67,6 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         ds_util.ds_util(args_in)
         updated = self.repository.get(self.resource_name)
         self.assertEquals('Altered description', 
-                updated.meta('description'))
-
-    def test_nullify_metadata(self):
-        # Meta-data can be explicitly nullified by use of the --metadata option
-        # Set description to something
-        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
-                '--description', 'Description of resource',
-                ]
-        ds_util.ds_util(args_in)
-        updated = self.repository.get(self.resource_name)
-        self.assertEquals('Description of resource', 
-                updated.meta('description'))
-        # Then nullify it with --metadata
-        args_in = [ 'update-metadata', self.repository_name, self.resource_name,
-                '--metadata', '{"description": null}',
-                ]
-        ds_util.ds_util(args_in)
-        updated = self.repository.get(self.resource_name)
-        self.assertEquals(None, 
                 updated.meta('description'))
 
     def _create_single_file_fixture(self):

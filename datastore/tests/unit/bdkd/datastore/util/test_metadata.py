@@ -31,7 +31,10 @@ class AddUtilitiesTest(unittest.TestCase):
 
     def test_metadata_all_arguments(self):
         args_in = [ 'update-metadata', 'test-repository', 'my_resource',
-                '--metadata', '{"foo": "bar"}' ]
+                    '--description', 'something', '--author', 'Fred',
+                    '--author-email', 'fred@up.com']
         args = self.parser.parse_args(args_in)
         self.assertTrue(args)
-        self.assertEquals(args.metadata, dict(foo='bar'))
+        self.assertEquals(args.description, 'something')
+        self.assertEquals(args.author, 'Fred')
+        self.assertEquals(args.author_email, 'fred@up.com')

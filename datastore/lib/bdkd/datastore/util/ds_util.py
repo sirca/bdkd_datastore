@@ -7,42 +7,32 @@ in a datastore.
 
 import argparse
 import os
-import urlparse
+
+
+import yaml
 import pprint
 import bdkd.datastore
 import bdkd.datastore.util.common as util_common
 
-class FilesAction(argparse.Action):
-    """
-    Action to perform for file arguments: check that they are either files or 
-    remote URIs.
-    """
-    def __call__(self, parser, namespace, values, option_string=None):
-        for filename in values:
-            if not os.path.exists(filename):
-                url = urlparse.urlparse(filename)
-                if not url.netloc:
-                    raise ValueError("The file '{0}' is neither a local filename nor a URL"
-                            .format(filename))
-        setattr(namespace, self.dest, values)
-
+known_metadata_fields = ['description', 'author', 'author_email', 'data_type', 'version',
+                         'maintainer', 'maintainer_email']
+mandatory_metadata_fields = ['description', 'author', 'author_email']
 
 def _files_parser():
     """
     Parser that handles the list of files provided on the command line
     """
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('filenames', nargs='+', action=FilesAction,
+    parser.add_argument('filenames', nargs='+', action=util_common.FilesAction,
             help='List of local file names or URLs of remote files (HTTP, FTP)')
     return parser
 
 
 def _metadata_parser():
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--metadata', 
-            action=util_common.JsonDictionaryAction, 
-            default=dict(),
-            help="Meta-data for resource (JSON string dictionary: '{...}')")
+    parser.add_argument('--metadata-file',
+            action=util_common.SingleFileAction,
+            help="A YAML file containing metadata and optionally tags")
     return parser
 
 
@@ -62,28 +52,26 @@ def _bdkd_metadata_parser(enforce=True):
     Parser for BDKD-specific meta-data options.
     """
     parser = argparse.ArgumentParser(add_help=False)
-    # Mandatory arguments
-    parser.add_argument('--description', required=enforce,
+    mandatory_fields = parser.add_argument_group('Mandatory fields',
+                                                 'Either specify these on command line or via metadata file')
+    # Mandatory arguments (not actually mandatory in the argparse sense)
+    mandatory_fields.add_argument('--description', dest='description',
             help='Human-readable description of the resource')
-    parser.add_argument('--author', required=enforce,
-            help='Name of the author/creator')
-    parser.add_argument('--author-email', required=enforce,
-            help='Email address of the author/creator')
+    mandatory_fields.add_argument('--author', help='Name of the author/creator')
+    mandatory_fields.add_argument('--author-email', help='Email address of the author/creator')
 
     # Optional arguments
-    parser.add_argument('--data-type',
+    optional_fields = parser.add_argument_group('Optional fields',
+                                                'Either specify these on command line or via metadata file')
+    optional_fields.add_argument('--data-type',
             help='String describing the kind of data provided by the Resource')
-    parser.add_argument('--tags', action=util_common.JsonArrayAction,
-            help='JSON list of additional tags for the Resource')
-    parser.add_argument('--version',
+    optional_fields.add_argument('--version',
             help='Version string for the Resource')
-    parser.add_argument('--maintainer',
+    optional_fields.add_argument('--maintainer',
             help='Name of the person responsible for maintaining the Resource')
-    parser.add_argument('--maintainer-email',
+    optional_fields.add_argument('--maintainer-email',
             help='Email address of the maintainer')
-    parser.add_argument('--custom-fields', action=util_common.JsonDictionaryAction,
-            help="A JSON dictionary ('{...}') containing additional custom "
-            "fields to be stored in the Resource's meta-data")
+
 
     return parser
 
@@ -185,21 +173,83 @@ def _create_subparsers(subparser):
     return subparser
 
 
-
-def create_parsed_resource(resource_args, meta_parser=None, argv=None):
+def _get_metadata_fields(in_fields, known_fields):
     """
-    Creates an unsaved Resource object by parsing the provided arguments 
-    (default: sys.argv) using the given resource arguments and metadata parser.
-
-    If a metadata parser is provided it will be used to parse arguments from 
-    argv.  These arguments will be treated as meta-data: they will be merged 
-    into the metadata dictionary and used when creating the resource.
+    Generalised method to extract known metadata fields from a dictionary
+    or dictionary-like object(e.g an argparse Namespace). Skips fields that are None.
     """
-    metadata = dict(**resource_args.metadata)
-    if meta_parser:
-        meta_args = meta_parser.parse_known_args(argv)
-        metadata.update(meta_args[0].__dict__)
-    metadata = dict((k, v) for k, v in metadata.items() if v != None)
+    fields = {}
+    for key in in_fields:
+        if key in known_fields and in_fields[key] is not None:
+            fields[key] = in_fields[key]
+    return fields
+
+def _parse_metadata_file(filename):
+    """
+    Opens filename, parses YAML, and returns a tuple consisting of a dictionary of fields, and a list of tags
+    """
+    if not filename:
+        return None, None
+    meta_file = open(filename, 'r')
+    raw = yaml.load(meta_file)
+    tags = []
+    if 'tags' in raw:
+        tags = raw['tags']
+        del raw['tags']
+
+    for key in raw:
+        if type(raw[key]) == dict or type(raw[key]) == list:
+            raise ValueError("Metadata file cannot contain nested fields: {0}".format(raw[key]))
+
+    return raw, tags
+
+def _validate_mandatory_metadata(metadata, mandatory_fields):
+    """
+    Checks if fields in mandatory fields exist in flat dictionary metadata, and the values are
+    not None. Returns those fields not found.
+
+    """
+    fields_not_found = []
+    for field in mandatory_fields:
+        if not field in metadata or metadata[field] is None:
+            fields_not_found.append(field)
+    return fields_not_found
+
+def _check_bdkd_metadata(resource_args, mandatory_fields=[]):
+    metadata = {}
+    tags = []
+    args_metadata = _get_metadata_fields(vars(resource_args), known_metadata_fields)
+
+    if resource_args.metadata_file:
+        file_metadata, tags = _parse_metadata_file(resource_args.metadata_file)
+        if file_metadata:
+            # Fields in args_metadata should override any identically named ones in file_metadata
+            metadata = dict(file_metadata.items() + args_metadata.items())
+    else:
+        metadata = args_metadata
+
+    missing_fields = _validate_mandatory_metadata(metadata, mandatory_fields)
+    if missing_fields:
+        bad_fields_string = ', '.join(missing_fields)
+        raise ValueError("Must specify the following fields either on command "
+                         "line or via metadata file: {0}".format(bad_fields_string))
+
+    return metadata, tags
+
+
+def create_parsed_resource(resource_args, extract_bdkd_metadata=False):
+    """
+    Creates an unsaved Resource object by parsing the provided arguments.
+    Validates all provided metadata, and returns a datastore Resource.
+    """
+    metadata = {}
+    tags = []
+    if extract_bdkd_metadata:
+        metadata, tags = _check_bdkd_metadata(resource_args, mandatory_metadata_fields)
+    else:
+        if hasattr(resource_args, 'metadata_file'):
+            metadata, tags = _parse_metadata_file(resource_args.metadata_file)
+
     resource_items = []
     for item in resource_args.filenames:
         if os.path.exists(item) and os.path.isdir(item):
@@ -217,6 +267,7 @@ def create_parsed_resource(resource_args, meta_parser=None, argv=None):
             metadata=metadata,
             do_bundle=resource_args.bundle)
     return resource
+
 
 def _save_resource(repository, resource, force=False):
     existing = repository.get(resource.name)
@@ -255,14 +306,9 @@ def _update_metadata(repository, resource_name, metadata):
         raise ValueError("Resource '{0}' does not exist!".format(resource_name))
 
 
-def _update_with_parser(args, meta_parser, argv):
-    metadata = dict()
-    if meta_parser:
-        meta_args = meta_parser.parse_known_args(argv)
-        metadata = dict((k, v) for k, v in meta_args[0].__dict__.items() 
-                if v != None)
-    metadata.update(args.metadata)
-    _update_metadata(args.repository, args.resource_name, metadata)
+def _update_with_parser(resource_args):
+    metadata = _check_bdkd_metadata(resource_args)[0]
+    _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
 
 def _delete_resource(repository, resource_name):
     resource = repository.get(resource_name)
@@ -321,7 +367,7 @@ def ds_util(argv=None):
         resource = create_parsed_resource(args)
         _save_resource(args.repository, resource, args.force)
     elif args.subcmd == 'add-bdkd':
-        resource = create_parsed_resource(args, meta_parser=_bdkd_metadata_parser(), argv=argv)
+        resource = create_parsed_resource(args, extract_bdkd_metadata=True)
         _save_resource(args.repository, resource, args.force)
     elif args.subcmd == 'copy':
         _copy_or_move(args, do_move=False)
@@ -334,7 +380,7 @@ def ds_util(argv=None):
         last_mod = args.repository.get_resource_last_modified(args.resource_name)
         print "Last modified: %s" % (last_mod)
     elif args.subcmd == 'update-metadata':
-        _update_with_parser(args, _bdkd_metadata_parser(enforce=False), argv)
+        _update_with_parser(args)
     elif args.subcmd == 'delete':
         _delete_resource(args.repository, args.resource_name)
     elif args.subcmd == 'get':
