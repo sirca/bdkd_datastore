@@ -188,6 +188,8 @@ def _parse_metadata_file(filename):
     """
     Opens filename, parses YAML, and returns a tuple consisting of a dictionary of fields, and a list of tags
     """
+    if not filename:
+        return None, None
     meta_file = open(filename, 'r')
     raw = yaml.load(meta_file)
     tags = []
@@ -215,6 +217,7 @@ def _validate_mandatory_metadata(metadata, mandatory_fields):
 
 def _check_bdkd_metadata(resource_args, mandatory_fields=[]):
     metadata = {}
+    tags = []
     args_metadata = _get_metadata_fields(vars(resource_args), known_metadata_fields)
 
     if resource_args.metadata_file:
@@ -231,7 +234,7 @@ def _check_bdkd_metadata(resource_args, mandatory_fields=[]):
         raise ValueError("Must specify the following fields either on command "
                          "line or via metadata file: {0}".format(bad_fields_string))
 
-    return metadata
+    return metadata, tags
 
 
 def create_parsed_resource(resource_args, extract_bdkd_metadata=False):
@@ -240,8 +243,12 @@ def create_parsed_resource(resource_args, extract_bdkd_metadata=False):
     Validates all provided metadata, and returns a datastore Resource.
     """
     metadata = {}
+    tags = []
     if extract_bdkd_metadata:
-        metadata = _check_bdkd_metadata(resource_args, mandatory_metadata_fields)
+        metadata, tags = _check_bdkd_metadata(resource_args, mandatory_metadata_fields)
+    else:
+        if hasattr(resource_args, 'metadata_file'):
+            metadata, tags = _parse_metadata_file(resource_args.metadata_file)
 
     resource_items = []
     for item in resource_args.filenames:
@@ -300,7 +307,7 @@ def _update_metadata(repository, resource_name, metadata):
 
 
 def _update_with_parser(resource_args):
-    metadata = _check_bdkd_metadata(resource_args)
+    metadata = _check_bdkd_metadata(resource_args)[0]
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
 
 def _delete_resource(repository, resource_name):
