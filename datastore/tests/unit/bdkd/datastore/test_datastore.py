@@ -40,8 +40,6 @@ class ConfigurationTest(unittest.TestCase):
         self.assertTrue(isinstance(settings, dict))
         self.assertTrue(settings['cache_root'] == 
                 os.path.join(TEST_PATH, 'bdkd/cache'))
-        self.assertTrue(settings['working_root'] == 
-                os.path.join(TEST_PATH, 'bdkd/working'))
 
     def test_config_hosts(self):
         hosts = bdkd.datastore.hosts()
