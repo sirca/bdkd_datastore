@@ -40,8 +40,6 @@ class ConfigurationTest(unittest.TestCase):
         self.assertTrue(isinstance(settings, dict))
         self.assertTrue(settings['cache_root'] == 
                 os.path.join(TEST_PATH, 'bdkd/cache'))
-        self.assertTrue(settings['working_root'] == 
-                os.path.join(TEST_PATH, 'bdkd/working'))
 
     def test_config_hosts(self):
         hosts = bdkd.datastore.hosts()
@@ -73,7 +71,7 @@ class RepositoryTest(unittest.TestCase):
 
     @classmethod
     def _clear_local(cls, repository):
-        for tmp_path in [ repository.local_cache, repository.working ]:
+        for tmp_path in [ repository.local_cache ]:
             if tmp_path and tmp_path.startswith(TEST_PATH):
                 if os.path.exists(tmp_path):
                     shutil.rmtree(tmp_path)
@@ -100,11 +98,6 @@ class RepositoryTest(unittest.TestCase):
                 os.path.join(bdkd.datastore.settings()['cache_root'], 
                     str(os.getuid()), 
                     repository.name))
-        self.assertEquals(repository.working, 
-                os.path.join(bdkd.datastore.settings()['working_root'], 
-                    str(os.getuid()), 
-                    str(os.getpid()), 
-                    repository.name))
         self.assertEquals(repository.bucket, None)
 
     def test_list(self):
@@ -121,20 +114,6 @@ class RepositoryTest(unittest.TestCase):
         self.assertEquals(self.repository.get(self.resource_name), None)
         self.repository.save(self.resource)
         self.assertEquals(self.resource.repository, self.repository)
-        self.assertFalse(self.resource.is_edit)
-
-    def test_edit_from_resource_no_repo(self):
-        self.resource.repository = None;
-        # Calling set_edit() on a resource without a repository should raise a 
-        # ValueError
-        self.assertRaises(ValueError, self.resource.set_edit)
-
-    def test_edit_from_resource(self):
-        self.resource.repository = MagicMock();
-        # Calling set_edit() on a resource should call its repository's 
-        # edit_resource() method
-        self.resource.set_edit()
-        self.resource.repository.edit_resource.assert_called_with(self.resource)
 
     def test_save_from_resource_no_repo(self):
         self.resource.repository = None;
@@ -149,20 +128,6 @@ class RepositoryTest(unittest.TestCase):
         self.resource.save()
         self.resource.repository.save.assert_called_with(self.resource, 
                 overwrite=True)
-
-    def test_edit_resource(self):
-        # This is the default starting state of a Resource (i.e. unsaved)
-        self.assertTrue(self.resource.is_edit)
-        self.repository.save(self.resource)
-        # After saving the resource should no longer be in edit mode
-        self.assertFalse(self.resource.is_edit)
-        self.assertTrue(self.resource.path.startswith(self.repository.local_cache))
-        self.assertFalse(os.access(self.resource.path, os.W_OK))
-        # Change to edit; path should be changed to repository's working
-        self.repository.edit_resource(self.resource)
-        self.assertTrue(self.resource.is_edit)
-        self.assertTrue(self.resource.path.startswith(self.repository.working))
-        self.assertTrue(os.access(self.resource.path, os.W_OK))
 
     def test_refresh_resource(self):
         self.repository.save(self.resource)
@@ -252,7 +217,7 @@ class ResourceTest(unittest.TestCase):
         self.assertTrue(self.resource)
 
     def test_write(self):
-        out_filename = os.path.join(self.repository.working, 'test-resource.json')
+        out_filename = os.path.join(self.repository.local_cache, 'test-resource.json')
         fixture_filename = os.path.join(FIXTURES, 'resource.json')
         self.resource.write(out_filename)
         self.assertEquals(

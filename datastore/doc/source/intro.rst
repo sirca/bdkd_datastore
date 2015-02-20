@@ -47,9 +47,6 @@ The configuration file has the following sections:
 
         **cache_root**
                 Path to a directory where all cache files will be stored
-        **working_root**
-                Path to a directory where working files will be stored for 
-                Resources that are currently being edited
 
 **hosts**
         Recognised S3 hosts.
@@ -87,13 +84,12 @@ Configuration example
 ^^^^^^^^^^^^^^^^^^^^^
 
 Typically the system-wide configuration in ``/etc/bdkd/Current/datastore.conf`` might 
-define the cache root, working root, and any standard repositories.
+define the cache root and any standard repositories.
 
 ::
 
         settings:
             cache_root: /var/tmp/bdkd/cache
-            working_root: /var/tmp/bdkd/working
 
         hosts:
             s3-sydney-readonly:

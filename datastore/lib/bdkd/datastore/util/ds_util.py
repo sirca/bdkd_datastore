@@ -297,7 +297,6 @@ def _copy_or_move(copy_move_args, do_move=False):
 def _update_metadata(repository, resource_name, metadata):
     existing = repository.get(resource_name)
     if existing:
-        repository.edit_resource(existing)
         existing.metadata.update(metadata)
         existing.metadata = dict((k, v) for k, v in existing.metadata.items()
                 if v != None)
@@ -391,4 +390,3 @@ def ds_util(argv=None):
         _list_resources(args.repository, args.path, args.verbose)
     elif args.subcmd == 'repositories':
         _list_repositories(args.verbose)
-
