@@ -361,8 +361,10 @@ def _build_file_list(repository, resource_name):
     resource = repository.get(resource_name)
     if not resource:
         raise ValueError("Resource '{0} does not exist!".format(resource_name))
-    repository.rebuild_file_list(resource)
-    repository.save(resource, overwrite=True)
+    if repository.rebuild_file_list(resource):
+        repository.save(resource, overwrite=True)
+    else:
+        print "Nothing to rebuild"
 
 
 
