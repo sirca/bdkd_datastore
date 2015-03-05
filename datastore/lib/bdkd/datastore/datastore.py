@@ -235,6 +235,7 @@ class Repository(object):
                 new_files[obj.key] = obj.size, obj.last_modified, obj_md5
 
         resource.add_files_from_storage_paths(new_files)
+        return True
 
 
 
