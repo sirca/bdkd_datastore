@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os, stat, sys, time, getpass
+from datetime import datetime
 import shutil
 import urlparse, urllib2
 import yaml
@@ -15,6 +16,9 @@ import warnings
 import copy
 import tarfile
 
+import logging
+logging.getLogger('boto').setLevel(logging.CRITICAL)
+
 _config_global_file = '/etc/bdkd/Current/datastore.conf'
 _config_user_file = os.path.expanduser(os.environ.get('BDKD_DATASTORE_CONFIG', '~/.bdkd_datastore.conf'))
 _settings = None
@@ -22,6 +26,7 @@ _hosts = None
 _repositories = None
 
 TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
+ISO_8601_UTC_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +180,64 @@ class Repository(object):
         return os.path.expanduser(os.path.join(self.local_cache, 
             resource_file.location_or_remote()))
 
+    def _rebuild_required(self, resource, obj_list):
+        # For the given resource, check if a file list rebuild is necessary by
+        # comparing the timestamp most recently modified file to that of metadata
+        # file
+        resource_keyname = self.__resource_name_key(resource.name)
+        resource_key = self.get_bucket().get_all_keys(prefix=resource_keyname)[0]
+        resource_timestamp = datetime.strptime(resource_key.last_modified, ISO_8601_UTC_FORMAT)
+        rebuild_required = False
+        for obj in obj_list:
+            obj_timestamp = datetime.strptime(obj.last_modified, ISO_8601_UTC_FORMAT)
+            if obj_timestamp > resource_timestamp:      # i.e. if object is newer than resource metadata
+                rebuild_required = True
+                break
+
+        return rebuild_required
+
+
     def file_path(self, resource_file):
         return self.__file_cache_path(resource_file)
+
+    def rebuild_file_list(self, resource):
+        bucket = self.get_bucket()
+        if not bucket:
+            return False
+        # TODO: Fix '/' with more general solution with BDKD-262
+        prefix = Repository.files_prefix + '/' + resource.name
+        obj_list = bucket.get_all_keys(prefix=prefix)
+        if not self._rebuild_required(resource, obj_list):
+            logger.debug("Rebuild not required")
+            return False
+
+        new_files = {}
+        for obj in obj_list:
+            found = False
+            for r_files in resource.files:
+                if obj.key == r_files.location():
+                    found = True
+                    break
+            if not found:       # if not currently in resource
+                if obj.key.endswith(".bdkd") and obj.key[:-5] in new_files:
+                    # If this is a .bdkd file, delete (since S3 always returns
+                    # values in alphabetical order, we can assume the main
+                    # file is already in the list)
+                    obj.delete()
+                    continue
+
+                md5file = bucket.get_all_keys(prefix=obj.key + ".bdkd")
+                obj_md5 = ""
+                if len(md5file) == 1:
+                    obj_md5 = md5file[0].get_contents_as_string().strip()
+                else:
+                    logger.warning("Unable to get MD5 sum for {0}".format(obj.key))
+                new_files[obj.key] = obj.size, obj.last_modified, obj_md5
+
+        resource.add_files_from_storage_paths(new_files)
+        return True
+
+
 
     def __download(self, key_name, dest_path):
         # Ensure that a file on the local system is up-to-date with respect to 
@@ -387,17 +448,6 @@ class Repository(object):
         resource.write(resource_cache_path)
         resource.path = resource_cache_path
 
-        bucket = self.get_bucket()
-        if bucket:
-            resource_keyname = self.__resource_name_key(resource.name)
-            resource_key = bucket.get_key(resource_keyname)
-            if resource_key:
-                if not overwrite:
-                    raise ValueError("Resource already exists!")
-            else:
-                resource_key = boto.s3.key.Key(bucket, resource_keyname)
-            logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
-            resource_key.set_contents_from_filename(resource_cache_path)
         if resource.repository != self:
             logger.debug("Setting the repository for the resource")
             resource.repository = self
@@ -409,6 +459,19 @@ class Repository(object):
         else:
             for resource_file in resource.files:
                 self.__save_resource_file(resource_file)
+
+        bucket = self.get_bucket()
+
+        if bucket:
+            resource_keyname = self.__resource_name_key(resource.name)
+            resource_key = bucket.get_key(resource_keyname)
+            if resource_key:
+                if not overwrite:
+                    raise ValueError("Resource already exists!")
+            else:
+                resource_key = boto.s3.key.Key(bucket, resource_keyname)
+            logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
+            resource_key.set_contents_from_filename(resource_cache_path)
 
     def move(self, from_resource, to_name):
         try:
@@ -789,6 +852,19 @@ class Resource(Asset):
         resource.reload(local_resource_filename)
         resource.path = local_resource_filename
         return resource
+
+    def add_files_from_storage_paths(self, file_paths):
+
+        for path, (size, last_modified, md5sum) in file_paths.iteritems():
+            meta = {}
+            meta['location'] = path
+            meta['content-length'] = size
+            dt = datetime.strptime(last_modified, ISO_8601_UTC_FORMAT)
+            meta['last-modified'] = datetime.strftime(dt, TIME_FORMAT) + " UTC"
+            meta['md5sum'] = md5sum
+            resource_file = ResourceFile(path, resource=None, metadata=meta)
+            self.files.append(resource_file)
+
 
     def reload(self, local_resource_filename):
         """

@@ -145,9 +145,9 @@ def _create_subparsers(subparser):
                          parents=[
                              util_common._repository_resource_parser(),
                          ])
-    subparser.add_parser('get', help='Get details of a Resource as JSON text.',
+    subparser.add_parser('get', help='Get details of a Resource as JSON text',
                          description='Get details of a Resource as JSON text. The meta-data and list '
-                         'of Files for a Resource will be printed to STDOUT as JSON text.',
+                         'of Files for a Resource will be printed to STDOUT as JSON text',
                          parents=[
                              util_common._repository_resource_parser(),
                          ])
@@ -170,6 +170,13 @@ def _create_subparsers(subparser):
                                                description='Get a list of all configured Repositories')
     repositories_parser.add_argument('--verbose', '-v', action='store_true', default=False,
                                      help='Verbose mode: all resource details (default names only)')
+
+    subparser.add_parser('rebuild-file-list', help='Rebuild Resource\'s file list',
+                         description='Rebuild metadata file list of Resource by scanning all files',
+                         parents=[
+                             util_common._repository_resource_parser()
+                         ])
+
     return subparser
 
 
@@ -350,6 +357,16 @@ def _list_repositories(verbose):
             print "\tStale time:\t{0}".format(repository.stale_time)
     
 
+def _build_file_list(repository, resource_name):
+    resource = repository.get(resource_name)
+    if not resource:
+        raise ValueError("Resource '{0} does not exist!".format(resource_name))
+    if repository.rebuild_file_list(resource):
+        repository.save(resource, overwrite=True)
+    else:
+        print "Nothing to rebuild"
+
+
 
 def ds_util(argv=None):
     """
@@ -390,3 +407,6 @@ def ds_util(argv=None):
         _list_resources(args.repository, args.path, args.verbose)
     elif args.subcmd == 'repositories':
         _list_repositories(args.verbose)
+    elif args.subcmd == 'rebuild-file-list':
+        _build_file_list(args.repository, args.resource_name)
+
