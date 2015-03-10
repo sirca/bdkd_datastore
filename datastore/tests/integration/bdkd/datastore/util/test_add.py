@@ -25,46 +25,101 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         self.metadatafile = os.path.join(FIXTURES, 'meta.yml')
 
 
-    def test_add_resource(self):
+    def test_create_resource(self):
         """
-        Simulate adding a Resource from the command-line, with only a basic set 
-        of options (same as `datastore-util add`).
+        Simulate creating a Resource from the command-line, with only a basic set
+        of options (same as `datastore-util create`) and no metadata.
         """
-        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
+        args_in = [ 'create', '--no-publish', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
         ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
 
-    def test_add_bdkd_resource(self):
+    def test_create_resource_with_metadata(self):
         """
-        Simulate adding a Resource from the command-line, including all BDKD 
-        options (same as `datastore-util add-bdkd`).
+        Simulate creating a Resource from the command-line, including all metadata
+        options (same as `datastore-util create`).
         """
-        args_in = [ 'add-bdkd', 'bdkd-datastore-test', 'my_resource',
+        args_in = [ 'create',
                 '--description', 'Description of resource',
                 '--author', 'fred', 
                 '--author-email', 'fred@here',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
+                'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
         ds_util.ds_util(args_in)
         self._check_bucket_count('', 2)
 
+    def test_create_resource_with_no_files(self):
+        """
+        Simulate creating a Resource from the command-line, with no files
+        provided
+        """
+        args_in = [ 'create',
+                '--description', 'Description of resource',
+                '--author', 'fred',
+                '--author-email', 'fred@here',
+                '--version', '1.0',
+                '--maintainer', 'Joe',
+                '--maintainer-email', 'joe@here',
+                'bdkd-datastore-test', 'my_resource',
+                ]
+        ds_util.ds_util(args_in)
+        self._check_bucket_count('', 1)
+        # Ensure no files stored
+        added = self.repository.get('my_resource')
+        self.assertTrue(added)
+        self.assertEquals(added.files, [])
 
-    def test_add_bdkd_resource_with_complex_metadata(self):
+    def test_create_unpublished_resource_with_metadata(self):
+        """
+        Simulate creating a Resource from the command-line, including all metadata
+        options (same as `datastore-util create`), but with --no-publish.
+        """
+        args_in = [ 'create', '--no-publish',
+                '--description', 'Description of resource',
+                '--author', 'fred',
+                '--author-email', 'fred@here',
+                '--version', '1.0',
+                '--maintainer', 'Joe',
+                '--maintainer-email', 'joe@here',
+                'bdkd-datastore-test', 'my_resource',
+                self.filepath
+                ]
+        ds_util.ds_util(args_in)
+        self._check_bucket_count('', 2)
+        # Ensure metadata is stored
+        added = self.repository.get('my_resource')
+        self.assertTrue(added)
+        self.assertEquals('Description of resource',
+                          added.meta('description'))
+        self.assertEquals('fred',
+                          added.meta('author'))
+        self.assertEquals('fred@here',
+                          added.meta('author_email'))
+        self.assertEquals('1.0',
+                          added.meta('version'))
+        self.assertEquals('Joe',
+                          added.meta('maintainer'))
+        self.assertEquals('joe@here',
+                          added.meta('maintainer_email'))
+
+    def test_create_published_resource_with_complex_metadata(self):
         """
         Supply metadata both via command line and via metadata file.
         """
-        args_in = [ 'add-bdkd', 'bdkd-datastore-test', 'my_resource',
+        args_in = [ 'create',
                 '--description', 'Description of resource',
                 '--version', '1.0',
                 '--maintainer', 'Joe',
                 '--maintainer-email', 'joe@here',
                 '--metadata-file', self.metadatafile,
+                 'bdkd-datastore-test', 'my_resource',
                 self.filepath
                 ]
         ds_util.ds_util(args_in)
@@ -84,12 +139,27 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         self.assertEquals('joe@here',
                           added.meta('maintainer_email'))
 
-    def test_add_duplicate_resource(self):
+    def test_create_resource_without_metadata_fails(self):
+        """
+        Supply some metadata but not all mandatory fields in published mode.
+        """
+        args_in = [ 'create',
+                '--description', 'Description of resource',
+                '--version', '1.0',
+                '--maintainer', 'Joe',
+                '--maintainer-email', 'joe@here',
+                 'bdkd-datastore-test', 'my_resource',
+                self.filepath
+                ]
+        with self.assertRaises(ValueError):
+            ds_util.ds_util(args_in)
+
+    def test_create_duplicate_resource(self):
         """
         Adding a resource of the same name (duplicate) should fail with a 
         ValueError, unless the user provides the '--force' flag.
         """
-        args_in = [ 'add', 'bdkd-datastore-test', 'my_resource',
+        args_in = [ 'create', '--no-publish', 'bdkd-datastore-test', 'my_resource',
                 self.filepath 
                 ]
         ds_util.ds_util(args_in)
@@ -110,7 +180,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         key_count = 0
         for key in self.repository.get_bucket().list(pseudopath):
             key_count += 1
-        self.assertTrue(key_count == expected)
+        self.assertEqual(key_count, expected)
 
         
     def _clear_local(self):

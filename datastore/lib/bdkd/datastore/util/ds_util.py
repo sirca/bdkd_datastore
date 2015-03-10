@@ -8,7 +8,6 @@ in a datastore.
 import argparse
 import os
 
-
 import yaml
 import pprint
 import bdkd.datastore
@@ -16,7 +15,15 @@ import bdkd.datastore.util.common as util_common
 
 known_metadata_fields = ['description', 'author', 'author_email', 'data_type', 'version',
                          'maintainer', 'maintainer_email']
-mandatory_metadata_fields = ['description', 'author', 'author_email']
+
+def _optional_files_parser():
+    """
+    Parser that handles an optional list of files provided on the command line
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('filenames', nargs='*', action=util_common.FilesAction,
+            help='List of local file names or URLs of remote files (HTTP, FTP)')
+    return parser
 
 def _files_parser():
     """
@@ -36,11 +43,17 @@ def _metadata_parser():
     return parser
 
 
-def _add_options_parser():
+def _create_options_parser():
     """
     Parser for various options related to adding
     """
     parser = argparse.ArgumentParser(add_help=False)
+    publish_group = parser.add_mutually_exclusive_group()
+    publish_group.add_argument('--publish', action='store_true', dest='publish',
+                        help='Publish the resource (default action). Must provide Metadata')
+    publish_group.add_argument('--no-publish', action='store_false', dest='publish',
+                        help='Resource not published. Metadata is optional')
+    parser.set_defaults(publish=True)
     parser.add_argument('--force', action='store_true', default=False,
             help="Force overwriting any existing resource")
     parser.add_argument('--bundle', action='store_true', default=False,
@@ -52,8 +65,9 @@ def _bdkd_metadata_parser(enforce=True):
     Parser for BDKD-specific meta-data options.
     """
     parser = argparse.ArgumentParser(add_help=False)
-    mandatory_fields = parser.add_argument_group('Mandatory fields',
-                                                 'Either specify these on command line or via metadata file')
+    mandatory_fields = parser.add_argument_group('Mandatory metadata',
+                                                 'Must specify if publishing. If using --no-publish, these may be'
+                                                 ' omitted. Either specify on command line or via --metadata-file')
     # Mandatory arguments (not actually mandatory in the argparse sense)
     mandatory_fields.add_argument('--description', dest='description',
             help='Human-readable description of the resource')
@@ -61,8 +75,8 @@ def _bdkd_metadata_parser(enforce=True):
     mandatory_fields.add_argument('--author-email', help='Email address of the author/creator')
 
     # Optional arguments
-    optional_fields = parser.add_argument_group('Optional fields',
-                                                'Either specify these on command line or via metadata file')
+    optional_fields = parser.add_argument_group('Optional metadata',
+                                                'Below fields are optional and can also be specified via metadata file')
     optional_fields.add_argument('--data-type',
             help='String describing the kind of data provided by the Resource')
     optional_fields.add_argument('--version',
@@ -94,25 +108,16 @@ def _repository_resource_from_to_parser():
 
 
 def _create_subparsers(subparser):
-    subparser.add_parser('add', help='Add a Resource to a datastore',
-                         description='Add a Resource to a datastore, optionally '
-                         'overwriting any other Resource of the same name.',
+    subparser.add_parser('create', help='Create a new Resource',
+                         description='Create new Resource, optionally with files and metadata',
                          parents=[
                              util_common._repository_resource_parser(),
-                             _files_parser(),
                              _metadata_parser(),
-                             _add_options_parser(),
-                         ])
-    subparser.add_parser('add-bdkd', help='Add a Resource to a datastore (with BDKD options)',
-                         description='Add a Resource to a datastore, including options '
-                         'related to BDKD.',
-                         parents=[
-                             util_common._repository_resource_parser(),
-                             _files_parser(),
-                             _metadata_parser(),
-                             _add_options_parser(),
                              _bdkd_metadata_parser(),
+                             _create_options_parser(),
+                             _optional_files_parser(),
                          ])
+
     subparser.add_parser('copy', help='Copy a resource',
                          description='Copy a resource within datastore',
                          parents=[
@@ -179,18 +184,6 @@ def _create_subparsers(subparser):
 
     return subparser
 
-
-def _get_metadata_fields(in_fields, known_fields):
-    """
-    Generalised method to extract known metadata fields from a dictionary
-    or dictionary-like object(e.g an argparse Namespace). Skips fields that are None.
-    """
-    fields = {}
-    for key in in_fields:
-        if key in known_fields and in_fields[key] is not None:
-            fields[key] = in_fields[key]
-    return fields
-
 def _parse_metadata_file(filename):
     """
     Opens filename, parses YAML, and returns a tuple consisting of a dictionary of fields, and a list of tags
@@ -210,22 +203,14 @@ def _parse_metadata_file(filename):
 
     return raw, tags
 
-def _validate_mandatory_metadata(metadata, mandatory_fields):
-    """
-    Checks if fields in mandatory fields exist in flat dictionary metadata, and the values are
-    not None. Returns those fields not found.
+def _check_bdkd_metadata(resource_args):
 
-    """
-    fields_not_found = []
-    for field in mandatory_fields:
-        if not field in metadata or metadata[field] is None:
-            fields_not_found.append(field)
-    return fields_not_found
+    def known_fields_present(field):
+        return field[1] is not None and field[0] in known_metadata_fields
 
-def _check_bdkd_metadata(resource_args, mandatory_fields=[]):
     metadata = {}
     tags = []
-    args_metadata = _get_metadata_fields(vars(resource_args), known_metadata_fields)
+    args_metadata = dict(filter(known_fields_present, vars(resource_args).items()))
 
     if resource_args.metadata_file:
         file_metadata, tags = _parse_metadata_file(resource_args.metadata_file)
@@ -235,27 +220,15 @@ def _check_bdkd_metadata(resource_args, mandatory_fields=[]):
     else:
         metadata = args_metadata
 
-    missing_fields = _validate_mandatory_metadata(metadata, mandatory_fields)
-    if missing_fields:
-        bad_fields_string = ', '.join(missing_fields)
-        raise ValueError("Must specify the following fields either on command "
-                         "line or via metadata file: {0}".format(bad_fields_string))
-
     return metadata, tags
 
 
-def create_parsed_resource(resource_args, extract_bdkd_metadata=False):
+def create_new_resource(resource_args):
     """
-    Creates an unsaved Resource object by parsing the provided arguments.
+    Creates a new unsaved Resource object by parsing the provided arguments.
     Validates all provided metadata, and returns a datastore Resource.
     """
-    metadata = {}
-    tags = []
-    if extract_bdkd_metadata:
-        metadata, tags = _check_bdkd_metadata(resource_args, mandatory_metadata_fields)
-    else:
-        if hasattr(resource_args, 'metadata_file'):
-            metadata, tags = _parse_metadata_file(resource_args.metadata_file)
+    metadata, tags = _check_bdkd_metadata(resource_args)
 
     resource_items = []
     for item in resource_args.filenames:
@@ -267,12 +240,17 @@ def create_parsed_resource(resource_args, extract_bdkd_metadata=False):
         else:
             resource_items.append(item)
 
-    if len(resource_items) == 0:
-        raise ValueError("Unable to create an empty resource")
-    resource = bdkd.datastore.Resource.new(resource_args.resource_name, 
-            files_data=resource_items,
-            metadata=metadata,
-            do_bundle=resource_args.bundle)
+    try:
+        resource = bdkd.datastore.Resource.new(resource_args.resource_name,
+                files_data=resource_items,
+                metadata=metadata,
+                do_bundle=resource_args.bundle,
+                publish=resource_args.publish)
+    except bdkd.datastore.MetadataException, e:
+        bad_fields_string = ', '.join(e.missing_fields)
+        raise ValueError("Must specify the following fields either on command "
+                         "line or via metadata file: {0}".format(bad_fields_string))
+
     return resource
 
 
@@ -379,11 +357,8 @@ def ds_util(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.subcmd == 'add':
-        resource = create_parsed_resource(args)
-        _save_resource(args.repository, resource, args.force)
-    elif args.subcmd == 'add-bdkd':
-        resource = create_parsed_resource(args, extract_bdkd_metadata=True)
+    if args.subcmd == 'create':
+        resource = create_new_resource(args)
         _save_resource(args.repository, resource, args.force)
     elif args.subcmd == 'copy':
         _copy_or_move(args, do_move=False)
