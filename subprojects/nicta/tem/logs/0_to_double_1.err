@@ -1,0 +1,139 @@
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Computing viable bounds
+Starting value had negative fitness, looking for max
+	...found max fitness at 0.00010 (w=0.62279)
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.0001062821
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+           lma seed_rain
+1 0.0001062821  191.9303
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 1e-04
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 3, (1 strategies), to_equilibrium
+assembler> *** Traits:
+    lma seed_rain
+1 1e-04  192.3404
+Computing approximate fitness
+births[max]> Best point had nonpositive fitness: 5.71619391627568e-06
+assembler> Assembly completed after 4 steps
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Computing viable bounds
+Starting value had negative fitness, looking for max
+	...found max fitness at 0.00010 (w=0.52815)
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.0001024361
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+           lma seed_rain
+1 0.0001024361  143.1531
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 1e-04
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 3, (1 strategies), to_equilibrium
+assembler> *** Traits:
+    lma seed_rain
+1 1e-04  144.1509
+Computing approximate fitness
+births[max]> Best point had nonpositive fitness: 1.62257899594051e-06
+assembler> Assembly completed after 4 steps
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Computing viable bounds
+Starting value had negative fitness, looking for max
+	...found max fitness at 0.10698 (w=-1.34238)
+assembler> Assembly completed after 1 steps
+Computing approximate fitness
+Error in fitness_landscape_gp(<environment>, cost = function (mu, var)  : 
+  bounds are NULL
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Error in (function (x)  : 
+  no function to return from, jumping to top level
+Computing viable bounds
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.0001126746
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+           lma seed_rain
+1 0.0001126746  428.7801
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 1e-04
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 3, (1 strategies), to_equilibrium
+assembler> *** Traits:
+    lma seed_rain
+1 1e-04  428.7847
+Computing approximate fitness
+births[max]> Best point had nonpositive fitness: -0.00103556595094581
+assembler> Assembly completed after 4 steps
+====
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Computing viable bounds
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.0001126746
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+           lma seed_rain
+1 0.0001126746  428.7801
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 1e-04
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 3, (1 strategies), to_equilibrium
+assembler> *** Traits:
+    lma seed_rain
+1 1e-04  428.7847
+Computing approximate fitness
+births[max]> Best point had nonpositive fitness: -0.00103556595094581
+assembler> Assembly completed after 4 steps
+Traceback (most recent call last):
+  File "simulate_worker.py", line 61, in <module>
+    wait_for_simulations()
+  File "simulate_worker.py", line 40, in wait_for_simulations
+    fitness = forest.fitness(traits)
+  File "/home/data/src/tree.assembly/scripts/tree.py", line 33, in fitness
+    res = self.sys['fitness'](robjects.FloatVector(lma))
+  File "/root/virtualenvs/py2.7/lib/python2.7/site-packages/rpy2/robjects/vectors.py", line 426, in __init__
+    obj = FloatSexpVector(obj)
+ValueError: Error while trying to convert element 0 to a double.
+

@@ -1,0 +1,98 @@
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Error in (function (x)  :
+  no function to return from, jumping to top level
+Computing viable bounds
+Starting value had negative fitness, looking for max
+	...found max fitness at 0.00423 (w=0.31723)
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.004256078
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+          lma seed_rain
+1 0.004256078  71.99054
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.004205857
+assembler[births]> Trying to move resident 1
+assembler[births]> Adding original resident back
+assembler> *** Assembler: step 3, (2 strategies), to_equilibrium
+assembler> *** Traits:
+          lma seed_rain
+1 0.004205857  80.68631
+2 0.004256078  1.005542
+Computing approximate fitness
+Recomputing ode times
+births[max]> Best point had nonpositive fitness: -1.54090257625493e-05
+assembler> Assembly completed after 4 steps
+Traceback (most recent call last):
+  File "simulate_worker.py", line 61, in <module>
+    wait_for_simulations()
+  File "simulate_worker.py", line 40, in wait_for_simulations
+    fitness = forest.fitness(traits)
+  File "/home/data/src/tree.assembly/scripts/tree.py", line 33, in fitness
+    res = self.sys['fitness'](robjects.FloatVector(lma))
+  File "/root/virtualenvs/py2.7/lib/python2.7/site-packages/rpy2/robjects/vectors.py", line 426, in __init__
+    obj = FloatSexpVector(obj)
+ValueError: Error while trying to convert element 0 to a double.
+Computing viable bounds
+assembler> *** Assembler: step 1, (0 strategies), to_equilibrium
+assembler> *** Traits:
+[1] lma
+<0 rows> (or 0-length row.names)
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.1117494
+assembler[births]> Adding a new strategy
+assembler> *** Assembler: step 2, (1 strategies), to_equilibrium
+assembler> *** Traits:
+        lma seed_rain
+1 0.1117494  437.9084
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.0897582
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 3, (1 strategies), to_equilibrium
+assembler> *** Traits:
+        lma seed_rain
+1 0.0897582  402.9884
+Computing approximate fitness
+assembler[births]> *** Proposed new type(s): 0.08853723
+assembler[births]> Trying to move resident 1
+assembler[births]> Move was successful
+assembler> *** Assembler: step 4, (1 strategies), to_equilibrium
+assembler> *** Traits:
+         lma seed_rain
+1 0.08853723  400.3485
+Computing approximate fitness
+births[max]> Best point had nonpositive fitness: -0.000118381834835497
+assembler> Assembly completed after 5 steps
+Traceback (most recent call last):
+  File "simulate_worker.py", line 61, in <module>
+    wait_for_simulations()
+  File "simulate_worker.py", line 40, in wait_for_simulations
+    fitness = forest.fitness(traits)
+  File "/home/data/src/tree.assembly/scripts/tree.py", line 33, in fitness
+    res = self.sys['fitness'](robjects.FloatVector(lma))
+  File "/root/virtualenvs/py2.7/lib/python2.7/site-packages/rpy2/robjects/vectors.py", line 426, in __init__
+    obj = FloatSexpVector(obj)
+ValueError: Error while trying to convert element 0 to a double.
