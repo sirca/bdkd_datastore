@@ -154,6 +154,7 @@ class ResourceTest(unittest.TestCase):
         return bdkd.datastore.Resource.new('FeatureCollections/Coastlines/Seton',
                 os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
                 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'),
+                publish=False,
                 metadata=dict(citation=u'M. Seton, R.D. Müller, S. Zahirovic, C. Gaina, T.H. Torsvik, G. Shephard, A. Talsma, M. Gurnis, M. Turner, S. Maus, M. Chandler, Global continental and ocean basin reconstructions since 200 Ma, Earth-Science Reviews, Volume 113, Issues 3-4, July 2012, Pages 212-270, ISSN 0012-8252, 10.1016/j.earscirev.2012.03.002. (http://www.sciencedirect.com/science/article/pii/S0012825212000311)'))
 
     @classmethod
@@ -163,6 +164,7 @@ class ResourceTest(unittest.TestCase):
         shapefile_parts = glob.glob(os.path.join(shapefile_dir, '*.*'))
         resource = bdkd.datastore.Resource.new('bundled resource', 
                 shapefile_parts,
+                publish=False,
                 do_bundle=True)
         return resource
 
@@ -189,10 +191,10 @@ class ResourceTest(unittest.TestCase):
     def test_resource_metadata(self):
         # Bad: metadata is not a dictionary
         with self.assertRaises(ValueError):
-            resource = bdkd.datastore.Resource.new("a", [], 
-                    ['bad', 'metadata'])
+            resource = bdkd.datastore.Resource.new("a", [],
+                    ['bad', 'metadata'], publish=False)
         # Good
-        resource = bdkd.datastore.Resource.new("a", [], dict(metadata='ok'))
+        resource = bdkd.datastore.Resource.new("a", [], dict(metadata='ok'), publish=False)
         self.assertTrue(resource)
 
     def test_resource_validate_name(self):
@@ -206,7 +208,11 @@ class ResourceTest(unittest.TestCase):
 
     def test_resource_new_invalid_name(self):
         with self.assertRaises(ValueError):
-            resource = bdkd.datastore.Resource.new('/a', [])
+            resource = bdkd.datastore.Resource.new('/a', [], publish=False)
+
+    def test_resource_validate_metadata(self):
+        with self.assertRaises(bdkd.datastore.MetadataException):
+            resource = bdkd.datastore.Resource.new('TestResource', [], publish=True)
 
     def test_resource_load(self):
         resource = bdkd.datastore.Resource.load(os.path.join(FIXTURES, 'resource.json'))
@@ -252,7 +258,7 @@ class ResourceFileTest(unittest.TestCase):
         self.resource_file = self.resource.files[0]
         self.url = 'http://www.gps.caltech.edu/~gurnis/GPlates/Caltech_Global_20101129.tar.gz'
         self.remote_resource = bdkd.datastore.Resource.new('Caltech/Continuously Closing Plate Polygons',
-                self.url)
+                self.url, publish=False)
 
     def test_init(self):
         resource_file = bdkd.datastore.ResourceFile(None, self.resource)

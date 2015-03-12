@@ -73,7 +73,7 @@ class DatastoreUtilsAddTest(unittest.TestCase):
         path = os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines', 
                 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz')
         resource = bdkd.datastore.Resource.new(self.resource_name,
-                path)
+                path, publish=False)
         return resource
 
     def _check_bucket_count(self, pseudopath, expected):

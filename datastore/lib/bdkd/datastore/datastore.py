@@ -678,6 +678,10 @@ class Asset(object):
             return None
 
 
+class MetadataException(Exception):
+    def __init__(self, missing_fields):
+        self.missing_fields = missing_fields
+
 class Resource(Asset):
     """
     A source of data consisting of one or more files plus associated meta-data.
@@ -707,6 +711,7 @@ class Resource(Asset):
             else:
                 return json.JSONEncoder.default(self, o)
 
+    mandatory_metadata_fields = ['description', 'author', 'author_email']
 
     @classmethod
     def validate_name(cls, name):
@@ -721,7 +726,7 @@ class Resource(Asset):
     def bundle_temp_path(cls, name):
         return os.path.join(settings()['cache_root'], str(get_uid()), name)
 
-    def __init__(self, name, files=None, bundle=None, metadata=None):
+    def __init__(self, name, files=None, bundle=None, metadata=None, publish=True):
         """
         Constructor for a Resource given a name, file data and any meta-data.
         """
@@ -737,6 +742,7 @@ class Resource(Asset):
         self.metadata = metadata or dict()
         self.bundle = bundle
         self.files = files
+        self._published = publish
 
     @classmethod
     def __normalise_file_data(cls, raw_data):
@@ -778,7 +784,7 @@ class Resource(Asset):
         return files_data
 
     @classmethod
-    def new(cls, name, files_data=None, metadata=None, do_bundle=False):
+    def new(cls, name, files_data=None, metadata=None, do_bundle=False, publish=True):
         """
         A convenience factory method that creates a new, unsaved Resource of 
         the given name, using file information and metadata.
@@ -836,7 +842,12 @@ class Resource(Asset):
                 resource_files.append(resource_file)
             if do_bundle:
                 bundle_archive.close()
-        resource = cls(name, files=resource_files, metadata=metadata)
+        resource = cls(name, files=resource_files, metadata=metadata, publish=publish)
+        if publish:
+            missing_fields = resource.validate_mandatory_metadata()
+            if missing_fields:
+                raise MetadataException(missing_fields)
+
         if do_bundle:
             resource.bundle = bundle
         for resource_file in resource_files:
@@ -852,6 +863,18 @@ class Resource(Asset):
         resource.reload(local_resource_filename)
         resource.path = local_resource_filename
         return resource
+
+    def validate_mandatory_metadata(self):
+        """
+        Checks if mandatory fields are present, and the values are not None.
+        Returns list of fields that are not found.
+
+        """
+        fields_not_found = []
+        for field in Resource.mandatory_metadata_fields:
+            if not field in self.metadata or self.metadata[field] is None:
+                fields_not_found.append(field)
+        return fields_not_found
 
     def add_files_from_storage_paths(self, file_paths):
 
