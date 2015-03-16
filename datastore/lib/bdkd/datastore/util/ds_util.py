@@ -7,6 +7,7 @@ in a datastore.
 
 import argparse
 import os
+import posixpath
 
 import yaml
 import pprint
@@ -232,11 +233,12 @@ def create_new_resource(resource_args):
 
     resource_items = []
     for item in resource_args.filenames:
+        item = item.replace("\\","/")
         if os.path.exists(item) and os.path.isdir(item):
             # item is a dir, so recursively expands directories into files
             for root, dir, files in os.walk(item):
                 for f in files:
-                    resource_items.append(os.path.join(root, f))
+                    resource_items.append(posixpath.join(root, f))
         else:
             resource_items.append(item)
 

@@ -5,8 +5,11 @@ Module providing various common components for utilities.
 
 import argparse
 import os
+import glob
+import platform
 import urlparse
 import bdkd.datastore
+import posixpath
 
 class FilesAction(argparse.Action):
     """
@@ -14,13 +17,28 @@ class FilesAction(argparse.Action):
     remote URIs.
     """
     def __call__(self, parser, namespace, values, option_string=None):
+        file_list=[]
         for filename in values:
+            if (platform.system().lower() == "windows"):
+                if "*" in filename or "?" in filename:
+                    for f in glob.glob(filename):
+                        file_list.append(f)
+                elif os.path.isdir(filename):
+                    for root, dir, files in os.walk(filename):
+                        for f in files:
+                            file_list.append(posixpath.join(root.replace("\\","/"), f))
+                else:
+                    file_list.append(filename)
+            else:
+                file_list.append(filename)
+
+        for filename in file_list:
             if not os.path.exists(filename):
                 url = urlparse.urlparse(filename)
                 if not url.netloc:
                     raise ValueError("The file '{0}' is neither a local filename nor a URL"
                             .format(filename))
-        setattr(namespace, self.dest, values)
+        setattr(namespace, self.dest, file_list)
 
 class SingleFileAction(argparse.Action):
     """

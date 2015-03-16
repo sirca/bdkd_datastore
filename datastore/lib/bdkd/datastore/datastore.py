@@ -15,6 +15,7 @@ import re
 import warnings
 import copy
 import tarfile
+import posixpath
 
 import logging
 logging.getLogger('boto').setLevel(logging.CRITICAL)
@@ -94,7 +95,7 @@ def common_directory(paths):
         leading = ''
         if len(paths[0]) and paths[0][0] == os.sep:
             leading = os.sep
-        common_path = leading + os.path.join(*common_parts)
+        common_path = leading + posixpath.join(*common_parts)
     else:
         common_path = ''
 
@@ -142,7 +143,7 @@ class Repository(object):
         self.host = host
         self.name = name
 
-        self.local_cache = os.path.join(
+        self.local_cache = posixpath.join(
                 (cache_path or settings()['cache_root']),
                 str(get_uid()),
                 name)
@@ -163,12 +164,12 @@ class Repository(object):
 
     def __resource_name_key(self, name):
         # For the given Resource name, return the S3 key string
-        return os.path.join(type(self).resources_prefix, name)
+        return posixpath.join(type(self).resources_prefix, name)
 
     def __resource_name_cache_path(self, name):
         # For the given Resource name, return the path that would be used for a 
         # local cache file
-        return os.path.join(self.local_cache, type(self).resources_prefix, name)
+        return posixpath.join(self.local_cache, type(self).resources_prefix, name)
 
     def __file_keyname(self, resource_file):
         # For the given ResourceFile, return the S3 key string
@@ -177,7 +178,7 @@ class Repository(object):
     def __file_cache_path(self, resource_file):
         # For the given ResourceFile, return the path that would be used for a 
         # local cache file
-        return os.path.expanduser(os.path.join(self.local_cache, 
+        return os.path.expanduser(posixpath.join(self.local_cache,
             resource_file.location_or_remote()))
 
     def _rebuild_required(self, resource, obj_list):
@@ -204,7 +205,6 @@ class Repository(object):
         bucket = self.get_bucket()
         if not bucket:
             return False
-        # TODO: Fix '/' with more general solution with BDKD-262
         prefix = Repository.files_prefix + '/' + resource.name
         obj_list = bucket.get_all_keys(prefix=prefix)
         if not self._rebuild_required(resource, obj_list):
@@ -512,12 +512,12 @@ class Repository(object):
                 metadata=copy.copy(from_resource.metadata))
         # Copy files to to_resource and save
         try:
-            from_prefix = os.path.join(Repository.files_prefix, from_resource.name, '')
+            from_prefix = posixpath.join(Repository.files_prefix, from_resource.name, '')
             for from_file in from_resource.files:
                 to_file = copy.copy(from_file)
                 # Do S3 copy if in S3 (i.e. has 'location')
                 if 'location' in from_file.metadata:
-                    to_location = os.path.join(Repository.files_prefix, 
+                    to_location = posixpath.join(Repository.files_prefix,
                             to_resource.name, 
                             from_file.metadata['location'][len(from_prefix):])
                     if not from_file.is_bundled():
@@ -530,7 +530,7 @@ class Repository(object):
                 to_resource.bundle = copy.copy(from_resource.bundle)
                 to_resource.bundle.resource = to_resource
                 from_location = from_resource.bundle.metadata['location']
-                to_location = os.path.join(Repository.files_prefix,
+                to_location = posixpath.join(Repository.files_prefix,
                         to_resource.name,
                         from_location[len(from_prefix):])
                 to_bucket.copy_key(to_location, from_bucket.name,
@@ -558,18 +558,18 @@ class Repository(object):
         resource_names = []
         resources_prefix = type(self).resources_prefix
         if prefix:
-            resources_prefix = os.path.join(resources_prefix, prefix)
+            resources_prefix = posixpath.join(resources_prefix, prefix)
         bucket = self.get_bucket()
         if bucket:
             for key in bucket.list(resources_prefix):
                 resource_names.append(key.name[(len(type(self).resources_prefix) + 1):])
         else:
-            resource_path = os.path.join(self.local_cache, 
+            resource_path = posixpath.join(self.local_cache,
                     type(self).resources_prefix)
             for (dirpath, dirnames, filenames) in os.walk(resource_path):
                 if len(filenames):
                     for filename in filenames:
-                        resource_names.append(os.path.join(
+                        resource_names.append(posixpath.join(
                             dirpath[(len(resource_path) + 1):], filename))
         return resource_names
 
@@ -724,7 +724,7 @@ class Resource(Asset):
 
     @classmethod
     def bundle_temp_path(cls, name):
-        return os.path.join(settings()['cache_root'], str(get_uid()), name)
+        return posixpath.join(settings()['cache_root'], str(get_uid()), name)
 
     def __init__(self, name, files=None, bundle=None, metadata=None, publish=True):
         """
@@ -804,7 +804,7 @@ class Resource(Asset):
             if do_bundle:
                 bundle_path = cls.bundle_temp_path(name)
                 bundle = ResourceFile(bundle_path, resource=None, metadata={
-                    'location': os.path.join(Repository.files_prefix, name,
+                    'location': posixpath.join(Repository.files_prefix, name,
                         '.bundle', 'bundle.tar.gz')})
                 mkdir_p(os.path.dirname(bundle_path))
                 bundle.files = []
@@ -824,7 +824,7 @@ class Resource(Asset):
                 else:
                     if do_bundle:
                         meta['bundled'] = True
-                    meta['location'] = os.path.join(Repository.files_prefix, name, location)
+                    meta['location'] = posixpath.join(Repository.files_prefix, name, location)
                     if path:
                         path = os.path.expanduser(path)
                         if not 'md5sum' in meta:
@@ -1048,7 +1048,7 @@ class ResourceFile(Asset):
         """
         if not self.resource or not self.resource.repository:
             return
-        unpack_path = os.path.join(self.resource.repository.local_cache, 
+        unpack_path = posixpath.join(self.resource.repository.local_cache,
                 Repository.files_prefix, self.resource.name)
         if not self.path:
             do_refresh = True
@@ -1094,7 +1094,7 @@ class ResourceFile(Asset):
         The path of a ResourceFile within its Resource directory.
         """
         if self.resource and self.location():
-            return self.location()[(len(os.path.join(Repository.files_prefix,
+            return self.location()[(len(posixpath.join(Repository.files_prefix,
                 self.resource.name)) + 1):]
         else:
             return None
@@ -1153,7 +1153,7 @@ def __load_config():
                         host = None
                     cache_path = os.path.expanduser(
                             repo_config.get('cache_path', 
-                                os.path.join(_settings['cache_root'])))
+                                posixpath.join(_settings['cache_root'])))
                     stale_time = repo_config.get('stale_time', 60)
                     repo = Repository(host, repo_name, cache_path, stale_time)
                     _repositories[repo_name] = repo
