@@ -205,7 +205,6 @@ class Repository(object):
         bucket = self.get_bucket()
         if not bucket:
             return False
-        # TODO: Fix '/' with more general solution with BDKD-262
         prefix = Repository.files_prefix + '/' + resource.name
         obj_list = bucket.get_all_keys(prefix=prefix)
         if not self._rebuild_required(resource, obj_list):
