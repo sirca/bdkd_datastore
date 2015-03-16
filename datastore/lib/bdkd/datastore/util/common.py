@@ -27,6 +27,8 @@ class FilesAction(argparse.Action):
                     for root, dir, files in os.walk(filename):
                         for f in files:
                             file_list.append(posixpath.join(root.replace("\\","/"), f))
+                else:
+                    file_list.append(filename)
             else:
                 file_list.append(filename)
 
