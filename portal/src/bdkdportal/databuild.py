@@ -398,6 +398,10 @@ class RepositoryBuilder:
 
                 if build_dataset_portal_data:
                     resource = repo.get(ds_dataset_name)
+                    # Only published resources/datasets should show on portal
+                    if not resource.is_published():
+                        continue
+
                     pseudo_path = ds_dataset_name.split('/')
                     dataset = Dataset(
                         name = dataset_name,
