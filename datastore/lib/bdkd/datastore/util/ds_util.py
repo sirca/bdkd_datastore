@@ -317,27 +317,6 @@ def _unpublish(resource_args):
     else:
         raise ValueError("Resource '{0}' does not exist!".format(resource_name))
 
-def _xx_update_published(resource_args, value):
-    repository = resource_args.repository
-    resource = repository.get(resource_args.resource_name)
-    if resource:
-        if resource.published == value:
-            print "Nothing to do, resource is already '{0}'".format("Published" if value else "Un-published")
-            return
-
-        # Publish
-        if value == True:
-            missing_fields = resource.validate_mandatory_metadata()
-            if missing_fields:
-                raise ValueError("Missing mandatory fields: '{0}'".format(missing_fields))
-            repository.rebuild_file_list(resource)
-
-        resource.published=value
-        repository.save(resource, overwrite=True)
-        repository.refresh_resource(resource=resource, refresh_all=True)
-    else:
-        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
-
 def _update_with_parser(resource_args):
     metadata = _check_bdkd_metadata(resource_args)[0]
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
