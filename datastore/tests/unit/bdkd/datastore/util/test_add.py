@@ -75,7 +75,7 @@ class CreateTest(unittest.TestCase):
 
     def test_create_mandatory_metadata(self):
         args_in = [ 'create', '--description', 'Description of resource',
-                '--author', u'Dietmar M√ºller', 
+                '--author', u'Dietmar Müller', 
                 '--author-email', 'fred@here',
                 'test-repository', 'my_resource',
                 self.filepath ]

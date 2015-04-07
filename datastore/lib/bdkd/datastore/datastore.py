@@ -1030,7 +1030,7 @@ class Resource(Asset):
 
     def unpublish(self):
         if not self.published:
-            print "Nothing to do, resource is already 'Un-published'"
+            print "Nothing to do, resource is already 'Unpublished'"
             return False
 
         self.published=False

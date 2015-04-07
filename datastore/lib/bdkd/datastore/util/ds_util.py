@@ -182,13 +182,13 @@ def _create_subparsers(subparser):
                          parents=[
                              util_common._repository_resource_parser()
                          ])
-    subparser.add_parser('publish', help='Publish a resource from a repository',
-                         description='Publish a resource from a repository',
+    subparser.add_parser('publish', help='Publish a resource to a repository',
+                         description='Publish a resource to a repository',
                          parents=[
                              util_common._repository_resource_parser(),
                          ])
-    subparser.add_parser('unpublish', help='Un-publish a resource from a repository',
-                         description='Un-publish a resource from a repository',
+    subparser.add_parser('unpublish', help='Unpublish a resource from a repository',
+                         description='Unpublish a resource from a repository',
                          parents=[
                              util_common._repository_resource_parser(),
                          ])
