@@ -182,6 +182,16 @@ def _create_subparsers(subparser):
                          parents=[
                              util_common._repository_resource_parser()
                          ])
+    subparser.add_parser('publish', help='Publish a resource to a repository',
+                         description='Publish a resource to a repository',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                         ])
+    subparser.add_parser('unpublish', help='Unpublish a resource from a repository',
+                         description='Unpublish a resource from a repository',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                         ])
 
     return subparser
 
@@ -291,6 +301,21 @@ def _update_metadata(repository, resource_name, metadata):
     else:
         raise ValueError("Resource '{0}' does not exist!".format(resource_name))
 
+def _publish(resource_args):
+    repository = resource_args.repository
+    resource = repository.get(resource_args.resource_name)
+    if resource:
+        resource.publish()
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+
+def _unpublish(resource_args):
+    repository = resource_args.repository
+    resource = repository.get(resource_args.resource_name)
+    if resource:
+        resource.unpublish()
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
 
 def _update_with_parser(resource_args):
     metadata = _check_bdkd_metadata(resource_args)[0]
@@ -386,4 +411,7 @@ def ds_util(argv=None):
         _list_repositories(args.verbose)
     elif args.subcmd == 'rebuild-file-list':
         _build_file_list(args.repository, args.resource_name)
-
+    elif args.subcmd == 'publish':
+        _publish(args)
+    elif args.subcmd == 'unpublish':
+        _unpublish(args)

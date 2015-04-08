@@ -318,5 +318,27 @@ class RepositoryTest(unittest.TestCase):
                 do_bundle=True, publish=False)
         return resource
 
+    def test_publish_resource(self):
+        resource = self.resources.get('single')
+        self.assertTrue(resource)
+
+        # Check mandatory fields
+        self.repository.save(resource)
+        saved_resource = self.repository.get(resource.name)
+        self.assertRaises(ValueError, saved_resource.publish)
+        self.assertFalse(saved_resource.is_published())
+
+        # Publish
+        resource.metadata = {'description':'Resource name', 'author': 'fred', 'author_email': 'fred@localhost'}
+        self.repository.save(resource, overwrite=True)
+        saved_resource = self.repository.get(resource.name)
+        saved_resource.publish()
+        self.assertTrue(saved_resource.is_published())
+        
+        # Unpublish
+        saved_resource = self.repository.get(resource.name)
+        saved_resource.unpublish()
+        self.assertFalse(saved_resource.is_published())
+
 if __name__ == '__main__':
     unittest.main()

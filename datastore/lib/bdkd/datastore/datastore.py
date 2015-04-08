@@ -707,6 +707,7 @@ class Resource(Asset):
                 resource['files'] = file_data
                 if o.bundle:
                     resource['bundle'] = o.bundle.metadata
+                resource['published'] = o.published
                 return resource
             else:
                 return json.JSONEncoder.default(self, o)
@@ -742,7 +743,7 @@ class Resource(Asset):
         self.metadata = metadata or dict()
         self.bundle = bundle
         self.files = files
-        self._published = publish
+        self.published = publish
 
     @classmethod
     def __normalise_file_data(cls, raw_data):
@@ -909,6 +910,7 @@ class Resource(Asset):
             self.path = local_resource_filename
             self.metadata = data.get('metadata', dict())
             self.files = resource_files
+            self.published = data.pop('published', None)
 
     def to_json(self, **kwargs):
         """
@@ -1010,6 +1012,34 @@ class Resource(Asset):
 
     def is_bundled(self):
         return self.bundle != None
+
+    def publish(self):
+        if self.published:
+            print "Nothing to do, resource is already 'Published'"
+            return False
+
+        missing_fields = self.validate_mandatory_metadata()
+        if missing_fields:
+            raise ValueError("Missing mandatory fields: '{0}'".format(missing_fields))
+
+        self.repository.rebuild_file_list(self)
+        self.published=True
+        self.repository.save(self, overwrite=True)
+        self.repository.refresh_resource(resource=self, refresh_all=True)
+        return True
+
+    def unpublish(self):
+        if not self.published:
+            print "Nothing to do, resource is already 'Unpublished'"
+            return False
+
+        self.published=False
+        self.repository.save(self, overwrite=True)
+        self.repository.refresh_resource(resource=self, refresh_all=True)
+        return True        
+
+    def is_published(self):
+        return self.published
 
 class ResourceFile(Asset):
     """
