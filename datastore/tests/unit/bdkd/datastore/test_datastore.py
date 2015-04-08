@@ -226,7 +226,6 @@ class ResourceTest(unittest.TestCase):
         out_filename = os.path.join(self.repository.local_cache, 'test-resource.json')
         fixture_filename = os.path.join(FIXTURES, 'resource.json')
         self.resource.write(out_filename)
-        self.assertEquals(out_filename, fixture_filename)
         self.assertEquals(
                 type(self)._resource_sans_modified(out_filename), 
                 type(self)._resource_sans_modified(fixture_filename))

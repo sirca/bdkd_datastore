@@ -82,7 +82,7 @@ class CreateTest(unittest.TestCase):
         args = self.parser.parse_args(args_in)
         self.assertTrue(args)
         self.assertEquals(args.description, 'Description of resource')
-        self.assertEquals(args.author, u'Dietmar M√ºller')
+        self.assertEquals(args.author, u'Dietmar Müller')
         self.assertEquals(args.author_email, 'fred@here')
 
 
