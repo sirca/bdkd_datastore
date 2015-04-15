@@ -603,7 +603,7 @@ class Repository(object):
         else:
             return None
 
-    def delete(self, resource_or_name):
+    def delete(self, resource_or_name, force_delete_published=False):
         """
         Delete a Resource -- either directly or by name.
         """
@@ -615,6 +615,8 @@ class Repository(object):
             resource = self.get(resource_or_name)
             if not resource:
                 return
+        if resource.published and not force_delete_published:
+            raise ValueError("Cannot delete a published resource without override")
         self.__delete_resource(resource)
         resource.repository = None
 

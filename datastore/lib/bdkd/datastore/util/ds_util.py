@@ -61,6 +61,12 @@ def _delete_files_parser():
                         help='Force deleting files from a published resource')
     return parser
 
+def _delete_resource_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--force-delete-published', action='store_true', default=False,
+                        help='Force deleting a published resource')
+    return parser
+
 def _create_options_parser():
     """
     Parser for various options related to adding
@@ -180,6 +186,7 @@ def _create_subparsers(subparser):
                          description='Delete a resource from a repository', 
                          parents=[
                              util_common._repository_resource_parser(),
+                             _delete_resource_parser()
                          ])
     subparser.add_parser('get', help='Get details of a Resource as JSON text',
                          description='Get details of a Resource as JSON text. The meta-data and list '
@@ -397,10 +404,10 @@ def _update_with_parser(resource_args):
     metadata = _check_bdkd_metadata(resource_args)[0]
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
 
-def _delete_resource(repository, resource_name):
+def _delete_resource(repository, resource_name, force_delete_published=False):
     resource = repository.get(resource_name)
     if resource:
-        repository.delete(resource)
+        repository.delete(resource, force_delete_published)
     else:
         raise ValueError("Resource '{0}' does not exist!".format(resource_name))
 
@@ -480,7 +487,7 @@ def ds_util(argv=None):
     elif args.subcmd == 'update-metadata':
         _update_with_parser(args)
     elif args.subcmd == 'delete':
-        _delete_resource(args.repository, args.resource_name)
+        _delete_resource(args.repository, args.resource_name, force_delete_published=args.force_delete_published)
     elif args.subcmd == 'get':
         _get_resource_details(args.repository, args.resource_name)
     elif args.subcmd == 'files':
