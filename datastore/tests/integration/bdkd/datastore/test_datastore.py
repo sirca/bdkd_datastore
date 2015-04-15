@@ -228,7 +228,7 @@ class RepositoryTest(unittest.TestCase):
         self.repository.save(resource)
         datetime1 = self.repository.get_resource_last_modified(resource.name)
         # Force an update to the resource 1 second later.
-        time.sleep(1) 
+        time.sleep(1)
         self.repository.save(resource, overwrite=True)
         datetime2 = self.repository.get_resource_last_modified(resource.name)
         # The sequence of events should produce a sequential set of times.
@@ -339,6 +339,34 @@ class RepositoryTest(unittest.TestCase):
         saved_resource = self.repository.get(resource.name)
         saved_resource.unpublish()
         self.assertFalse(saved_resource.is_published())
+
+    def test_add_files_to_resource(self):
+        resource = self.resources.get('single')
+        self.assertTrue(resource)
+        self.repository.save(resource)
+        saved_resource = self.repository.get(resource.name)
+        local_file = os.path.join(FIXTURES, 'FeatureCollections', 'Coastlines',
+                                  'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz')
+        self.assertRaises(bdkd.datastore.AddFilesException, saved_resource.add_files, [local_file], True)
+        another_file = os.path.join(FIXTURES, 'meta.yml')
+        saved_resource.add_files([another_file], True)
+        self.repository.save(saved_resource, overwrite=True)
+        # Check that S3 repository has three keys in it
+        self._check_bucket_count('', 3)
+
+    def test_delete_files_from_resource(self):
+        resource = self.resources.get('single')
+        self.assertTrue(resource)
+        self.repository.save(resource)
+        saved_resource = self.repository.get(resource.name)
+        local_file = 'Seton_etal_ESR2012_Coastlines_2012.1.gpmlz'
+        bad_file = 'bad bad bad'
+        self.assertRaises(bdkd.datastore.DeleteFilesException, saved_resource.delete_files_from_remote,
+                          [bad_file], True)
+        saved_resource.delete_files_from_remote([local_file], True)
+        self.repository.save(saved_resource, overwrite=True)
+        # # Check that S3 repository has one key in it
+        self._check_bucket_count('', 1)
 
 if __name__ == '__main__':
     unittest.main()

@@ -29,6 +29,8 @@ _repositories = None
 TIME_FORMAT = '%a, %d %b %Y %H:%M:%S %Z'
 ISO_8601_UTC_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
+BDKD_FILE_SUFFIX = '.bdkd'
+
 logger = logging.getLogger(__name__)
 
 def get_uid():
@@ -205,7 +207,7 @@ class Repository(object):
         bucket = self.get_bucket()
         if not bucket:
             return False
-        prefix = Repository.files_prefix + '/' + resource.name
+        prefix = Repository.files_prefix + '/' + resource.name + '/'
         obj_list = bucket.get_all_keys(prefix=prefix)
         if not self._rebuild_required(resource, obj_list):
             logger.debug("Rebuild not required")
@@ -213,25 +215,20 @@ class Repository(object):
 
         new_files = {}
         for obj in obj_list:
-            found = False
-            for r_files in resource.files:
-                if obj.key == r_files.location():
-                    found = True
-                    break
-            if not found:       # if not currently in resource
-                if obj.key.endswith(".bdkd") and obj.key[:-5] in new_files:
-                    # If this is a .bdkd file, delete (since S3 always returns
-                    # values in alphabetical order, we can assume the main
-                    # file is already in the list)
-                    obj.delete()
-                    continue
+            if obj.key == prefix:       # if "directory" name appears, skip
+                continue
 
-                md5file = bucket.get_all_keys(prefix=obj.key + ".bdkd")
-                obj_md5 = ""
-                if len(md5file) == 1:
-                    obj_md5 = md5file[0].get_contents_as_string().strip()
-                else:
-                    logger.warning("Unable to get MD5 sum for {0}".format(obj.key))
+            if obj.key.endswith(BDKD_FILE_SUFFIX) and obj.key[:-5] in new_files:
+                # If this is a .bdkd file, delete (since S3 always returns
+                # values in alphabetical order, we can assume the main
+                # file is already in the list)
+                obj.delete()
+                continue
+
+            md5file = bucket.get_all_keys(prefix=obj.key + BDKD_FILE_SUFFIX)
+
+            if len(md5file) == 1:       # if md5 file exists, this is a newly found file
+                obj_md5 = md5file[0].get_contents_as_string().strip()
                 new_files[obj.key] = obj.size, obj.last_modified, obj_md5
 
         resource.add_files_from_storage_paths(new_files)
@@ -280,7 +277,7 @@ class Repository(object):
             logger.debug("Key %s does not exist in repository, not refreshing", key_name)
             return False
 
-    def __upload(self, key_name, src_path):
+    def __upload(self, key_name, src_path, write_bdkd_file=False, md5sum=None):
         # Ensure that an object in the S3 repository is up-to-date with respect 
         # to a file on the local system, uploading it if required.  Returns 
         # True if the local file was uploaded.
@@ -300,7 +297,12 @@ class Repository(object):
         if do_upload:
             logger.debug("Uploading to %s from %s", key_name, src_path)
             file_key.set_contents_from_filename(src_path)
+            if write_bdkd_file and md5sum:
+                bdkd_file_key = boto.s3.key.Key(bucket, key_name + BDKD_FILE_SUFFIX)
+                bdkd_file_key.set_contents_from_string(md5sum)
+
         return do_upload
+
 
     def __delete(self, key_name):
         # Delete the object identified by the key name from the S3 repository
@@ -424,7 +426,7 @@ class Repository(object):
                 self._refresh_resource_file(resource_file)
                 logger.debug("Refreshed resource file with path %s", resource_file.path)
 
-    def __save_resource_file(self, resource_file):
+    def __save_resource_file(self, resource_file, write_bdkd_file=False):
         file_cache_path = self.__file_cache_path(resource_file)
         if resource_file.path and os.path.exists(resource_file.path) and resource_file.location():
             if resource_file.path != file_cache_path:
@@ -432,9 +434,13 @@ class Repository(object):
             bucket = self.get_bucket()
             if bucket:
                 file_keyname = self.__file_keyname(resource_file)
-                self.__upload(file_keyname, resource_file.path)
+                md5sum = None
+                if 'md5sum' in resource_file.metadata:
+                    md5sum = resource_file.metadata['md5sum']
+                self.__upload(file_keyname, resource_file.path, write_bdkd_file=write_bdkd_file,
+                              md5sum=md5sum)
 
-    def save(self, resource, overwrite=False, update_bundle=True):
+    def save(self, resource, overwrite=False, update_bundle=True, skip_resource_file=False):
         """
         Save a Resource to the Repository.
         """
@@ -445,7 +451,8 @@ class Repository(object):
                     ', '.join(conflicting_names))
 
         resource_cache_path = self.__resource_name_cache_path(resource.name)
-        resource.write(resource_cache_path)
+        if not skip_resource_file:
+            resource.write(resource_cache_path)
         resource.path = resource_cache_path
 
         if resource.repository != self:
@@ -457,8 +464,13 @@ class Repository(object):
                 resource.update_bundle()
                 self.__save_resource_file(resource.bundle)
         else:
-            for resource_file in resource.files:
-                self.__save_resource_file(resource_file)
+            if resource.files_to_be_deleted:
+                for resource_file in resource.files_to_be_deleted:
+                    self.__delete_resource_file(resource_file)
+                resource.files_to_be_deleted = []
+            else:
+                for resource_file in resource.files:
+                    self.__save_resource_file(resource_file, write_bdkd_file=skip_resource_file)
 
         bucket = self.get_bucket()
 
@@ -470,8 +482,9 @@ class Repository(object):
                     raise ValueError("Resource already exists!")
             else:
                 resource_key = boto.s3.key.Key(bucket, resource_keyname)
-            logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
-            resource_key.set_contents_from_filename(resource_cache_path)
+            if not skip_resource_file:
+                logger.debug("Uploading resource from %s to key %s", resource_cache_path, resource_keyname)
+                resource_key.set_contents_from_filename(resource_cache_path)
 
     def move(self, from_resource, to_name):
         try:
@@ -682,6 +695,14 @@ class MetadataException(Exception):
     def __init__(self, missing_fields):
         self.missing_fields = missing_fields
 
+class AddFilesException(Exception):
+    def __init__(self, conflicting_files):
+        self.conflicting_files = conflicting_files
+
+class DeleteFilesException(Exception):
+    def __init__(self, non_existent_files):
+        self.non_existent_files = non_existent_files
+
 class Resource(Asset):
     """
     A source of data consisting of one or more files plus associated meta-data.
@@ -743,6 +764,7 @@ class Resource(Asset):
         self.metadata = metadata or dict()
         self.bundle = bundle
         self.files = files
+        self.files_to_be_deleted = []
         self.published = publish
 
     @classmethod
@@ -854,7 +876,7 @@ class Resource(Asset):
         for resource_file in resource_files:
             resource_file.resource = resource
         return resource
-    
+
     @classmethod
     def load(cls, local_resource_filename):
         """
@@ -864,6 +886,107 @@ class Resource(Asset):
         resource.reload(local_resource_filename)
         resource.path = local_resource_filename
         return resource
+
+    def _process_files(self, files_data, resource_name=None, bundle_archive=None):
+        """
+        Processes normalised file data
+        """
+        if not resource_name:
+            name = self.name
+        else:
+            name = resource_name
+        resource_files = []
+        for file_data in files_data:
+            path = file_data.pop('path', None)
+            location = file_data.pop('location', None)
+            meta = file_data.pop('meta', None)
+            if 'remote' in meta:
+                remote_url = urllib2.urlopen(urllib2.Request(meta['remote']))
+                keyset = set(k.lower() for k in meta)
+                for header_name in [ 'etag', 'last-modified', 'content-length', 'content-type' ]:
+                    if not header_name in keyset and remote_url.info().has_key(header_name):
+                        meta[header_name] = remote_url.info().getheader(header_name)
+            else:
+                if bundle_archive:
+                    meta['bundled'] = True
+                meta['location'] = posixpath.join(Repository.files_prefix, name, location)
+                if path:
+                    path = os.path.expanduser(path)
+                    if not 'md5sum' in meta:
+                        meta['md5sum'] = checksum(path)
+                    if not 'last-modified' in meta:
+                        meta['last-modified'] = time.strftime(TIME_FORMAT,
+                                time.gmtime(os.path.getmtime(path)))
+                    if not 'content-length' in meta:
+                        meta['content-length'] = os.stat(path).st_size
+                    if bundle_archive:
+                        bundle_archive.add(name=path, arcname=location)
+                else:
+                    raise ValueError("For Resource files, either a path to a local file or a remote URL is required")
+            resource_file = ResourceFile(path, resource=None, metadata=meta)
+            resource_files.append(resource_file)
+
+        return resource_files
+
+    def add_files(self, files=None, add_to_published=False, overwrite=False):
+        if self.published and add_to_published == False:
+            raise ValueError("Cannot add files to a published Resource unless override is specified.")
+
+        if files:
+            files = self.__normalise_file_data(files)
+            resource_files = self._process_files(files)
+            # Check if any of the files already exist
+            conflicting_file_names = []
+            conflicting_files = []
+            for existing_file in self.files:
+                for resource_file in resource_files:
+                    if existing_file.metadata['location'] == resource_file.metadata['location']:
+                        conflicting_file_names.append(resource_file.path)
+                        conflicting_files.append(resource_file.metadata['location'])
+
+            if conflicting_file_names and not overwrite:
+                raise AddFilesException(conflicting_file_names)
+
+            if overwrite:
+                non_conflicting_files = []
+                for existing_file in self.files:
+                    if existing_file.metadata['location'] not in conflicting_files:
+                        non_conflicting_files.append(existing_file)
+                self.files = non_conflicting_files + resource_files
+            else:
+                self.files += resource_files
+
+            return True
+        else:
+            return False
+
+    def delete_files_from_remote(self, filenames, delete_from_published=False):
+        if self.published and delete_from_published == False:
+            raise ValueError("Cannot delete files from a published Resource unless override is specified.")
+
+        matching_files = []
+        files_not_found = []
+        for filename in filenames:
+            found = False
+            for existing_file in self.files:
+                if filename == existing_file.storage_location():
+                    matching_files.append(existing_file)
+                    found = True
+                    break
+            if not found:
+                files_not_found.append(filename)
+
+        if files_not_found:
+            raise DeleteFilesException(non_existent_files=files_not_found)
+
+        # Delete from files list
+        for file in matching_files:
+            self.files.remove(file)
+
+        self.files_to_be_deleted = matching_files
+
+        return True
+
 
     def validate_mandatory_metadata(self):
         """
@@ -887,7 +1010,16 @@ class Resource(Asset):
             meta['last-modified'] = datetime.strftime(dt, TIME_FORMAT) + " UTC"
             meta['md5sum'] = md5sum
             resource_file = ResourceFile(path, resource=None, metadata=meta)
-            self.files.append(resource_file)
+            # Check if resource of same name already exists (in case this is an overwrite)
+            already_exists = False
+            for i in range(len(self.files)):
+                if self.files[i].location() == resource_file.location():
+                    self.files[i] = resource_file
+                    already_exists = True
+                    break
+            # Otherwise assume this is a new file
+            if not already_exists:
+                self.files.append(resource_file)
 
 
     def reload(self, local_resource_filename):

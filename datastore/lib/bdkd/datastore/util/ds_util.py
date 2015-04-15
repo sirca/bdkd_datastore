@@ -43,6 +43,23 @@ def _metadata_parser():
             help="A YAML file containing metadata and optionally tags")
     return parser
 
+def _add_files_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--add-to-published', action='store_true', default=False,
+                        help='Force adding files to a published resource')
+    parser.add_argument('--overwrite', action='store_true', default=False,
+                        help='Overwrite any existing file with the same name')
+    parser.add_argument('--no-metadata', action='store_true', default=False,
+                        help='Do not update file list metadata')
+    return parser
+
+def _delete_files_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('filenames', nargs='+',
+                        help='List of Resource file names')
+    parser.add_argument('--delete-from-published', action='store_true', default=False,
+                        help='Force deleting files from a published resource')
+    return parser
 
 def _create_options_parser():
     """
@@ -119,6 +136,19 @@ def _create_subparsers(subparser):
                              _optional_files_parser(),
                          ])
 
+    subparser.add_parser('add-files', help='Add file(s) to an existing Resource',
+                         description='Add one or more files to an existing Resource',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                             _files_parser(),
+                             _add_files_parser()
+                         ])
+    subparser.add_parser('delete-files', help='Delete file(s) from an existing Resource',
+                         description='Delete one or more files from an existing Resource by providing file names',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                             _delete_files_parser()
+                         ])
     subparser.add_parser('copy', help='Copy a resource',
                          description='Copy a resource within datastore',
                          parents=[
@@ -233,6 +263,20 @@ def _check_bdkd_metadata(resource_args):
 
     return metadata, tags
 
+def _parse_filenames(filenames):
+    items = []
+    for item in filenames:
+        item = item.replace("\\", "/")
+        if os.path.exists(item) and os.path.isdir(item):
+            # item is a dir, so recursively expands directories into files
+            for root, dir, files in os.walk(item):
+                for f in files:
+                    items.append(posixpath.join(root, f))
+        else:
+            items.append(item)
+
+    return items
+
 
 def create_new_resource(resource_args):
     """
@@ -265,7 +309,6 @@ def create_new_resource(resource_args):
 
     return resource
 
-
 def _save_resource(repository, resource, force=False):
     existing = repository.get(resource.name)
     if existing:
@@ -275,6 +318,39 @@ def _save_resource(repository, resource, force=False):
             raise ValueError("Resource '{0}' already exists (use '--force' to overwrite)"
                     .format(resource.name))
     repository.save(resource)
+
+def add_to_resource(repository, resource_name, args):
+    resource = repository.get(resource_name)
+    if resource:
+        if resource.is_bundled():
+            raise ValueError("Cannot add files as '{0}' is a bundled Resource")
+        resource_items = _parse_filenames(args.filenames)
+        try:
+            resource.add_files(resource_items, args.add_to_published, args.overwrite)
+        except bdkd.datastore.AddFilesException, e:
+            conflict_string = ', '.join(e.conflicting_files)
+            raise ValueError("The following files already exist. "
+                             "Use --overwrite to overwrite: {0}".format(conflict_string))
+        repository.save(resource, overwrite=True, skip_resource_file=args.no_metadata)
+    else:
+        raise ValueError("Resource '{0}' does not exist in repository".format(resource_name))
+
+
+def delete_from_resource(repository, resource_name, args):
+    resource = repository.get(resource_name)
+    if resource:
+        if resource.is_bundled():
+            raise ValueError("Cannot delete files as '{0}' is a bundled Resource")
+        try:
+            resource.delete_files_from_remote(args.filenames, args.delete_from_published)
+        except bdkd.datastore.DeleteFilesException, e:
+            missing_string = ', '.join(e.non_existent_files)
+            raise ValueError("Could not delete as the following files do not exist: "
+                             "{0}".format(missing_string))
+        repository.save(resource, overwrite=True)
+    else:
+        raise ValueError("Resource '{0}' does not exist in repository".format(resource_name))
+
 
 
 def _copy_or_move(copy_move_args, do_move=False):
@@ -307,7 +383,7 @@ def _publish(resource_args):
     if resource:
         resource.publish()
     else:
-        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+        raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
 
 def _unpublish(resource_args):
     repository = resource_args.repository
@@ -315,7 +391,7 @@ def _unpublish(resource_args):
     if resource:
         resource.unpublish()
     else:
-        raise ValueError("Resource '{0}' does not exist!".format(resource_name))
+        raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
 
 def _update_with_parser(resource_args):
     metadata = _check_bdkd_metadata(resource_args)[0]
@@ -387,6 +463,10 @@ def ds_util(argv=None):
     if args.subcmd == 'create':
         resource = create_new_resource(args)
         _save_resource(args.repository, resource, args.force)
+    if args.subcmd == 'add-files':
+        add_to_resource(args.repository, args.resource_name, args)
+    if args.subcmd == 'delete-files':
+        delete_from_resource(args.repository, args.resource_name, args)
     elif args.subcmd == 'copy':
         _copy_or_move(args, do_move=False)
     elif args.subcmd == 'move':
