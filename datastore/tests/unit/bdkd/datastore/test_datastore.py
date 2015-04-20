@@ -141,6 +141,14 @@ class RepositoryTest(unittest.TestCase):
         self.repository.delete(self.resource)
         self.assertFalse(self.resource.repository)
 
+    def test_delete_published_resource(self):
+        self.assertEquals(self.repository.get(self.resource_name), None)
+        self.repository.save(self.resource)
+        self.resource.published = True
+        self.assertRaises(ValueError, self.repository.delete, self.resource)
+        self.repository.delete(self.resource, True)
+        self.assertFalse(self.resource.repository)
+
 
 class ResourceTest(unittest.TestCase):
 
