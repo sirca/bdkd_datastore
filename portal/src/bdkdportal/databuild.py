@@ -410,8 +410,8 @@ class RepositoryBuilder:
                         owner_org = org_name,
                         description = resource.metadata.get('description',''))
                     # Bring over other optional fields from the metadata.
-                    optinal_fields = ['author','author_email','maintainer','maintainer_email','version']
-                    for field in optinal_fields:
+                    optional_fields = ['author','author_email','maintainer','maintainer_email','version']
+                    for field in optional_fields:
                         setattr(dataset, field, resource.metadata.get(field, ""))
 
                     # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
@@ -427,7 +427,7 @@ class RepositoryBuilder:
 
                     # Custom fields
                     dataset.extras = []
-                    exclude_fields = optinal_fields + ['name', 'title', 'owner_org', 'description', 'state']
+                    exclude_fields = optional_fields + ['name', 'title', 'owner_org', 'description', 'state']
                     for k,v in resource.metadata.iteritems():
                         if k in exclude_fields:
                            continue
