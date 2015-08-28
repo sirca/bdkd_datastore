@@ -163,7 +163,8 @@ class RepositoryBuilder:
             maintainer = dataset.maintainer,
             maintainer_email = dataset.maintainer_email,
             notes = dataset.description,
-            groups = dataset.groups)
+            groups = dataset.groups,
+            extras = dataset.extras)
         return ckan_ds
 
 
@@ -409,7 +410,8 @@ class RepositoryBuilder:
                         owner_org = org_name,
                         description = resource.metadata.get('description',''))
                     # Bring over other optional fields from the metadata.
-                    for field in ['author','author_email','maintainer','maintainer_email','version']:
+                    optinal_fields = ['author','author_email','maintainer','maintainer_email','version']
+                    for field in optinal_fields:
                         setattr(dataset, field, resource.metadata.get(field, ""))
 
                     # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
@@ -422,6 +424,14 @@ class RepositoryBuilder:
                             self._ckan_site.action.group_create(name=group_ckan_name, title=group_name)
                             existing_groups.append(group_ckan_name)
                         dataset.groups.append({'name':group_ckan_name})
+
+                    # Custom fields
+                    dataset.extras = []
+                    exclude_fields = optinal_fields + ['name', 'title', 'owner_org', 'description', 'state']
+                    for k,v in resource.metadata.iteritems():
+                        if k in exclude_fields:
+                           continue
+                        dataset.extras.append({'key':k, 'value':v})
 
                     # Build and upload the manifest file into this dataset.
                     self._create_ckan_dataset(dataset)
