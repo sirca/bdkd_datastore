@@ -427,6 +427,7 @@ class RepositoryBuilder:
 
                     # Custom fields
                     dataset.extras = []
+                    # Exclude these fields to avoid error when adding to ckan dataset
                     exclude_fields = optional_fields + ['name', 'title', 'owner_org', 'description', 'state']
                     for k,v in resource.metadata.iteritems():
                         if k in exclude_fields:
