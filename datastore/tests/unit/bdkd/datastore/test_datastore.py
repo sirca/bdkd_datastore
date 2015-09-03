@@ -61,7 +61,7 @@ class HostTest(unittest.TestCase):
         self.assertTrue(isinstance(hosts['test-host'], bdkd.datastore.Host))
 
     def test_host_init(self):
-        host = bdkd.datastore.Host('access-key', 'secret-key', host='hostname', port=80, secure=True, calling_format=None)
+        host = bdkd.datastore.Host('access-key', 'secret-key', host='hostname', port=80, secure=True)
         self.assertTrue(host)
         self.assertTrue(host.connection)
         self.assertTrue(host.netloc)
