@@ -49,8 +49,8 @@ def checksum(local_path):
     result = None
     if os.path.exists(local_path):
         md5 = hashlib.md5()
-        with open(local_path,'rb') as f: 
-            for chunk in iter(lambda: f.read(1048576), b''): 
+        with open(local_path,'rb') as f:
+            for chunk in iter(lambda: f.read(1048576), b''):
                 md5.update(chunk)
         result = md5.hexdigest()
     return result
@@ -67,8 +67,8 @@ def common_directory(paths):
     """
     Find the directory common to a set of paths.
 
-    This function differs from os.path.commonprefix() which has no concept of 
-    directories (it works a character at a time).  This function breaks each 
+    This function differs from os.path.commonprefix() which has no concept of
+    directories (it works a character at a time).  This function breaks each
     path up into directories for comparison.
     """
     common_parts = []
@@ -102,7 +102,7 @@ def common_directory(paths):
         common_path = ''
 
     return common_path
-    
+
 
 def touch(fname, times=None):
     """ Update the timestamps of a local file. """
@@ -113,16 +113,15 @@ class Host(object):
     """
     A host that provides a S3-compatible service.
     """
-    def __init__(   self, access_key=None, secret_key=None, 
-                    host='s3.amazonaws.com', port=None, 
-                    secure=True, calling_format=boto.s3.connection.OrdinaryCallingFormat()):
+    def __init__(   self, access_key=None, secret_key=None,
+                    host='s3.amazonaws.com', port=None,
+                    secure=True):
 
         self.connection = boto.s3.connection.S3Connection(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 host=host, port=port,
-                is_secure=secure,
-                calling_format=calling_format)
+                is_secure=secure)
         self.netloc = '{0}:{1}'.format(host,port)
 
 
@@ -130,8 +129,8 @@ class Repository(object):
     """
     Storage container for a Resource and its Files.
 
-    The Repository may be backed by a S3 host, in which case operations may 
-    involve coordinating reads and writes between a remote object store and a 
+    The Repository may be backed by a S3 host, in which case operations may
+    involve coordinating reads and writes between a remote object store and a
     local filesystem cache.
     """
     resources_prefix = 'resources'
@@ -169,7 +168,7 @@ class Repository(object):
         return posixpath.join(type(self).resources_prefix, name)
 
     def __resource_name_cache_path(self, name):
-        # For the given Resource name, return the path that would be used for a 
+        # For the given Resource name, return the path that would be used for a
         # local cache file
         return posixpath.join(self.local_cache, type(self).resources_prefix, name)
 
@@ -178,7 +177,7 @@ class Repository(object):
         return resource_file.location()
 
     def __file_cache_path(self, resource_file):
-        # For the given ResourceFile, return the path that would be used for a 
+        # For the given ResourceFile, return the path that would be used for a
         # local cache file
         return os.path.expanduser(posixpath.join(self.local_cache,
             resource_file.location_or_remote()))
@@ -237,8 +236,8 @@ class Repository(object):
 
 
     def __download(self, key_name, dest_path):
-        # Ensure that a file on the local system is up-to-date with respect to 
-        # an object in the S3 repository, downloading it if required.  Returns 
+        # Ensure that a file on the local system is up-to-date with respect to
+        # an object in the S3 repository, downloading it if required.  Returns
         # True if the remote object was downloaded.
         bucket = self.get_bucket()
         if not bucket:
@@ -278,8 +277,8 @@ class Repository(object):
             return False
 
     def __upload(self, key_name, src_path, write_bdkd_file=False, md5sum=None):
-        # Ensure that an object in the S3 repository is up-to-date with respect 
-        # to a file on the local system, uploading it if required.  Returns 
+        # Ensure that an object in the S3 repository is up-to-date with respect
+        # to a file on the local system, uploading it if required.  Returns
         # True if the local file was uploaded.
         bucket = self.get_bucket()
         if not bucket:
@@ -355,10 +354,10 @@ class Repository(object):
             os.remove(cache_path)
 
     def __resource_name_conflict(self, resource_name):
-        """ 
+        """
         Check whether a Resource name conflicts with some existing Resource.
-        
-        Returns the name(s) of any conflicting Resources or None if no conflict 
+
+        Returns the name(s) of any conflicting Resources or None if no conflict
         found.
         """
         resources_prefix = type(self).resources_prefix
@@ -371,7 +370,7 @@ class Repository(object):
             for key in bucket.list(key_prefix):
                 resource_names.append(key.name[(len(type(self).resources_prefix) + 1):])
             if len(resource_names) > 0:
-                # There are other Resources whose names start with this 
+                # There are other Resources whose names start with this
                 # Resource name
                 return resource_names
 
@@ -407,11 +406,11 @@ class Repository(object):
 
     def refresh_resource(self, resource, refresh_all=False):
         """
-        Synchronise a locally-cached Resource with the Repository's remote host 
+        Synchronise a locally-cached Resource with the Repository's remote host
         (if applicable).
 
-        This method ensures that the local Resource is up-to-date with respect 
-        to the S3 object store.  However if there is no Host for this 
+        This method ensures that the local Resource is up-to-date with respect
+        to the S3 object store.  However if there is no Host for this
         Repository then no action needs to be performed.
         """
         bucket = self.get_bucket()
@@ -531,10 +530,10 @@ class Repository(object):
                 # Do S3 copy if in S3 (i.e. has 'location')
                 if 'location' in from_file.metadata:
                     to_location = posixpath.join(Repository.files_prefix,
-                            to_resource.name, 
+                            to_resource.name,
                             from_file.metadata['location'][len(from_prefix):])
                     if not from_file.is_bundled():
-                       to_bucket.copy_key(to_location, from_bucket.name, 
+                       to_bucket.copy_key(to_location, from_bucket.name,
                                from_file.metadata['location'])
                     to_file.metadata['location'] = to_location
                 # Add file to to_resource
@@ -565,7 +564,7 @@ class Repository(object):
         """
         List all Resource names available in the Repository.
 
-        If 'prefix' is provided then a subset of resources with that leading 
+        If 'prefix' is provided then a subset of resources with that leading
         path will be returned.
         """
         resource_names = []
@@ -590,7 +589,7 @@ class Repository(object):
         """
         Acquire a Resource by name.
 
-        Returns the named resource, or None if no such resource exists in the 
+        Returns the named resource, or None if no such resource exists in the
         Repository.
         """
         keyname = self.__resource_name_key(name)
@@ -652,7 +651,7 @@ class Repository(object):
 
 class Asset(object):
     """
-    Superclass of things that can be stored within a Repository.  This includes 
+    Superclass of things that can be stored within a Repository.  This includes
     Resource and ResourceFile objects.
 
     :ivar path:
@@ -668,7 +667,7 @@ class Asset(object):
     def relocate(self, dest_path, mod=stat.S_IRWXU,
             move=False):
         """
-        Relocate an Asset's file to some other path, and set the mode of the 
+        Relocate an Asset's file to some other path, and set the mode of the
         relocated file.
         """
         if self.path:
@@ -712,7 +711,7 @@ class Resource(Asset):
     :ivar repository:
         The Repository to which this Resource belongs (if applicable)
     :ivar name:
-        The name of the Resource (uniquely identifying it within its 
+        The name of the Resource (uniquely identifying it within its
         Repository)
     :ivar files:
         A list of the ResourceFile instances associated with this Resource
@@ -811,12 +810,12 @@ class Resource(Asset):
     @classmethod
     def new(cls, name, files_data=None, metadata=None, do_bundle=False, publish=True):
         """
-        A convenience factory method that creates a new, unsaved Resource of 
+        A convenience factory method that creates a new, unsaved Resource of
         the given name, using file information and metadata.
 
-        The file data can be a single string filename or a dictionary of file 
-        metadata.  The filename can either be a local path ('path') or a 
-        remote URL ('remote') that is either HTTP or FTP.  For more than one 
+        The file data can be a single string filename or a dictionary of file
+        metadata.  The filename can either be a local path ('path') or a
+        remote URL ('remote') that is either HTTP or FTP.  For more than one
         file provide an array of these.
 
         The rest of the keyword arguments are used as Resource meta-data.
@@ -1034,7 +1033,7 @@ class Resource(Asset):
                 data = json.load(fh)
             files_data = data.pop('files', [])
             for file_data in files_data:
-                resource_files.append(ResourceFile(None, resource=self, 
+                resource_files.append(ResourceFile(None, resource=self,
                     metadata=file_data))
             bundle_data = data.pop('bundle', None)
             if bundle_data:
@@ -1048,10 +1047,10 @@ class Resource(Asset):
 
     def to_json(self, **kwargs):
         """
-        Create a JSON string representation of the Resource: its files and 
+        Create a JSON string representation of the Resource: its files and
         meta-data.
         """
-        return Resource.ResourceJSONEncoder(ensure_ascii=False, 
+        return Resource.ResourceJSONEncoder(ensure_ascii=False,
                 encoding='UTF-8', **kwargs).encode(self)
 
     def write(self, dest_path, mod=stat.S_IRWXU):
@@ -1067,10 +1066,10 @@ class Resource(Asset):
             fh.write(unicode(self.to_json()))
         os.chmod(dest_path, mod)
         self.path = dest_path
-    
+
     def local_paths(self):
         """
-        Get a list of local filenames for all the File data associated with 
+        Get a list of local filenames for all the File data associated with
         this Resource.
 
         (Note that this method will trigger a refresh of the Resource, ensuring that all
@@ -1088,7 +1087,7 @@ class Resource(Asset):
 
     def files_matching(self, pattern):
         """
-        Return a list of ResourceFile objects where the location or remote 
+        Return a list of ResourceFile objects where the location or remote
         matches a given pattern.
 
         If no files match an empty array is returned.
@@ -1124,7 +1123,7 @@ class Resource(Asset):
         for resource_file in self.files:
             if resource_file.path and resource_file.location():
                 storage_location = resource_file.storage_location()
-                bundle_file.add(resource_file.path, 
+                bundle_file.add(resource_file.path,
                         resource_file.storage_location())
         bundle_file.close()
 
@@ -1170,22 +1169,22 @@ class Resource(Asset):
         self.published=False
         self.repository.save(self, overwrite=True)
         self.repository.refresh_resource(resource=self, refresh_all=True)
-        return True        
+        return True
 
     def is_published(self):
         return self.published
 
 class ResourceFile(Asset):
     """
-    A file component of a Resource, including any file-specific meta-data 
+    A file component of a Resource, including any file-specific meta-data
     fields.
 
-    Note that a ResourceFile may point to a repository object ("location") or 
+    Note that a ResourceFile may point to a repository object ("location") or
     some other file stored on the Internet ("remote").
     """
     def __init__(self, path, resource=None, metadata=None):
         """
-        Constructor for a Resource file given a local filesystem path, the 
+        Constructor for a Resource file given a local filesystem path, the
         Resource that owns the ResourceFile, and any other meta-data.
         """
         super(ResourceFile, self).__init__()
@@ -1227,8 +1226,8 @@ class ResourceFile(Asset):
         """
         Get the local filename for this File's data.
 
-        (Note that this method will trigger a refresh of this File, ensuring 
-        that all locally-stored data is relatively up-to-date.  Only this File 
+        (Note that this method will trigger a refresh of this File, ensuring
+        that all locally-stored data is relatively up-to-date.  Only this File
         is refreshed: not the Resource, nor the Resource's other File objects.)
         """
         if (self.resource and self.resource.repository):
@@ -1248,7 +1247,7 @@ class ResourceFile(Asset):
 
     def location(self):
         """
-        Get the meta-data "location" of the ResourceFile (if it is stored in 
+        Get the meta-data "location" of the ResourceFile (if it is stored in
         the Repository) or None.
         """
         return self.meta('location')
@@ -1265,7 +1264,7 @@ class ResourceFile(Asset):
 
     def remote(self):
         """
-        Get the "remote" URL of the ResourceFile (if it is stored elsewhere on 
+        Get the "remote" URL of the ResourceFile (if it is stored elsewhere on
         the Internet) or None.
         """
         return self.meta('remote')
@@ -1289,7 +1288,7 @@ def __load_config():
             # Update settings
             if 'settings' in config and config['settings']:
                 _settings.update(config['settings'])
-            
+
             # Update hosts
             if 'hosts' in config and config['hosts']:
                 for host_name, host_config in config['hosts'].iteritems():
@@ -1307,7 +1306,7 @@ def __load_config():
                         params['secret_key'] = host_config['secret_key']
                     host = Host(**params)
                     _hosts[host_name] = host
-            
+
             # Update repositories
             if 'repositories' in config and config['repositories']:
                 for repo_name, repo_config in config['repositories'].iteritems():
@@ -1316,7 +1315,7 @@ def __load_config():
                     else:
                         host = None
                     cache_path = os.path.expanduser(
-                            repo_config.get('cache_path', 
+                            repo_config.get('cache_path',
                                 posixpath.join(_settings['cache_root'])))
                     stale_time = repo_config.get('stale_time', 60)
                     repo = Repository(host, repo_name, cache_path, stale_time)
@@ -1326,7 +1325,7 @@ def settings():
     """
     Get a dictionary of the configured settings for BDKD Datastore.
 
-    These settings may originate from the system-wide configuration (in /etc) 
+    These settings may originate from the system-wide configuration (in /etc)
     or user-specific configuration.
     """
     global _settings
@@ -1354,7 +1353,7 @@ def repositories():
 
 def repository(name):
     """
-    Get a configured Repository by name, or None if no such Repository was 
+    Get a configured Repository by name, or None if no such Repository was
     configured.
     """
     return repositories().get(name, None)

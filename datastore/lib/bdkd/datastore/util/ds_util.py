@@ -183,7 +183,7 @@ def _create_subparsers(subparser):
                              _bdkd_metadata_parser(enforce=False)
                          ])
     subparser.add_parser('delete', help='Delete a resource from a repository',
-                         description='Delete a resource from a repository', 
+                         description='Delete a resource from a repository',
                          parents=[
                              util_common._repository_resource_parser(),
                              _delete_resource_parser()
@@ -195,7 +195,7 @@ def _create_subparsers(subparser):
                              util_common._repository_resource_parser(),
                          ])
     subparser.add_parser('files', help='List of locally-cached filenames',
-                         description='List of locally-cached filenames for the given Resource', 
+                         description='List of locally-cached filenames for the given Resource',
                          parents=[
                              util_common._repository_resource_parser(),
                          ])
@@ -208,7 +208,7 @@ def _create_subparsers(subparser):
     list_parser.add_argument('--path', '-p', help='Email address of the maintainer')
     list_parser.add_argument('--verbose', '-v', action='store_true', default=False,
                              help='Verbose mode: all resource details (default names only)')
-    
+
     repositories_parser = subparser.add_parser('repositories', help='Get a list of all configured Repositories',
                                                description='Get a list of all configured Repositories')
     repositories_parser.add_argument('--verbose', '-v', action='store_true', default=False,
@@ -240,16 +240,12 @@ def _parse_metadata_file(filename):
         return None, None
     meta_file = open(filename, 'r')
     raw = yaml.load(meta_file)
-    tags = []
-    if 'tags' in raw:
-        tags = raw['tags']
-        del raw['tags']
 
     for key in raw:
-        if type(raw[key]) == dict or type(raw[key]) == list:
-            raise ValueError("Metadata file cannot contain nested fields: {0}".format(raw[key]))
+        if type(raw[key]) == list and key not in ('tags', 'groups'):
+            raise ValueError("This field may not be a list: {0}".format(key))
 
-    return raw, tags
+    return raw
 
 def _check_bdkd_metadata(resource_args):
 
@@ -257,18 +253,17 @@ def _check_bdkd_metadata(resource_args):
         return field[1] is not None and field[0] in known_metadata_fields
 
     metadata = {}
-    tags = []
     args_metadata = dict(filter(known_fields_present, vars(resource_args).items()))
 
     if resource_args.metadata_file:
-        file_metadata, tags = _parse_metadata_file(resource_args.metadata_file)
+        file_metadata = _parse_metadata_file(resource_args.metadata_file)
         if file_metadata:
             # Fields in args_metadata should override any identically named ones in file_metadata
             metadata = dict(file_metadata.items() + args_metadata.items())
     else:
         metadata = args_metadata
 
-    return metadata, tags
+    return metadata
 
 def _parse_filenames(filenames):
     items = []
@@ -290,7 +285,7 @@ def create_new_resource(resource_args):
     Creates a new unsaved Resource object by parsing the provided arguments.
     Validates all provided metadata, and returns a datastore Resource.
     """
-    metadata, tags = _check_bdkd_metadata(resource_args)
+    metadata = _check_bdkd_metadata(resource_args)
 
     resource_items = []
     for item in resource_args.filenames:
@@ -401,7 +396,7 @@ def _unpublish(resource_args):
         raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
 
 def _update_with_parser(resource_args):
-    metadata = _check_bdkd_metadata(resource_args)[0]
+    metadata = _check_bdkd_metadata(resource_args)
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
 
 def _delete_resource(repository, resource_name, force_delete_published=False):
@@ -443,7 +438,7 @@ def _list_repositories(verbose):
             print "\tCache path:\t{0}".format(repository.local_cache)
             print "\tWorking path:\t{0}".format(repository.working)
             print "\tStale time:\t{0}".format(repository.stale_time)
-    
+
 
 def _build_file_list(repository, resource_name):
     resource = repository.get(resource_name)
@@ -461,7 +456,7 @@ def ds_util(argv=None):
     Main entry point for datastore-util
     """
     parser = argparse.ArgumentParser(prog='datastore-util', description='Perform actions on a datastore')
-    
+
     subparser = parser.add_subparsers(description='The following datastore commands are available', dest='subcmd')
     _create_subparsers(subparser)
 
