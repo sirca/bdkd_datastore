@@ -416,8 +416,7 @@ class RepositoryBuilder:
                         setattr(dataset, field, resource.metadata.get(field, ""))
 
                     # Create the groups if there are not there yet. Needs to happen before the dataset is created in CKAN.
-                    #group_names = pseudo_path[0:-1]
-                    group_names = ['Group1','Group2','Group3']
+                    group_names = resource.metadata.get('groups',{})
                     dataset.groups = []
                     for group_name in group_names:
                         group_ckan_name = ckan_usable_string(group_name)
@@ -430,7 +429,7 @@ class RepositoryBuilder:
                     # Custom fields
                     dataset.extras = []
                     # Exclude these fields to avoid error when adding to ckan dataset
-                    exclude_fields = optional_fields + ['name', 'title', 'owner_org', 'description', 'state']
+                    exclude_fields = optional_fields + ['name', 'title', 'owner_org', 'description', 'state', 'groups', 'tags']
                     for k,v in resource.metadata.iteritems():
                         if k in exclude_fields:
                            continue
@@ -453,7 +452,7 @@ class RepositoryBuilder:
                         vocabulary_id = vocab.get('id')
 
                     # Tags: Create the tags if there are not there yet. Needs to happen before the dataset is created in CKAN.
-                    tag_names = ['tag1','tag2','tag3', 'Tag4']
+                    tag_names = resource.metadata.get('tags',{})
                     dataset.tags = []
                     for tag_name in tag_names:
                         tag_ckan_name = ckan_usable_string(tag_name)
