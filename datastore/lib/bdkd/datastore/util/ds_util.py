@@ -396,7 +396,7 @@ def _unpublish(resource_args):
         raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
 
 def _update_with_parser(resource_args):
-    metadata = _check_bdkd_metadata(resource_args)[0]
+    metadata = _check_bdkd_metadata(resource_args)
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
 
 def _delete_resource(repository, resource_name, force_delete_published=False):
