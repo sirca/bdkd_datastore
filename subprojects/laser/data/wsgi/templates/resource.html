@@ -141,7 +141,7 @@ $(document).ready(function() {
                             <td>
                                 <svg height="300" width="36">
                                     <text x="-150" y="20" transform="rotate(-90)"
-                                        style="text-anchor: middle">Y(t)
+                                        style="text-anchor: middle">Y(t+delay)
                                     </text>
                                 </svg>
                             </td>
@@ -149,7 +149,7 @@ $(document).ready(function() {
                         </tr>
                         <tr>
                             <td/>
-                            <td style="text-align:center;">Y(t+delay)</td>
+                            <td style="text-align:center;">Y(t)</td>
                         </tr>
                     </table>
                     <div><form onsubmit="onChangePhaseDelay(); return false;">
@@ -169,7 +169,7 @@ $(document).ready(function() {
                             <td>
                                 <svg height="300" width="36">
                                     <text x="-150" y="20" transform="rotate(-90)"
-                                        style="text-anchor: middle">Frequency (Hz)
+                                        style="text-anchor: middle">Power (dBm)
                                     </text>
                                 </svg>
                             </td>
@@ -177,7 +177,7 @@ $(document).ready(function() {
                         </tr>
                         <tr>
                             <td/>
-                        <td style="text-align:center;">Power (dBm)</td>
+                        <td style="text-align:center;">Frequency (Hz)</td>
                         </tr>
                     </table>
                     <div><span id="fft_download"></span></div>
