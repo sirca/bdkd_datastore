@@ -17,3 +17,13 @@ repos = datastore.list('my-repo')
 print "\n".join(repos)
 
 ```
+
+# Documentation
+
+The wrapper uses [Sphinx](http://sphinx-doc.org/) to generate documentation. To generate HTML documentation, install Sphinx and do the following:
+
+```
+$ cd doc
+$ make html
+```
+HTML documentation will be created under `doc/_build`
