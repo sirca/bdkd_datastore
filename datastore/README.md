@@ -1,53 +1,60 @@
-BDKD DATASTORE
-==============
+# BDKD Datastore
 
-The BDKD Datastore provides for the storage of file-like objects to a 
-S3-compatible repository (Amazon or OpenStack Swift) including local caching.
+BDKD Datastore is a conceptual term that refers to a storage solution that allows the BDKD system a technology to host data repositories that can handle very large amount of data. For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
 
+Currently under passive development. The latest release is 0.1.7.
 
-Dependencies
-------------
+Requires Python 2.7.
 
- * python-nose
- * python-sphinx
+## About
 
+BDKD Datastore is being developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
 
-Testing
--------
+## Install
 
-The unit tests assume no services external to the host are available.  Run the 
-unit tests as follows:
-
-	nosetests -w tests/unit/
-
-Integration tests may make use of external services (e.g. S3 connection).  Run 
-the integration tests as follows:
-
-	nosetests -w tests/integration/
+Check out the BDKD Datastore source and install from source. 
+It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
 
-Installation
-------------
+    git clone https://<username>@github.com/sirca/bdkd_datastore.git
+    cd bdkd_datastore
+    python setup.py develop
 
-1. Build the documentation
+Note that you will have to ensure that Python 2.7 is used.
+    
 
-	pushd doc/
-	make html
-	popd
+### Configuring
+BDKD Datastore needs to be configured before it can be used. Create the file `.bdkd_datastore.conf` in your home directory.
+For example, if you use `vi`, you would type:
 
-2. Prepare the files for RPM packaging
+    vi ~/.bdkd_datastore.conf
 
-	package/prepare.sh
+A template of the contents of the file is as follows:
+```yaml
+settings:
+    cache_root: /var/tmp/bdkd-data/cache
+    working_root: /var/tmp/bdkd-data/working
 
-3. Build a RPM
+hosts:
+  s3-sydney:
+    host: s3-ap-southeast-2.amazonaws.com
+    access_key: xxx
+    secret_key: xxx
 
-	rpmbuild -bb ~/rpmbuild/SPECS/bdkd-datastore.spec
+repositories:
+  my-repo1:
+    host: s3-sydney
+```
 
-Then as root install the RPM.
+## Verify
+
+To verify that BDKD Datastore is installed, try:
+
+    datastore-utils --help
+    
+And you should see BDKD Datastore's help output.
 
 
-Further information
--------------------
+## Further information
 
-Full documentation is available in HTML format in /usr/share/doc after
-installation.
+Full documentation is available in the `doc` folder.
