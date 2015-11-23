@@ -42,9 +42,9 @@ In the above example, there is a dataset called “XYZ rotations”. When access
 
 ## Examples
 
-Always use the in-line documentation via:
+Always use in-line documentation via:
 ```
-datastore-utils --help
+datastore-util --help
 ```
 
 ### List available repositories

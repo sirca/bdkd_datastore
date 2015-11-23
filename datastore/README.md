@@ -1,6 +1,6 @@
 # BDKD Datastore
 
-BDKD Datastore is a conceptual term that refers to a storage solution that allows the BDKD system a technology to host data repositories that can handle very large amount of data. 
+Storage solution that allows to host data repositories that can handle very large amount of data. 
 
 For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
 
