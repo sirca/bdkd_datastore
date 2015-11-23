@@ -66,5 +66,5 @@ And you should see BDKD Datastore's help output.
 
 ## Further information
 
-Full documentation is available in the [doc](../doc/README.md) folder.
+Full documentation is available in the [doc](doc/README.md) folder.
 
