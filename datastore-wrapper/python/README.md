@@ -43,7 +43,9 @@ print "\n".join(repos)
 
 # Documentation
 
-The wrapper uses [Sphinx](http://sphinx-doc.org/) to generate documentation. To generate HTML documentation, install Sphinx and do the following:
+The wrapper uses [Sphinx](http://sphinx-doc.org/) to generate documentation. 
+
+To generate HTML documentation, install Sphinx and do the following:
 
 ```
 $ cd doc
@@ -53,7 +55,7 @@ HTML documentation will be created under `doc/_build`
 
 
 # Licensing
-BDKD Datastore is available under the Apache License (2.0). See the LICENSE.md file.
+BDKD Datastore-Wrapper is available under the Apache License (2.0). See the LICENSE.md file.
 
 Copyright NICTA 2015.
 
