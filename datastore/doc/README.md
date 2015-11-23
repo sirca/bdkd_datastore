@@ -5,4 +5,4 @@ The BDKD Data Management Guide provides a guidance on how dataset and repositori
 
 Consider the following setup:
 
-![](images/datastore-setup.png)
+![](images/datastore-setup-v2.png)

@@ -1,9 +1,10 @@
 # BDKD Datastore
 
-BDKD Datastore is a conceptual term that refers to a storage solution that allows the BDKD system a technology to host data repositories that can handle very large amount of data. For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
+BDKD Datastore is a conceptual term that refers to a storage solution that allows the BDKD system a technology to host data repositories that can handle very large amount of data. 
+For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
 
-Currently under passive development. The latest release is 0.1.7.
-
+Currently under passive development. 
+The latest release is 0.1.7.
 Requires Python 2.7.
 
 ## About
@@ -12,7 +13,8 @@ BDKD Datastore is being developed by [SIRCA](http://www.sirca.org.au/) as part o
 
 ## Install
 
-Check out the BDKD Datastore source and install from source. 
+Check out the BDKD Datastore source and install from source.
+
 It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
 
@@ -24,7 +26,10 @@ Note that you will have to ensure that Python 2.7 is used.
     
 
 ### Configuring
-BDKD Datastore needs to be configured before it can be used. Create the file `.bdkd_datastore.conf` in your home directory.
+BDKD Datastore needs to be configured before it can be used.
+
+Create the file `.bdkd_datastore.conf` in your home directory.
+
 For example, if you use `vi`, you would type:
 
     vi ~/.bdkd_datastore.conf
