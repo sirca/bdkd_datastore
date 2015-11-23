@@ -46,3 +46,4 @@ repos:
 
 When the explorable data is built in the portals, the Geoscience portal will only contain links to datasets from the geo-data repository, whereas in the GeoEco Portal, datasets from both repositories will be discoverable, and the datasets will be organized under different organizations.
 
+![](images/datastore-and-portal-example.png)
