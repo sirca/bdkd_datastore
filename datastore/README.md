@@ -1,6 +1,6 @@
 # BDKD Datastore
 
-Storage solution that allows to host data repositories that can handle very large amount of data. 
+Storage solution that can store large amount of file-like objects in the form of datasets.
 
 For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
 
