@@ -40,8 +40,40 @@ A dataset in BDKD is made up of 2 key sections:
 
 In the above example, there is a dataset called “XYZ rotations”. When accessing that dataset, users will be able to extract data from the files that is in that dataset to be used, as well as obtain meta information about that dataset, such as what type of data it is, and how to contact the person that published that data.
 
+## Examples
 
-### Notes on using AWS
+Always use the in-line documentation via:
+```
+datastore-utils --help
+```
+
+### List available repositories
+```
+datastore-util repositories
+```
+
+### List available datasets on specific repository
+```
+datastore-util list bdkd-sirca-public
+```
+
+### Create a dataset
+```
+datastore-util create --no-publish "bdkd-sirca-public" "Coastlines-dataset" data/*
+```
+
+### Get metadata from a dataset
+```
+datastore-util get "bdkd-sirca-public" "Coastlines-dataset"
+```
+
+### Get files to local folder
+```
+datastore-util files "bdkd-sirca-public" "Coastlines-dataset"
+```
+
+
+## Notes on using AWS
 When creating data repositories in AWS using S3 buckets, it is best if the S3 buckets are created in a same region as where your portals EC2 instances are launched in, as this will reduce the cost of operation without incurring unnecessary cross region charges.
 
 When creating data repositories, make sure you provide read-access to the bucket for the portal IAM role.
