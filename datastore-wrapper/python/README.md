@@ -55,7 +55,7 @@ HTML documentation will be created under `doc/_build`
 
 
 # Licensing
-BDKD Datastore-Wrapper is available under the Apache License (2.0). See the LICENSE.md file.
+BDKD Datastore-Wrapper is available under the Apache License (2.0). See the [LICENSE.md](../../LICENSE.md) file.
 
 Copyright NICTA 2015.
 
