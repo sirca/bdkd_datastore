@@ -1,11 +1,15 @@
 # BDKD Datastore
 
 BDKD Datastore is a conceptual term that refers to a storage solution that allows the BDKD system a technology to host data repositories that can handle very large amount of data. 
+
 For example the BDKD project uses Amazon Web Services’ (AWS) Simple Storage Solution (S3) as its datastore solution.
 
-Currently under passive development. 
-The latest release is 0.1.7.
 Requires Python 2.7.
+
+The latest release is 0.1.7.
+
+Currently under passive development.
+
 
 ## About
 
@@ -62,4 +66,5 @@ And you should see BDKD Datastore's help output.
 
 ## Further information
 
-Full documentation is available in the `doc` folder.
+Full documentation is available in the [doc](../doc/README.md) folder.
+
