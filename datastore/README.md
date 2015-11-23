@@ -70,7 +70,6 @@ Full documentation is available in the [doc](doc/README.md) folder.
 
 
 # Licensing
-BDKD Datastore is available under the Apache License (2.0). See the LICENSE.md file.
+BDKD Datastore is available under the Apache License (2.0). See the [LICENSE.md](../LICENSE.md) file.
 
 Copyright NICTA 2015.
-
