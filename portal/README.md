@@ -1,11 +1,11 @@
 # BDKD Portal
 
-BDKD Portal uses the ![Open Source CKAN Portal](http://ckan.org/) which provides the ability to search, explore and download datasets. 
+BDKD Portal uses the [Open Source CKAN Portal](http://ckan.org/) which provides the ability to search, explore and download datasets.
 
 
 # BDKD Portal Data Builder
 
-Python Application that extractcs metadata from [BDKD-datastore](../datastore/README.md) and populates CKAN portal.
+Python Application that extracts metadata from [BDKD-datastore](../datastore/README.md) and populates the BDKD portal.
 
 It assumes that the [BDKD-datastore](../../datastore/README.md) package is installed and available.
 
@@ -77,14 +77,14 @@ visual-sites:                                                        # List of w
       url: http://ec2-11-22-333-44.ap-southeast-2.compute.amazonaws.com/repositories/{repository_name}/datasets/{resource_name}   # URL format when creating HTTP link
 ```
 
-## Manual Update
+## Running Manually
 
-To manually update the portal data for all configured repositories:
+Manually update the portal data for all configured repositories
 ```
 portal-data-builder update
 ```
 
-To update a single repository, use the '-b' switch:
+Update a single repository, use the '-b' switch
 ```
 portal-data-builder -b bdkd-sirca-public update
 ```
@@ -94,8 +94,10 @@ Using an alternative configuration file
 portal-data-builder -b bdkd-sirca-public -c portal.cfg update
 ```
 
-## Daemon mode
+## Running as a Daemon
+```
 portal-data-builder daemon
+```
 
 
 ## Further information
