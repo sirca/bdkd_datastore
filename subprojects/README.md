@@ -6,7 +6,7 @@ Some sub project developed by [SIRCA](http://www.sirca.org.au/) as part of the B
 
 Web Data visualisation developed for the BDKD Laser Group.
 
-## Nicta Tem
+## Nicta TEM
 
 Cluster compute prototype for running the [Tree Evolution Model (TEM)](https://github.com/traitecoevo/plant) using [StarCluster](http://star.mit.edu/cluster/)
 
