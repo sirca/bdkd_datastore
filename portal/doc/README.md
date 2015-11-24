@@ -1,9 +1,8 @@
-# BDKD Portal
+# BDKD Portal Data Builder
 
-# Datastore and Portal
-The BDKD Portal provides the ability to search and explore the datasets in the datastore, and provides links to download the data files. 
+## Custom Configuration
 
-The information in the portal is built using meta data from the datasets. A portal can be configured to build information from one or more data repositories, provided the portal has permission to view the data repositories.
+A portal can be configured to build information from one or more data repositories, provided the portal has permission to view the data repositories.
 
 The same data repository can also be used to build data for different portals. Details on how to configure the portal data builder can be found in the BDKD Portal documentation.
 
