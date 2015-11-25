@@ -13,7 +13,7 @@ Requires Python 2.7.
 
 The latest release is 0.1.7.
 
-Currently under passive development.
+Currently under maintenance.
 
 
 ## About
