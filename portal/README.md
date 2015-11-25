@@ -18,7 +18,7 @@ Currently under maintenance.
 
 ## About
 
-BDKD Datastore is being developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
+BDKD Portal Data Builder has been developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
 
 ## Install
 
