@@ -13,7 +13,7 @@ Currently under maintenance.
 
 ## About
 
-BDKD Datastore is being developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
+BDKD Datastore has been developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
 
 ## Install
 
@@ -24,10 +24,9 @@ It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
     git clone https://<username>@github.com/sirca/bdkd_datastore.git
     cd bdkd_datastore
-    python setup.py develop
+    python setup.py install
 
 Note that you will have to ensure that Python 2.7 is used.
-    
 
 ### Configuring
 BDKD Datastore needs to be configured before it can be used.
@@ -63,6 +62,18 @@ To verify that BDKD Datastore is installed, try:
     
 And you should see BDKD Datastore's help output.
 
+## Testing
+The unit tests assume no services external to the host are available.  
+Run the unit tests as follows:
+```
+nosetests -w tests/unit/
+```
+
+Integration tests may make use of external services (e.g. S3 connection).  
+Run the integration tests as follows:
+```
+nosetests -w tests/integration/
+```
 
 ## Further information
 

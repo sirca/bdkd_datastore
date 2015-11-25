@@ -13,7 +13,7 @@ Currently under maintenance.
 
 ## About
 
-BDKD Datastore-Wrapper is being developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
+BDKD Datastore-Wrapper has been developed by [SIRCA](http://www.sirca.org.au/) as part of the Big Data Knowledge Discovery (BDKD) project funded by [SIEF](http://www.sief.org.au).
 
 
 ## Install
