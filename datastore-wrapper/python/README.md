@@ -23,9 +23,9 @@ Check out the BDKD Datastore-Wrapper source and install from source.
 It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
 
-    git clone https://<username>@github.com/sirca/bdkd_datastore.git
-    cd datastore-wrapper/python
-    python setup.py develop
+    git clone https://github.com/sirca/bdkd_datastore.git
+    cd bdkd_datastore/datastore-wrapper/python
+    python setup.py install
 
 
 Example code:
@@ -33,7 +33,6 @@ Example code:
 ```python
 import datastorewrapper
 
-datastorewrapper.configure_datastore(my_config)
 datastore = datastorewrapper.Datastore()
 
 repos = datastore.list('my-repo')

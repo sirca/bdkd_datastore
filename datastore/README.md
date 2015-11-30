@@ -22,8 +22,8 @@ Check out the BDKD Datastore source and install from source.
 It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
 
-    git clone https://<username>@github.com/sirca/bdkd_datastore.git
-    cd bdkd_datastore
+    git clone https://github.com/sirca/bdkd_datastore.git
+    cd bdkd_datastore/datastore
     python setup.py install
 
 Note that you will have to ensure that Python 2.7 is used.
@@ -58,7 +58,7 @@ repositories:
 
 To verify that BDKD Datastore is installed, try:
 
-    datastore-utils --help
+    datastore-util --help
     
 And you should see BDKD Datastore's help output.
 

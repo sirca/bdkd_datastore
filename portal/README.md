@@ -27,8 +27,8 @@ Check out the BDKD Portal Data Builder source and install from source.
 It is best done in a Python [virtualenv](https://virtualenv.pypa.io/en/latest/).
 
 
-    git clone https://<username>@github.com/sirca/bdkd_datastore.git
-    cd portal
+    git clone https://github.com/sirca/bdkd_datastore.git
+    cd bdkd_datastore/portal
     python setup.py install
 
 Note that you will have to ensure that Python 2.7 is used.
