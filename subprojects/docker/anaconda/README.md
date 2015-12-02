@@ -1,6 +1,7 @@
 # Anaconda Docker image
 
 It contains Python 2.7 and Anaconda python libraries running on a CentOS 6
+
 See [Dockerfile](Dockerfile)
 
 ## Build
