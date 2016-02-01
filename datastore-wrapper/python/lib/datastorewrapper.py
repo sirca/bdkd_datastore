@@ -236,7 +236,7 @@ class Datastore:
 
         :param repository: name of the repository
         :param dataset: name of the dataset
-        :return: True if dataset is successfully deleted
+        :return: True if dataset is successfully published
         """
         self._validate_repository_and_dataset(repository, dataset)
 
@@ -255,7 +255,7 @@ class Datastore:
 
         :param repository: name of the repository
         :param dataset: name of the dataset
-        :return: True if dataset is successfully deleted
+        :return: True if file list successfully regenerated
         """
         self._validate_repository_and_dataset(repository, dataset)
 
@@ -275,8 +275,8 @@ class Datastore:
         :param dataset: name of the dataset
         :param metadata: dictionary of 'description', 'author', 'author_email', 'data-type', 'version', 
                'maintainer' and 'maintainer-email'. Optional if 'metadata_file' parameter provided
-        :param metadata_file: YAML file containing metadata
-        :return: True if dataset is successfully deleted
+        :param metadata_file: YAML file containing metadata. Optional if 'metadata' parameter provided
+        :return: True if metadata successfully updated
         """
         self._validate_repository_and_dataset(repository, dataset)
 
@@ -310,7 +310,7 @@ class Datastore:
         :param add_to_published: Force adding files to a published dataset. Default False
         :param overwrite: Overwrite any existing file with the same name. Default False
         :param no_metadata: Do not update file list metadata. Default False
-        :return: True if dataset is successfully deleted
+        :return: True if files successfully added
         """
         self._validate_repository_and_dataset(repository, dataset)
         
