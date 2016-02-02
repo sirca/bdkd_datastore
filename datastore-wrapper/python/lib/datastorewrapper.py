@@ -250,6 +250,25 @@ class Datastore:
         return True
 
 
+    def unpublish(self, repository, dataset):
+        """Unpublishes a dataset from a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :return: True if dataset is successfully unpublished
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['unpublish', repository, dataset]
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to unpublish: {0}'.format(err))
+
+        return True
+
+
     def rebuild_file_list(self, repository, dataset):
         """Regenerates the file list metadata on a dataset
 
