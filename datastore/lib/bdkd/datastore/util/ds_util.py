@@ -86,10 +86,7 @@ def _get_file_list_parser(enforce=True):
     Parser for get-file-list options.
     """
     parser = argparse.ArgumentParser(add_help=False)
-    optional_fields = parser.add_argument_group('Optional arguments',
-                                                'Below optional arguments')
-    optional_fields.add_argument('--contains',
-            help='Regex expression included in the file name')
+    parser.add_argument('--contains', help='Regex expression included in the file name')
     return parser
 
 def _create_options_parser():
