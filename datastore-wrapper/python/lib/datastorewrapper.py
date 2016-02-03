@@ -360,3 +360,28 @@ class Datastore:
             raise DatastoreError('Unable add files: {0}'.format(err))
 
         return True
+
+    def get_file_list(self, repository, dataset, contains = None):
+        """Gets the list of files (including it's path) from given dataset an repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :param contains: regex expresion included in the file name
+        :return: list of files including it's s3 path
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['get-file-list']
+
+        if contains:
+            cmd.append("--contains={0}".format(contains))
+
+        cmd.append(repository)
+        cmd.append(dataset)
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to get the list of files: {0}'.format(err))
+
+        return out.strip().split('\n')
