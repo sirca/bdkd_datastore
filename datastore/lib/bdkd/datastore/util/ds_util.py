@@ -81,6 +81,17 @@ def _delete_resource_parser():
                         help='Force deleting a published resource')
     return parser
 
+def _get_file_list_parser(enforce=True):
+    """
+    Parser for get-file-list options.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    optional_fields = parser.add_argument_group('Optional arguments',
+                                                'Below optional arguments')
+    optional_fields.add_argument('--contains',
+            help='Regex expression included in the file name')
+    return parser
+
 def _create_options_parser():
     """
     Parser for various options related to adding
@@ -242,6 +253,12 @@ def _create_subparsers(subparser):
                          description='Unpublish a resource from a repository',
                          parents=[
                              util_common._repository_resource_parser(),
+                         ])
+    subparser.add_parser('get-file-list', help='Get a list of files (including path) from a Resource',
+                         description='Get a list of files (including path) from a Resource',
+                         parents=[
+                             util_common._repository_resource_parser(),
+                             _get_file_list_parser(),
                          ])
 
     return subparser
@@ -409,6 +426,20 @@ def _unpublish(resource_args):
     else:
         raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
 
+def _get_file_list(resource_args):
+    repository = resource_args.repository
+    resource = repository.get(resource_args.resource_name)
+    if resource:
+        bucket_name = repository.get_bucket().name
+        if resource_args.contains:
+            files = resource.files_matching(resource_args.contains)
+        else:
+            files = resource.files
+        for resource_file in files:
+            print '{0}/{1}'.format(bucket_name, resource_file.location())
+    else:
+        raise ValueError("Resource '{0}' does not exist!".format(resource_args.resource_name))
+
 def _update_with_parser(resource_args):
     metadata = _check_bdkd_metadata(resource_args)
     _update_metadata(resource_args.repository, resource_args.resource_name, metadata)
@@ -511,3 +542,5 @@ def ds_util(argv=None):
         _publish(args)
     elif args.subcmd == 'unpublish':
         _unpublish(args)
+    elif args.subcmd == 'get-file-list':
+        _get_file_list(args)
