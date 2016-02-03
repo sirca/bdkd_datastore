@@ -154,3 +154,209 @@ class Datastore:
             raise DatastoreError('Unable to get local file list: {0}'.format(err))
 
         return out.strip().split('\n')
+
+    def create(self, repository, dataset, metadata = {}, metadata_file = '', filenames = [], publish = False, force = False):
+        """Creates a dataset on a given repository
+
+        :param repository: name of repository
+        :param dataset: name of dataset
+        :param metadata: dictionary of 'description', 'author', 'author_email', 'data-type', 'version', 
+               'maintainer' and 'maintainer-email'. Optional if 'metadata_file' parameter provided
+        :param metadata_file: YAML file containing metadata. Optional if 'metadata' parameter provided
+        :param filenames: List of local file names or URLs of remote files (HTTP, FTP)
+        :param publish: Publish the dataset. Default False
+        :param force: Force overwriting any existing dataset. Default False
+        :return: True if dataset is successfully created
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+        
+        # Validates metadata parameters
+        if publish and not (metadata or metadata_file):
+            raise ValueError('"metadata" or "metadata_file" parameters required when creating a published dataset')
+
+        cmd = ['create']
+
+        if metadata:
+            for field in ['description', 'author', 'author-email', 'data-type', 'version', 'maintainer', 'maintainer-email']:
+                if metadata.get(field):
+                    cmd.append("--{0}={1}".format(field, metadata[field]))
+
+        if metadata_file:
+            cmd.append("--metadata-file={0}".format(metadata_file))
+
+        if publish:
+            cmd.append('--publish')
+        else:
+            cmd.append('--no-publish')
+            
+        if force:
+            cmd.append('--force')
+
+        cmd.append(repository)
+        cmd.append(dataset)
+
+        if filenames:
+            for f in filenames:
+                cmd.append(f)
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to create dataset "{0}": {1}'.format(dataset, err))
+
+        return True
+
+    def delete(self, repository, dataset, force = False):
+        """Deletes a dataset from a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :param force: Force deleting a published dataset. Default False
+        :return: True if dataset is successfully deleted
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['delete']
+        if force:
+            cmd.append('--force-delete-published')
+
+        cmd.append(repository)
+        cmd.append(dataset)
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to delete: {0}'.format(err))
+
+        return True
+
+
+    def publish(self, repository, dataset):
+        """Publishes a dataset from a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :return: True if dataset is successfully published
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['publish', repository, dataset]
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to publish: {0}'.format(err))
+
+        return True
+
+
+    def unpublish(self, repository, dataset):
+        """Unpublishes a dataset from a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :return: True if dataset is successfully unpublished
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['unpublish', repository, dataset]
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to unpublish: {0}'.format(err))
+
+        return True
+
+
+    def rebuild_file_list(self, repository, dataset):
+        """Regenerates the file list metadata on a dataset
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :return: True if file list successfully regenerated
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['rebuild-file-list', repository, dataset]
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to rebuild file list : {0}'.format(err))
+
+        return True
+
+    def update_metadata(self, repository, dataset, metadata = {}, metadata_file = ''):
+        """Updates the metadata of a dataset on a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :param metadata: dictionary of 'description', 'author', 'author_email', 'data-type', 'version', 
+               'maintainer' and 'maintainer-email'. Optional if 'metadata_file' parameter provided
+        :param metadata_file: YAML file containing metadata. Optional if 'metadata' parameter provided
+        :return: True if metadata successfully updated
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+
+        cmd = ['update-metadata']
+
+        if metadata:
+            for field in ['description', 'author', 'author-email', 'data-type', 'version', 'maintainer', 'maintainer-email']:
+                if metadata.get(field):
+                    cmd.append("--{0}={1}".format(field, metadata[field]))
+
+        if metadata_file:
+            cmd.append("--metadata-file={0}".format(metadata_file))
+
+        cmd.append(repository)
+        cmd.append(dataset)
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable to update metadata : {0}'.format(err))
+
+        return True
+
+    def add_files(self, repository, dataset, filenames, add_to_published = False, 
+                  overwrite = False, no_metadata = False):
+        """Add files to an existing dataset from a given repository
+
+        :param repository: name of the repository
+        :param dataset: name of the dataset
+        :param filenames: List of local file names or URLs of remote files (HTTP, FTP)
+        :param add_to_published: Force adding files to a published dataset. Default False
+        :param overwrite: Overwrite any existing file with the same name. Default False
+        :param no_metadata: Do not update file list metadata. Default False
+        :return: True if files successfully added
+        """
+        self._validate_repository_and_dataset(repository, dataset)
+        
+        if type(filenames) != list:
+            raise ValueError('"filenames" parameter is not a list')
+
+        cmd = ['add-files']
+        
+        if add_to_published:
+            cmd.append('--add-to-published')
+
+        if overwrite:
+            cmd.append('--overwrite')
+
+        if no_metadata:
+            cmd.append('--no-metadata')
+
+        cmd.append(repository)
+        cmd.append(dataset)
+
+        if filenames:
+            for f in filenames:
+                cmd.append(f)
+
+        out, err = self._run_with_args(cmd)
+
+        if err:
+            raise DatastoreError('Unable add files: {0}'.format(err))
+
+        return True
