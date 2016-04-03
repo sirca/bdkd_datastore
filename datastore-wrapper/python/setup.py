@@ -18,7 +18,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='datastorewrapper',
-        version='0.1.7',
+        version='0.1.8',
         description='Store and retrieve sets of files from an object store',
         author='Sirca Ltd',
         author_email='balram.ramanathan@sirca.org.au',
